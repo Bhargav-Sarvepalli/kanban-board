@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../supabase'
 import type { Task, Comment, Status } from '../types'
 import { COLUMNS } from '../types'
+import { breakIntoSubtasks } from '../lib/ai'
 
 interface Props {
   task: Task
@@ -22,6 +23,8 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
   const [status, setStatus] = useState<Status>(task.status)
   const [priority, setPriority] = useState(task.priority)
   const [saving, setSaving] = useState(false)
+  const [subtasks, setSubtasks] = useState<string[]>([])
+  const [generatingSubtasks, setGeneratingSubtasks] = useState(false)
 
   useEffect(() => {
     fetchComments()
@@ -74,6 +77,17 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
       hour: '2-digit',
       minute: '2-digit',
     })
+  }
+
+  const handleBreakIntoSubtasks = async () => {
+    setGeneratingSubtasks(true)
+    try {
+      const result = await breakIntoSubtasks(title, description)
+      setSubtasks(result)
+    } catch (e) {
+      console.error('Subtask generation failed', e)
+    }
+    setGeneratingSubtasks(false)
   }
 
 
@@ -179,6 +193,43 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </motion.button>
+
+            {/* AI Subtasks */}
+            <div>
+            <div className="flex items-center justify-between mb-3">
+                <label className="block text-xs text-slate-500 uppercase tracking-wider">
+                AI Subtasks
+                </label>
+                <button
+                onClick={handleBreakIntoSubtasks}
+                disabled={generatingSubtasks}
+                className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 disabled:opacity-40 transition-colors"
+                >
+                {generatingSubtasks ? (
+                    <><span className="animate-spin">⟳</span> Breaking down...</>
+                ) : (
+                    <>✨ Break into subtasks</>
+                )}
+                </button>
+            </div>
+
+            {subtasks.length > 0 && (
+                <div className="space-y-2">
+                {subtasks.map((subtask, i) => (
+                    <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="flex items-start gap-2 bg-white/3 border border-white/5 rounded-xl p-3"
+                    >
+                    <span className="text-indigo-400 text-xs mt-0.5">#{i + 1}</span>
+                    <p className="text-slate-300 text-sm">{subtask}</p>
+                    </motion.div>
+                ))}
+                </div>
+            )}
+            </div>
 
             {/* Comments */}
             <div>
