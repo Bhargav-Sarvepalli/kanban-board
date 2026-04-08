@@ -11,11 +11,6 @@ interface Props {
   userId: string
 }
 
-const priorityConfig = {
-  low: { color: 'text-slate-400', bg: 'bg-slate-400/10', dot: 'bg-slate-400' },
-  normal: { color: 'text-blue-400', bg: 'bg-blue-400/10', dot: 'bg-blue-400' },
-  high: { color: 'text-red-400', bg: 'bg-red-400/10', dot: 'bg-red-400' },
-}
 
 function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
   const [comments, setComments] = useState<Comment[]>([])
@@ -30,6 +25,7 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
 
   useEffect(() => {
     fetchComments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task.id])
 
   const fetchComments = async () => {
@@ -80,7 +76,6 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
     })
   }
 
-  const priorityStyle = priorityConfig[priority]
 
   return (
     <AnimatePresence>
