@@ -9,42 +9,58 @@ interface Props {
   onDeleted: () => void
 }
 
+const columnColors: Record<Status, string> = {
+  todo: 'text-slate-400',
+  in_progress: 'text-blue-400',
+  in_review: 'text-yellow-400',
+  done: 'text-emerald-400',
+}
+
+const columnDots: Record<Status, string> = {
+  todo: 'bg-slate-400',
+  in_progress: 'bg-blue-400',
+  in_review: 'bg-yellow-400',
+  done: 'bg-emerald-400',
+}
+
 function Column({ id, label, tasks, onDeleted }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id })
 
   return (
-    <div style={{
-      backgroundColor: '#13131f',
-      border: `1px solid ${isOver ? '#6366f1' : '#2e2e3e'}`,
-      borderRadius: '12px',
-      padding: '16px',
-      width: '280px',
-      minHeight: '500px',
-      flexShrink: 0,
-      transition: 'border-color 0.2s',
-    }}>
+    <div
+      className={`
+        relative rounded-2xl p-4 w-72 flex-shrink-0 flex flex-col
+        transition-all duration-200
+        ${isOver
+          ? 'bg-indigo-500/10 border border-indigo-500/40 shadow-lg shadow-indigo-500/10'
+          : 'glass'
+        }
+      `}
+      style={{ minHeight: '70vh' }}
+    >
       {/* Column header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <h3 style={{ color: '#e2e8f0', margin: 0, fontSize: '14px', fontWeight: 600 }}>
-          {label}
-        </h3>
-        <span style={{
-          backgroundColor: '#2e2e3e',
-          color: '#6b7280',
-          borderRadius: '12px',
-          padding: '2px 8px',
-          fontSize: '12px',
-        }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${columnDots[id]}`} />
+          <h3 className={`font-semibold text-sm ${columnColors[id]}`}>
+            {label}
+          </h3>
+        </div>
+        <span className="bg-white/5 text-slate-500 text-xs px-2 py-0.5 rounded-full">
           {tasks.length}
         </span>
       </div>
 
       {/* Drop zone */}
-      <div ref={setNodeRef} style={{ minHeight: '400px' }}>
+      <div ref={setNodeRef} className="flex-1 flex flex-col gap-2">
         {tasks.length === 0 ? (
-          <p style={{ color: '#3e3e4e', fontSize: '13px', textAlign: 'center', marginTop: '40px' }}>
-            No tasks yet
-          </p>
+          <div className={`
+            flex-1 flex items-center justify-center rounded-xl border border-dashed
+            transition-colors duration-200 min-h-32
+            ${isOver ? 'border-indigo-500/40 bg-indigo-500/5' : 'border-white/5'}
+          `}>
+            <p className="text-slate-700 text-xs">Drop here</p>
+          </div>
         ) : (
           tasks.map(task => (
             <TaskCard key={task.id} task={task} onDeleted={onDeleted} />

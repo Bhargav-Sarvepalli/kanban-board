@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { DndContext } from '@dnd-kit/core'
-import type { DragEndEvent } from '@dnd-kit/core'
+import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { supabase } from './supabase'
 import type { Task, Status } from './types'
 import { COLUMNS } from './types'
 import Column from './components/Column'
 import CreateTaskModal from './components/CreateTaskModal'
+import TaskCard from './components/TaskCard'
+import { motion } from 'framer-motion'
 
 function App() {
   const [userId, setUserId] = useState<string | null>(null)
@@ -13,6 +15,15 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [search, setSearch] = useState('')
+  const [activeTask, setActiveTask] = useState<Task | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  )
 
   useEffect(() => {
     const signInAnonymously = async () => {
@@ -51,157 +62,169 @@ function App() {
     setTasks(data ?? [])
   }
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const task = tasks.find(t => t.id === event.active.id)
+    if (task) setActiveTask(task)
+  }
+
   const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveTask(null)
     const { active, over } = event
-
-    // If not dropped on a column, do nothing
     if (!over) return
-
     const taskId = active.id as string
     const newStatus = over.id as Status
-
-    // Find the task being dragged
     const task = tasks.find(t => t.id === taskId)
     if (!task || task.status === newStatus) return
-
-    // Optimistically update UI immediately
     setTasks(prev =>
       prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t)
     )
-
-    // Save to Supabase
     const { error } = await supabase
       .from('tasks')
       .update({ status: newStatus })
       .eq('id', taskId)
-
     if (error) {
       console.error('Update error:', error)
-      // Revert if failed
       refetchTasks()
     }
   }
 
-  return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#0d0d1a',
-      padding: '32px',
-      fontFamily: 'Inter, system-ui, sans-serif',
-    }}>
-      {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <div>
-            <h1 style={{ color: '#e2e8f0', fontSize: '24px', margin: 0, fontWeight: 700 }}>
-              🗂️ Kanban Board
-            </h1>
-            <p style={{ color: '#6b7280', fontSize: '14px', marginTop: '4px' }}>
-              {tasks.length} tasks total
-            </p>
-          </div>
-          <button
-            onClick={() => setShowModal(true)}
-            style={{
-              backgroundColor: '#6366f1',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '10px 20px',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: 600,
-            }}
-          >
-            + New Task
-          </button>
-        </div>
+  const total = tasks.length
+  const completed = tasks.filter(t => t.status === 'done').length
+  const overdue = tasks.filter(t => {
+    if (!t.due_date) return false
+    return new Date(t.due_date) < new Date(new Date().setHours(0, 0, 0, 0))
+  }).length
 
-        {/* Search bar */}
-        <input
-          type="text"
-          placeholder="🔍 Search tasks..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{
-            width: '100%',
-            maxWidth: '400px',
-            backgroundColor: '#1e1e2e',
-            border: '1px solid #2e2e3e',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            color: '#e2e8f0',
-            fontSize: '14px',
-            outline: 'none',
-            boxSizing: 'border-box',
-          }}
-        />
+  return (
+    <div className="min-h-screen bg-[#020208] relative overflow-hidden">
+      {/* Animated background blobs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] animate-pulse-slow" />
+        <div className="absolute top-1/2 -right-40 w-80 h-80 bg-purple-600/15 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: '2s' }} />
+        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-blue-600/10 rounded-full blur-[120px] animate-pulse-slow" style={{ animationDelay: '4s' }} />
       </div>
 
-      {/* Stats bar */}
-      {(() => {
-        const total = tasks.length
-        const completed = tasks.filter(t => t.status === 'done').length
-        const overdue = tasks.filter(t => {
-          if (!t.due_date) return false
-          return new Date(t.due_date) < new Date(new Date().setHours(0,0,0,0))
-        }).length
+      {/* Grid pattern */}
+      <div
+        className="fixed inset-0 pointer-events-none opacity-[0.03]"
+        style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)`,
+          backgroundSize: '40px 40px',
+        }}
+      />
 
-        return (
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+      <div className="relative z-10 p-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="flex items-center justify-between mb-8"
+        >
+          <div>
+            <h1 className="text-3xl font-bold text-white tracking-tight">
+              Nex<span className="text-indigo-400">Task</span>
+            </h1>
+            <p className="text-slate-500 text-sm mt-1">
+              {tasks.length} tasks · {completed} completed
+            </p>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-lg shadow-indigo-500/25"
+          >
+            <span className="text-lg leading-none">+</span>
+            New Task
+          </motion.button>
+        </motion.div>
+
+        {/* Search + Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="flex items-center gap-4 mb-8 flex-wrap"
+        >
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+            <input
+              type="text"
+              placeholder="Search tasks..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="glass pl-9 pr-4 py-2.5 rounded-xl text-sm text-slate-300 placeholder-slate-600 outline-none focus:border-indigo-500/50 w-64 transition-colors"
+            />
+          </div>
+
+          <div className="flex gap-3">
             {[
-              { label: 'Total Tasks', value: total, color: '#6366f1' },
-              { label: 'Completed', value: completed, color: '#22c55e' },
-              { label: 'Overdue', value: overdue, color: '#ef4444' },
+              { label: 'Total', value: total, color: 'text-indigo-400' },
+              { label: 'Done', value: completed, color: 'text-emerald-400' },
+              { label: 'Overdue', value: overdue, color: 'text-red-400' },
             ].map(stat => (
-              <div key={stat.label} style={{
-                backgroundColor: '#13131f',
-                border: '1px solid #2e2e3e',
-                borderRadius: '10px',
-                padding: '12px 20px',
-                minWidth: '120px',
-              }}>
-                <p style={{ color: '#6b7280', fontSize: '12px', margin: 0, marginBottom: '4px' }}>
-                  {stat.label}
-                </p>
-                <p style={{ color: stat.color, fontSize: '24px', fontWeight: 700, margin: 0 }}>
-                  {stat.value}
-                </p>
+              <div key={stat.label} className="glass px-4 py-2 rounded-xl flex items-center gap-2">
+                <span className={`text-xl font-bold ${stat.color}`}>{stat.value}</span>
+                <span className="text-slate-500 text-xs">{stat.label}</span>
               </div>
             ))}
           </div>
-        )
-      })()}
+        </motion.div>
 
-      {/* Modal */}
+        {/* Board */}
+        {loading ? (
+          <div className="flex gap-4">
+            {[1,2,3,4].map(i => (
+              <div key={i} className="glass rounded-2xl w-72 h-96 animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {COLUMNS.map((column, i) => (
+                <motion.div
+                  key={column.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: i * 0.1 }}
+                >
+                  <Column
+                    id={column.id}
+                    label={column.label}
+                    tasks={tasks
+                      .filter(t => t.status === column.id)
+                      .filter(t => t.title.toLowerCase().includes(search.toLowerCase()))
+                    }
+                    onDeleted={refetchTasks}
+                  />
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Drag overlay — shows a floating card while dragging */}
+            <DragOverlay>
+              {activeTask && (
+                <div className="rotate-2 opacity-90">
+                  <TaskCard task={activeTask} onDeleted={() => {}} />
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
+        )}
+      </div>
+
       {showModal && userId && (
         <CreateTaskModal
           userId={userId}
           onClose={() => setShowModal(false)}
           onTaskCreated={refetchTasks}
         />
-      )}
-
-      {/* Board */}
-      {loading ? (
-        <p style={{ color: '#6b7280' }}>Loading...</p>
-      ) : (
-        <DndContext onDragEnd={handleDragEnd}>
-          <div style={{ display: 'flex', gap: '16px', overflowX: 'auto' }}>
-            {COLUMNS.map(column => (
-              <Column
-                key={column.id}
-                id={column.id}
-                label={column.label}
-                tasks={tasks
-                  .filter(t => t.status === column.id)
-                  .filter(t => t.title.toLowerCase().includes(search.toLowerCase()))
-                }
-                onDeleted={refetchTasks}
-              />
-            ))}
-          </div>
-        </DndContext>
       )}
     </div>
   )

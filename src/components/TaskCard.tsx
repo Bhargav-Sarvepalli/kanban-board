@@ -1,11 +1,18 @@
 import { useState } from 'react'
 import { useDraggable } from '@dnd-kit/core'
+import { motion } from 'framer-motion'
 import { supabase } from '../supabase'
 import type { Task } from '../types'
 
 interface Props {
   task: Task
   onDeleted: () => void
+}
+
+const priorityConfig = {
+  low: { color: 'text-slate-400', bg: 'bg-slate-400/10', dot: 'bg-slate-400', label: 'Low' },
+  normal: { color: 'text-blue-400', bg: 'bg-blue-400/10', dot: 'bg-blue-400', label: 'Normal' },
+  high: { color: 'text-red-400', bg: 'bg-red-400/10', dot: 'bg-red-400', label: 'High' },
 }
 
 function TaskCard({ task, onDeleted }: Props) {
@@ -16,20 +23,11 @@ function TaskCard({ task, onDeleted }: Props) {
     id: task.id,
   })
 
-  const priorityColors = {
-    low: '#6b7280',
-    normal: '#3b82f6',
-    high: '#ef4444',
-  }
+  const priority = priorityConfig[task.priority]
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    e.preventDefault()
+  const handleDelete = async () => {
     setDeleting(true)
-    const { error } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('id', task.id)
+    const { error } = await supabase.from('tasks').delete().eq('id', task.id)
     if (error) {
       console.error('Delete error:', error)
       setDeleting(false)
@@ -38,120 +36,84 @@ function TaskCard({ task, onDeleted }: Props) {
     }
   }
 
+  const getDueDateInfo = () => {
+    if (!task.due_date) return null
+    const due = new Date(task.due_date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    if (diffDays < 0) return { label: `Overdue ${Math.abs(diffDays)}d`, class: 'text-red-400 bg-red-400/10 border-red-400/20' }
+    if (diffDays === 0) return { label: 'Due today', class: 'text-orange-400 bg-orange-400/10 border-orange-400/20' }
+    if (diffDays <= 2) return { label: `Due in ${diffDays}d`, class: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20' }
+    return { label: due.toLocaleDateString(), class: 'text-slate-500 bg-white/5 border-white/10' }
+  }
+
+  const dueDateInfo = getDueDateInfo()
+
   return (
     <div
       ref={setNodeRef}
+      style={{
+        transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
+        zIndex: isDragging ? 999 : undefined,
+        opacity: isDragging ? 0.4 : deleting ? 0 : 1,
+        position: 'relative',
+        touchAction: 'none',
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{
-        backgroundColor: '#1e1e2e',
-        border: '1px solid #2e2e3e',
-        borderRadius: '8px',
-        padding: '12px',
-        marginBottom: '8px',
-        opacity: isDragging || deleting ? 0.5 : 1,
-        transform: transform
-          ? `translate(${transform.x}px, ${transform.y}px)`
-          : undefined,
-        zIndex: isDragging ? 999 : undefined,
-        position: 'relative',
-      }}
+      className="glass glass-hover rounded-xl p-3 transition-all duration-200 select-none"
     >
-      {/* Drag handle area — only this part is draggable */}
-      <div
-        {...listeners}
-        {...attributes}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          borderRadius: '8px',
-          cursor: isDragging ? 'grabbing' : 'grab',
-          zIndex: 1,
-        }}
-      />
+      {/* Top row */}
+      <div className="flex items-center justify-between mb-2">
+        {/* Drag handle + priority */}
+        <div className="flex items-center gap-2 flex-1">
+          {/* Drag handle */}
+          <div
+            {...listeners}
+            {...attributes}
+            className="cursor-grab active:cursor-grabbing text-slate-700 hover:text-slate-500 transition-colors px-0.5"
+            title="Drag to move"
+          >
+            ⠿
+          </div>
+          <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${priority.bg} ${priority.color}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${priority.dot}`} />
+            {priority.label}
+          </span>
+        </div>
 
-      {/* Content — sits above drag handle */}
-      <div style={{ position: 'relative', zIndex: 2 }}>
         {/* Delete button */}
-        {hovered && !isDragging && (
+        {hovered && (
           <button
-            onPointerDown={handleDelete}
-            style={{
-              position: 'absolute',
-              top: '-4px',
-              right: '-4px',
-              backgroundColor: '#ef444420',
-              border: 'none',
-              borderRadius: '4px',
-              color: '#ef4444',
-              cursor: 'pointer',
-              fontSize: '12px',
-              padding: '2px 6px',
-              lineHeight: 1,
-              zIndex: 3,
-            }}
+            onClick={handleDelete}
+            className="text-slate-600 hover:text-red-400 hover:bg-red-400/10 rounded-lg p-1 transition-colors text-xs ml-1"
           >
             ✕
           </button>
         )}
+      </div>
 
-        {/* Priority dot */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: priorityColors[task.priority],
-          }} />
-          <span style={{ color: '#6b7280', fontSize: '11px', textTransform: 'uppercase' }}>
-            {task.priority}
+      {/* Title */}
+      <p className="text-slate-200 text-sm font-medium leading-snug mb-2 ml-5">
+        {task.title}
+      </p>
+
+      {/* Description */}
+      {task.description && (
+        <p className="text-slate-600 text-xs leading-relaxed mb-2 ml-5 line-clamp-2">
+          {task.description}
+        </p>
+      )}
+
+      {/* Due date */}
+      {dueDateInfo && (
+        <div className="ml-5">
+          <span className={`text-xs px-2 py-0.5 rounded-full border ${dueDateInfo.class}`}>
+            📅 {dueDateInfo.label}
           </span>
         </div>
-
-        {/* Title */}
-        <p style={{ color: '#e2e8f0', fontSize: '14px', margin: 0 }}>
-          {task.title}
-        </p>
-
-        {/* Due date */}
-        {task.due_date && (() => {
-            const due = new Date(task.due_date)
-            const today = new Date()
-            today.setHours(0, 0, 0, 0)
-            const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-            const isOverdue = diffDays < 0
-            const isDueSoon = diffDays >= 0 && diffDays <= 2
-
-            return (
-            <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                marginTop: '8px',
-                backgroundColor: isOverdue ? '#ef444420' : isDueSoon ? '#f9731620' : '#ffffff10',
-                border: `1px solid ${isOverdue ? '#ef4444' : isDueSoon ? '#f97316' : '#ffffff20'}`,
-                borderRadius: '4px',
-                padding: '2px 6px',
-            }}>
-                <span style={{ fontSize: '11px' }}>📅</span>
-                <span style={{
-                fontSize: '11px',
-                color: isOverdue ? '#ef4444' : isDueSoon ? '#f97316' : '#6b7280',
-                fontWeight: isOverdue || isDueSoon ? 600 : 400,
-                }}>
-                {isOverdue
-                    ? `Overdue by ${Math.abs(diffDays)}d`
-                    : isDueSoon
-                    ? diffDays === 0 ? 'Due today' : `Due in ${diffDays}d`
-                    : due.toLocaleDateString()}
-                </span>
-            </div>
-            )
-        })()}
-      </div>
+      )}
     </div>
   )
 }

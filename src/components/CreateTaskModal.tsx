@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { supabase } from '../supabase'
 import type { Status } from '../types'
 
 interface Props {
@@ -21,12 +23,8 @@ function CreateTaskModal({ onClose, onTaskCreated, userId }: Props) {
       setError('Title is required')
       return
     }
-
     setLoading(true)
     setError('')
-
-    const { supabase } = await import('../supabase')
-
     const { error } = await supabase.from('tasks').insert({
       title: title.trim(),
       description: description.trim() || null,
@@ -35,7 +33,6 @@ function CreateTaskModal({ onClose, onTaskCreated, userId }: Props) {
       due_date: dueDate || null,
       user_id: userId,
     })
-
     if (error) {
       setError('Failed to create task. Please try again.')
       console.error(error)
@@ -43,161 +40,132 @@ function CreateTaskModal({ onClose, onTaskCreated, userId }: Props) {
       onTaskCreated()
       onClose()
     }
-
     setLoading(false)
   }
 
-  const inputStyle = {
-    width: '100%',
-    backgroundColor: '#1e1e2e',
-    border: '1px solid #2e2e3e',
-    borderRadius: '8px',
-    padding: '10px 12px',
-    color: '#e2e8f0',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box' as const,
-  }
-
-  const labelStyle = {
-    color: '#9ca3af',
-    fontSize: '13px',
-    marginBottom: '6px',
-    display: 'block' as const,
-  }
+  const inputClass = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-300 placeholder-slate-600 outline-none focus:border-indigo-500/50 focus:bg-white/8 transition-all"
+  const labelClass = "block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wider"
 
   return (
-    // Backdrop
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 50,
-      }}
-    >
-      {/* Modal box */}
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          backgroundColor: '#13131f',
-          border: '1px solid #2e2e3e',
-          borderRadius: '16px',
-          padding: '24px',
-          width: '100%',
-          maxWidth: '480px',
-          margin: '0 16px',
-        }}
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       >
-        <h2 style={{ color: '#e2e8f0', fontSize: '18px', marginTop: 0, marginBottom: '24px' }}>
-          Create New Task
-        </h2>
-
-        {/* Title */}
-        <div style={{ marginBottom: '16px' }}>
-          <label style={labelStyle}>Title *</label>
-          <input
-            style={inputStyle}
-            placeholder="What needs to be done?"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-          />
-        </div>
-
-        {/* Description */}
-        <div style={{ marginBottom: '16px' }}>
-          <label style={labelStyle}>Description</label>
-          <textarea
-            style={{ ...inputStyle, resize: 'vertical', minHeight: '80px' }}
-            placeholder="Add more details..."
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-          />
-        </div>
-
-        {/* Priority + Status row */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Priority</label>
-            <select
-              style={inputStyle}
-              value={priority}
-              onChange={e => setPriority(e.target.value as 'low' | 'normal' | 'high')}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{ type: 'spring', duration: 0.4 }}
+          onClick={e => e.stopPropagation()}
+          className="glass rounded-2xl p-6 w-full max-w-md shadow-2xl shadow-black/40"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-white">New Task</h2>
+            <button
+              onClick={onClose}
+              className="text-slate-600 hover:text-slate-400 transition-colors text-lg"
             >
-              <option value="low">Low</option>
-              <option value="normal">Normal</option>
-              <option value="high">High</option>
-            </select>
+              ✕
+            </button>
           </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Status</label>
-            <select
-              style={inputStyle}
-              value={status}
-              onChange={e => setStatus(e.target.value as Status)}
+
+          {/* Title */}
+          <div className="mb-4">
+            <label className={labelClass}>Title *</label>
+            <input
+              className={inputClass}
+              placeholder="What needs to be done?"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          {/* Description */}
+          <div className="mb-4">
+            <label className={labelClass}>Description</label>
+            <textarea
+              className={`${inputClass} resize-none`}
+              rows={3}
+              placeholder="Add more details..."
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+            />
+          </div>
+
+          {/* Priority + Status */}
+          <div className="flex gap-3 mb-4">
+            <div className="flex-1">
+              <label className={labelClass}>Priority</label>
+              <select
+                className={inputClass}
+                value={priority}
+                onChange={e => setPriority(e.target.value as 'low' | 'normal' | 'high')}
+              >
+                <option value="low">🔵 Low</option>
+                <option value="normal">⚪ Normal</option>
+                <option value="high">🔴 High</option>
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className={labelClass}>Column</label>
+              <select
+                className={inputClass}
+                value={status}
+                onChange={e => setStatus(e.target.value as Status)}
+              >
+                <option value="todo">To Do</option>
+                <option value="in_progress">In Progress</option>
+                <option value="in_review">In Review</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Due date */}
+          <div className="mb-6">
+            <label className={labelClass}>Due Date</label>
+            <input
+              type="date"
+              className={inputClass}
+              value={dueDate}
+              onChange={e => setDueDate(e.target.value)}
+            />
+          </div>
+
+          {/* Error */}
+          {error && (
+            <p className="text-red-400 text-sm mb-4 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+
+          {/* Buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 bg-white/5 hover:bg-white/8 border border-white/10 text-slate-400 rounded-xl py-2.5 text-sm font-medium transition-all"
             >
-              <option value="todo">To Do</option>
-              <option value="in_progress">In Progress</option>
-              <option value="in_review">In Review</option>
-              <option value="done">Done</option>
-            </select>
+              Cancel
+            </button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-semibold transition-all shadow-lg shadow-indigo-500/25"
+            >
+              {loading ? 'Creating...' : 'Create Task'}
+            </motion.button>
           </div>
-        </div>
-
-        {/* Due date */}
-        <div style={{ marginBottom: '24px' }}>
-          <label style={labelStyle}>Due Date</label>
-          <input
-            type="date"
-            style={inputStyle}
-            value={dueDate}
-            onChange={e => setDueDate(e.target.value)}
-          />
-        </div>
-
-        {/* Error */}
-        {error && (
-          <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '16px' }}>
-            {error}
-          </p>
-        )}
-
-        {/* Buttons */}
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-          <button
-            onClick={onClose}
-            style={{
-              backgroundColor: 'transparent',
-              border: '1px solid #2e2e3e',
-              borderRadius: '8px',
-              padding: '10px 20px',
-              color: '#9ca3af',
-              cursor: 'pointer',
-              fontSize: '14px',
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            style={{
-              backgroundColor: '#6366f1',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '10px 20px',
-              color: 'white',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              opacity: loading ? 0.7 : 1,
-            }}
-          >
-            {loading ? 'Creating...' : 'Create Task'}
-          </button>
-        </div>
-      </div>
-    </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   )
 }
 
