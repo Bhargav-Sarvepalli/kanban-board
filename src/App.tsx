@@ -7,6 +7,7 @@ import { COLUMNS } from './types'
 import Column from './components/Column'
 import CreateTaskModal from './components/CreateTaskModal'
 import TaskCard from './components/TaskCard'
+import TaskDetailPanel from './components/TaskDetailPanel'
 import { motion } from 'framer-motion'
 
 function App() {
@@ -16,12 +17,11 @@ function App() {
   const [showModal, setShowModal] = useState(false)
   const [search, setSearch] = useState('')
   const [activeTask, setActiveTask] = useState<Task | null>(null)
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
+      activationConstraint: { distance: 8 },
     })
   )
 
@@ -97,7 +97,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#020208] relative overflow-hidden">
-      {/* Animated background blobs */}
+
+      {/* Background blobs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] animate-pulse-slow" />
         <div className="absolute top-1/2 -right-40 w-80 h-80 bg-purple-600/15 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: '2s' }} />
@@ -158,7 +159,6 @@ function App() {
               className="glass pl-9 pr-4 py-2.5 rounded-xl text-sm text-slate-300 placeholder-slate-600 outline-none focus:border-indigo-500/50 w-64 transition-colors"
             />
           </div>
-
           <div className="flex gap-3">
             {[
               { label: 'Total', value: total, color: 'text-indigo-400' },
@@ -202,16 +202,16 @@ function App() {
                       .filter(t => t.title.toLowerCase().includes(search.toLowerCase()))
                     }
                     onDeleted={refetchTasks}
+                    onOpen={setSelectedTask}
                   />
                 </motion.div>
               ))}
             </div>
 
-            {/* Drag overlay — shows a floating card while dragging */}
             <DragOverlay>
               {activeTask && (
                 <div className="rotate-2 opacity-90">
-                  <TaskCard task={activeTask} onDeleted={() => {}} />
+                  <TaskCard task={activeTask} onDeleted={() => {}} onOpen={() => {}} />
                 </div>
               )}
             </DragOverlay>
@@ -219,11 +219,21 @@ function App() {
         )}
       </div>
 
+      {/* Modals */}
       {showModal && userId && (
         <CreateTaskModal
           userId={userId}
           onClose={() => setShowModal(false)}
           onTaskCreated={refetchTasks}
+        />
+      )}
+
+      {selectedTask && userId && (
+        <TaskDetailPanel
+          task={selectedTask}
+          userId={userId}
+          onClose={() => setSelectedTask(null)}
+          onUpdated={() => { refetchTasks(); setSelectedTask(null) }}
         />
       )}
     </div>

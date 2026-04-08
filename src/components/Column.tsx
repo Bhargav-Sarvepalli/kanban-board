@@ -7,6 +7,7 @@ interface Props {
   label: string
   tasks: Task[]
   onDeleted: () => void
+  onOpen: (task: Task) => void
 }
 
 const columnColors: Record<Status, string> = {
@@ -23,7 +24,7 @@ const columnDots: Record<Status, string> = {
   done: 'bg-emerald-400',
 }
 
-function Column({ id, label, tasks, onDeleted }: Props) {
+function Column({ id, label, tasks, onDeleted, onOpen }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id })
 
   return (
@@ -38,20 +39,16 @@ function Column({ id, label, tasks, onDeleted }: Props) {
       `}
       style={{ minHeight: '70vh' }}
     >
-      {/* Column header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${columnDots[id]}`} />
-          <h3 className={`font-semibold text-sm ${columnColors[id]}`}>
-            {label}
-          </h3>
+          <h3 className={`font-semibold text-sm ${columnColors[id]}`}>{label}</h3>
         </div>
         <span className="bg-white/5 text-slate-500 text-xs px-2 py-0.5 rounded-full">
           {tasks.length}
         </span>
       </div>
 
-      {/* Drop zone */}
       <div ref={setNodeRef} className="flex-1 flex flex-col gap-2">
         {tasks.length === 0 ? (
           <div className={`
@@ -63,7 +60,12 @@ function Column({ id, label, tasks, onDeleted }: Props) {
           </div>
         ) : (
           tasks.map(task => (
-            <TaskCard key={task.id} task={task} onDeleted={onDeleted} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              onDeleted={onDeleted}
+              onOpen={() => onOpen(task)}
+            />
           ))
         )}
       </div>

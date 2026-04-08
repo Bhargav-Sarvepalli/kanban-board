@@ -17,3 +17,11 @@ export const COLUMNS: { id: Status; label: string }[] = [
   { id: 'in_review', label: 'In Review' },
   { id: 'done', label: 'Done' },
 ]
+
+export interface Comment {
+  id: string
+  task_id: string
+  user_id: string
+  content: string
+  created_at: string
+}

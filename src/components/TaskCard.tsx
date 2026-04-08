@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import { motion } from 'framer-motion'
 import { supabase } from '../supabase'
 import type { Task } from '../types'
 
 interface Props {
   task: Task
   onDeleted: () => void
+  onOpen: () => void
 }
 
 const priorityConfig = {
@@ -15,7 +15,7 @@ const priorityConfig = {
   high: { color: 'text-red-400', bg: 'bg-red-400/10', dot: 'bg-red-400', label: 'High' },
 }
 
-function TaskCard({ task, onDeleted }: Props) {
+function TaskCard({ task, onDeleted, onOpen }: Props) {
   const [hovered, setHovered] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -64,16 +64,13 @@ function TaskCard({ task, onDeleted }: Props) {
       onMouseLeave={() => setHovered(false)}
       className="glass glass-hover rounded-xl p-3 transition-all duration-200 select-none"
     >
-      {/* Top row */}
+      {/* Top row: drag handle + priority + delete */}
       <div className="flex items-center justify-between mb-2">
-        {/* Drag handle + priority */}
         <div className="flex items-center gap-2 flex-1">
-          {/* Drag handle */}
           <div
             {...listeners}
             {...attributes}
             className="cursor-grab active:cursor-grabbing text-slate-700 hover:text-slate-500 transition-colors px-0.5"
-            title="Drag to move"
           >
             ⠿
           </div>
@@ -83,7 +80,6 @@ function TaskCard({ task, onDeleted }: Props) {
           </span>
         </div>
 
-        {/* Delete button */}
         {hovered && (
           <button
             onClick={handleDelete}
@@ -94,12 +90,15 @@ function TaskCard({ task, onDeleted }: Props) {
         )}
       </div>
 
-      {/* Title */}
-      <p className="text-slate-200 text-sm font-medium leading-snug mb-2 ml-5">
+      {/* Title — click to open detail panel */}
+      <p
+        onClick={onOpen}
+        className="text-slate-200 text-sm font-medium leading-snug mb-2 ml-5 cursor-pointer hover:text-indigo-300 transition-colors"
+      >
         {task.title}
       </p>
 
-      {/* Description */}
+      {/* Description preview */}
       {task.description && (
         <p className="text-slate-600 text-xs leading-relaxed mb-2 ml-5 line-clamp-2">
           {task.description}
