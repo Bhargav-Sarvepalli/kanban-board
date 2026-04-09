@@ -31,27 +31,28 @@ function GlowOrb({ position, color, speed = 1, distort = 0.5, scale = 1 }: {
   )
 }
 
+// Generate positions once outside component — avoids render issues
+const PARTICLE_POSITIONS = (() => {
+  const count = 400
+  const arr = new Float32Array(count * 3)
+  let seed = 12345
+  const rand = () => {
+    seed = (seed * 16807 + 0) % 2147483647
+    return (seed / 2147483647 - 0.5) * 30
+  }
+  for (let i = 0; i < count * 3; i++) arr[i] = rand()
+  return arr
+})()
+
 function FloatParticles() {
   const pts = useRef<THREE.Points>(null)
-  const posRef = useRef<Float32Array | null>(null)
-  if (!posRef.current) {
-    const count = 400
-    const arr = new Float32Array(count * 3)
-    let seed = 12345
-    const rand = () => {
-      seed = (seed * 16807 + 0) % 2147483647
-      return (seed / 2147483647 - 0.5) * 30
-    }
-    for (let i = 0; i < count * 3; i++) arr[i] = rand()
-    posRef.current = arr
-  }
   useFrame((s) => {
     if (pts.current) pts.current.rotation.y = s.clock.elapsedTime * 0.015
   })
   return (
     <points ref={pts}>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[posRef.current!, 3]} />
+        <bufferAttribute attach="attributes-position" args={[PARTICLE_POSITIONS, 3]} />
       </bufferGeometry>
       <pointsMaterial size={0.022} color="#8b5cf6" transparent opacity={0.4} />
     </points>
