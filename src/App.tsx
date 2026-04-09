@@ -45,7 +45,7 @@ function App() {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [navigate])
 
   useEffect(() => {
     if (!userId) return
