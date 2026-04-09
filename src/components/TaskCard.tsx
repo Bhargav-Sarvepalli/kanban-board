@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { supabase } from '../supabase'
 import type { Task } from '../types'
+import toast from 'react-hot-toast'
 
 interface Props {
   task: Task
@@ -10,9 +11,9 @@ interface Props {
 }
 
 const priorityConfig = {
-  low: { color: 'text-slate-400', bg: 'bg-slate-400/10', dot: 'bg-slate-400', label: 'Low' },
-  normal: { color: 'text-blue-400', bg: 'bg-blue-400/10', dot: 'bg-blue-400', label: 'Normal' },
-  high: { color: 'text-red-400', bg: 'bg-red-400/10', dot: 'bg-red-400', label: 'High' },
+  low: { color: '#64748b', bg: 'rgba(100,116,139,0.1)', label: 'LOW', bar: '#64748b' },
+  normal: { color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)', label: 'NORMAL', bar: '#8b5cf6' },
+  high: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)', label: 'HIGH', bar: '#ef4444' },
 }
 
 function TaskCard({ task, onDeleted, onOpen }: Props) {
@@ -29,9 +30,11 @@ function TaskCard({ task, onDeleted, onOpen }: Props) {
     setDeleting(true)
     const { error } = await supabase.from('tasks').delete().eq('id', task.id)
     if (error) {
-      console.error('Delete error:', error)
+      console.error(error)
       setDeleting(false)
+      toast.error('Failed to delete task')
     } else {
+      toast.success('Task deleted')
       onDeleted()
     }
   }
@@ -42,10 +45,10 @@ function TaskCard({ task, onDeleted, onOpen }: Props) {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    if (diffDays < 0) return { label: `Overdue ${Math.abs(diffDays)}d`, class: 'text-red-400 bg-red-400/10 border-red-400/20' }
-    if (diffDays === 0) return { label: 'Due today', class: 'text-orange-400 bg-orange-400/10 border-orange-400/20' }
-    if (diffDays <= 2) return { label: `Due in ${diffDays}d`, class: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20' }
-    return { label: due.toLocaleDateString(), class: 'text-slate-500 bg-white/5 border-white/10' }
+    if (diffDays < 0) return { label: `OVERDUE ${Math.abs(diffDays)}D`, color: '#ef4444', bg: 'rgba(239,68,68,0.1)' }
+    if (diffDays === 0) return { label: 'DUE TODAY', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' }
+    if (diffDays <= 2) return { label: `DUE IN ${diffDays}D`, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' }
+    return { label: due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), color: '#475569', bg: 'rgba(71,85,105,0.1)' }
   }
 
   const dueDateInfo = getDueDateInfo()
@@ -53,66 +56,147 @@ function TaskCard({ task, onDeleted, onOpen }: Props) {
   return (
     <div
       ref={setNodeRef}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
         zIndex: isDragging ? 999 : undefined,
-        opacity: isDragging ? 0.4 : deleting ? 0 : 1,
+        opacity: isDragging ? 0.3 : deleting ? 0 : 1,
         position: 'relative',
         touchAction: 'none',
+        background: hovered ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
+        border: `1px solid ${hovered ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)'}`,
+        borderLeftColor: priority.bar,
+        borderLeftWidth: '2px',
+        borderRadius: '10px',
+        padding: '12px',
+        transition: 'all 0.15s ease',
+        boxShadow: hovered ? `0 4px 20px rgba(0,0,0,0.3), -2px 0 8px ${priority.bar}40` : 'none',
       }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="glass glass-hover rounded-xl p-3 transition-all duration-200 select-none"
     >
-      {/* Top row: drag handle + priority + delete */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 flex-1">
+      {/* Top row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Drag handle */}
           <div
             {...listeners}
             {...attributes}
-            className="cursor-grab active:cursor-grabbing text-slate-700 hover:text-slate-500 transition-colors px-0.5"
+            style={{
+              cursor: isDragging ? 'grabbing' : 'grab',
+              color: 'rgba(255,255,255,0.2)',
+              fontSize: '14px',
+              lineHeight: 1,
+              padding: '2px',
+              userSelect: 'none',
+            }}
           >
             ⠿
           </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${priority.bg} ${priority.color}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${priority.dot}`} />
+
+          {/* Priority badge */}
+          <span style={{
+            fontSize: '9px',
+            fontFamily: 'Space Mono, monospace',
+            fontWeight: 'bold',
+            letterSpacing: '0.15em',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            color: priority.color,
+            background: priority.bg,
+          }}>
             {priority.label}
           </span>
         </div>
 
-        {hovered && (
+        {/* Delete button */}
+        {hovered && !isDragging && (
           <button
-            onClick={handleDelete}
-            className="text-slate-600 hover:text-red-400 hover:bg-red-400/10 rounded-lg p-1 transition-colors text-xs ml-1"
-          >
-            ✕
-          </button>
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              handleDelete()
+            }}
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: 'none',
+              color: 'rgba(255,255,255,0.2)',
+              cursor: 'pointer',
+              width: '20px', height: '20px',
+              borderRadius: '4px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '10px',
+            }}
+          >✕</button>
         )}
       </div>
 
-      {/* Title — click to open detail panel */}
+      {/* Title */}
       <p
         onClick={onOpen}
-        className="text-slate-200 text-sm font-medium leading-snug mb-2 ml-5 cursor-pointer hover:text-indigo-300 transition-colors"
+        style={{
+          color: 'rgba(255,255,255,0.8)',
+          fontSize: '13px',
+          fontWeight: 500,
+          lineHeight: 1.4,
+          marginBottom: '6px',
+          marginLeft: '20px',
+          cursor: 'pointer',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'white')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.8)')}
       >
         {task.title}
       </p>
 
       {/* Description preview */}
       {task.description && (
-        <p className="text-slate-600 text-xs leading-relaxed mb-2 ml-5 line-clamp-2">
+        <p style={{
+          color: 'rgba(255,255,255,0.25)',
+          fontSize: '11px',
+          lineHeight: 1.5,
+          marginBottom: '8px',
+          marginLeft: '20px',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+        }}>
           {task.description}
         </p>
       )}
 
-      {/* Due date */}
-      {dueDateInfo && (
-        <div className="ml-5">
-          <span className={`text-xs px-2 py-0.5 rounded-full border ${dueDateInfo.class}`}>
-            📅 {dueDateInfo.label}
+      {/* Footer badges */}
+      <div style={{ marginLeft: '20px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+        {dueDateInfo && (
+          <span style={{
+            fontSize: '9px',
+            fontFamily: 'Space Mono, monospace',
+            fontWeight: 'bold',
+            letterSpacing: '0.1em',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            color: dueDateInfo.color,
+            background: dueDateInfo.bg,
+          }}>
+            {dueDateInfo.label}
           </span>
-        </div>
-      )}
+        )}
+
+        {task.recurring && (
+          <span style={{
+            fontSize: '9px',
+            fontFamily: 'Space Mono, monospace',
+            fontWeight: 'bold',
+            letterSpacing: '0.1em',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            color: task.recurring === 'weekly' ? '#06b6d4' : '#8b5cf6',
+            background: task.recurring === 'weekly' ? 'rgba(6,182,212,0.1)' : 'rgba(139,92,246,0.1)',
+          }}>
+            ↻ {task.recurring.toUpperCase()}
+          </span>
+        )}
+      </div>
     </div>
   )
 }

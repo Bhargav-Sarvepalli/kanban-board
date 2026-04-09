@@ -7,7 +7,16 @@ export interface Task {
   status: Status
   priority: 'low' | 'normal' | 'high'
   due_date?: string
+  recurring?: 'weekly' | 'monthly' | null
   user_id: string
+  created_at: string
+}
+
+export interface Comment {
+  id: string
+  task_id: string
+  user_id: string
+  content: string
   created_at: string
 }
 
@@ -17,11 +26,3 @@ export const COLUMNS: { id: Status; label: string }[] = [
   { id: 'in_review', label: 'In Review' },
   { id: 'done', label: 'Done' },
 ]
-
-export interface Comment {
-  id: string
-  task_id: string
-  user_id: string
-  content: string
-  created_at: string
-}

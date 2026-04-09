@@ -16,7 +16,11 @@ export async function generateTaskDescription(title: string): Promise<string> {
         {
           role: 'user',
           content: `Write a brief, practical task description for: "${title}". 
-          Keep it 1-2 sentences, actionable and specific. No fluff.`,
+          Keep it 1-2 sentences, actionable and specific. 
+          Do NOT include the task title in the description.
+          Do NOT use markdown formatting like # or **.
+          Do NOT repeat the title.
+          Just plain text sentences only.`,
         },
       ],
     }),
@@ -79,11 +83,10 @@ export async function breakIntoSubtasks(title: string, description: string): Pro
   })
   const data = await response.json()
   const raw = data.content[0].text.trim()
-  // Strip markdown code blocks if present
   const text = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
   try {
     return JSON.parse(text)
-  } catch (e) {
+  } catch {
     console.error('Failed to parse subtasks:', text)
     return []
   }
