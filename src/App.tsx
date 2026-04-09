@@ -18,6 +18,7 @@ function App() {
   const [search, setSearch] = useState('')
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [defaultStatus, setDefaultStatus] = useState<Status>('todo')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -81,6 +82,11 @@ function App() {
     if (error) { console.error('Update error:', error); refetchTasks() }
   }
 
+  const handleAddTask = (status: Status) => {
+    setDefaultStatus(status)
+    setShowModal(true)
+  }
+
   const total = tasks.length
   const completed = tasks.filter(t => t.status === 'done').length
   const overdue = tasks.filter(t => {
@@ -93,17 +99,12 @@ function App() {
 
       {/* Dramatic background */}
       <div className="fixed inset-0 pointer-events-none">
-        {/* Main violet glow — top left */}
         <div className="absolute -top-60 -left-60 w-[600px] h-[600px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)' }} />
-        {/* Pink glow — bottom right */}
         <div className="absolute -bottom-60 -right-60 w-[500px] h-[500px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(236,72,153,0.1) 0%, transparent 70%)' }} />
-        {/* Cyan glow — middle */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full"
           style={{ background: 'radial-gradient(ellipse, rgba(6,182,212,0.04) 0%, transparent 70%)' }} />
-
-        {/* Horizontal scan lines */}
         <div className="absolute inset-0 opacity-[0.02]"
           style={{
             backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,1) 2px, rgba(255,255,255,1) 3px)',
@@ -114,8 +115,6 @@ function App() {
       {/* HEADER */}
       <div className="relative z-10 border-b border-white/5">
         <div className="max-w-[1400px] mx-auto px-8 py-5 flex items-center justify-between">
-
-          {/* Logo */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -135,7 +134,6 @@ function App() {
             </div>
           </motion.div>
 
-          {/* Center stats */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -157,13 +155,11 @@ function App() {
             ))}
           </motion.div>
 
-          {/* Right side */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             className="flex items-center gap-3"
           >
-            {/* Search */}
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-xs">⌕</span>
               <input
@@ -174,12 +170,10 @@ function App() {
                 className="bg-white/5 border border-white/10 rounded-lg pl-8 pr-4 py-2 text-sm text-white/70 placeholder-white/20 outline-none focus:border-violet-500/50 w-48 transition-all font-sans"
               />
             </div>
-
-            {/* New task button */}
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => setShowModal(true)}
+              onClick={() => handleAddTask('todo')}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
               style={{
                 background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
@@ -195,8 +189,6 @@ function App() {
 
       {/* BOARD */}
       <div className="relative z-10 max-w-[1400px] mx-auto px-8 py-8">
-
-        {/* Board label */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -234,6 +226,7 @@ function App() {
                     }
                     onDeleted={refetchTasks}
                     onOpen={setSelectedTask}
+                    onAddTask={handleAddTask}
                   />
                 </motion.div>
               ))}
@@ -250,14 +243,15 @@ function App() {
         )}
       </div>
 
-      {/* Modals */}
       {showModal && userId && (
         <CreateTaskModal
           userId={userId}
           onClose={() => setShowModal(false)}
           onTaskCreated={refetchTasks}
+          defaultStatus={defaultStatus}
         />
       )}
+
       {selectedTask && userId && (
         <TaskDetailPanel
           task={selectedTask}

@@ -10,6 +10,7 @@ interface Props {
   onClose: () => void
   onTaskCreated: () => void
   userId: string
+  defaultStatus?: Status
 }
 
 const priorityOptions = [
@@ -31,13 +32,13 @@ const recurringOptions = [
   { value: 'monthly', label: 'Monthly', icon: '↻', color: '#8b5cf6' },
 ]
 
-function CreateTaskModal({ onClose, onTaskCreated, userId }: Props) {
+function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Props) {
   const [step, setStep] = useState(1)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'low' | 'normal' | 'high'>('normal')
   const [dueDate, setDueDate] = useState('')
-  const [status, setStatus] = useState<Status>('todo')
+  const [status, setStatus] = useState<Status>(defaultStatus ?? 'todo')
   const [recurring, setRecurring] = useState<'weekly' | 'monthly' | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -135,7 +136,6 @@ function CreateTaskModal({ onClose, onTaskCreated, userId }: Props) {
               boxShadow: '0 30px 80px rgba(0,0,0,0.9), 0 0 60px rgba(139,92,246,0.08)',
             }}
           >
-            {/* Top gradient bar */}
             <div style={{ height: '2px', background: 'linear-gradient(90deg, #8b5cf6, #ec4899, #06b6d4)' }} />
 
             <div style={{ padding: '28px' }}>
@@ -191,7 +191,6 @@ function CreateTaskModal({ onClose, onTaskCreated, userId }: Props) {
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.2 }}
                   >
-                    {/* Title */}
                     <div style={{ marginBottom: '24px' }}>
                       <input
                         autoFocus
@@ -220,7 +219,6 @@ function CreateTaskModal({ onClose, onTaskCreated, userId }: Props) {
                       </p>
                     </div>
 
-                    {/* Description */}
                     <div style={{ marginBottom: '24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                         <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>
@@ -239,7 +237,6 @@ function CreateTaskModal({ onClose, onTaskCreated, userId }: Props) {
                             fontFamily: 'Space Grotesk',
                             padding: '4px 12px',
                             opacity: !title.trim() ? 0.3 : 1,
-                            transition: 'all 0.15s',
                           }}
                         >
                           {generatingDesc ? '⟳ Writing...' : '✨ AI Write'}
@@ -266,7 +263,6 @@ function CreateTaskModal({ onClose, onTaskCreated, userId }: Props) {
                       />
                     </div>
 
-                    {/* Next button */}
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.97 }}
@@ -277,9 +273,7 @@ function CreateTaskModal({ onClose, onTaskCreated, userId }: Props) {
                       }}
                       style={{
                         width: '100%',
-                        background: title.trim()
-                          ? 'linear-gradient(135deg, #8b5cf6, #ec4899)'
-                          : 'rgba(255,255,255,0.05)',
+                        background: title.trim() ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.05)',
                         border: 'none',
                         borderRadius: '12px',
                         padding: '14px',
@@ -288,7 +282,6 @@ function CreateTaskModal({ onClose, onTaskCreated, userId }: Props) {
                         fontSize: '13px',
                         fontFamily: 'Space Grotesk',
                         fontWeight: 700,
-                        letterSpacing: '0.02em',
                         boxShadow: title.trim() ? '0 0 25px rgba(139,92,246,0.3)' : 'none',
                         transition: 'all 0.2s',
                       }}
@@ -496,7 +489,6 @@ function CreateTaskModal({ onClose, onTaskCreated, userId }: Props) {
         </motion.div>
       </AnimatePresence>
 
-      {/* Confirm discard dialog */}
       {showConfirm && (
         <ConfirmDialog
           title="Discard Task?"

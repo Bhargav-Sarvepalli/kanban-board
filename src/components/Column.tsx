@@ -8,6 +8,7 @@ interface Props {
   tasks: Task[]
   onDeleted: () => void
   onOpen: (task: Task) => void
+  onAddTask: (status: Status) => void
 }
 
 const columnConfig: Record<Status, {
@@ -57,7 +58,7 @@ const columnConfig: Record<Status, {
   },
 }
 
-function Column({ id, tasks, onDeleted, onOpen }: Props) {
+function Column({ id, tasks, onDeleted, onOpen, onAddTask }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id })
   const config = columnConfig[id]
 
@@ -111,15 +112,23 @@ function Column({ id, tasks, onDeleted, onOpen }: Props) {
               borderColor: isOver ? config.border : 'rgba(255,255,255,0.05)',
               background: isOver ? config.bg : 'transparent',
               minHeight: '200px',
+              cursor: 'pointer',
             }}
+            onClick={() => onAddTask(id)}
           >
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-lg"
-              style={{ background: 'rgba(255,255,255,0.03)' }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-lg transition-all duration-200"
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                color: config.color,
+                border: `1px solid ${config.border}`,
+              }}
             >
               +
             </div>
-            <p className="text-white/20 text-xs font-mono">DROP HERE</p>
+            <p className="text-xs font-mono" style={{ color: config.color + '60' }}>
+              ADD TASK
+            </p>
           </div>
         ) : (
           tasks.map(task => (
