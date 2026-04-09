@@ -8,6 +8,7 @@ import Column from './components/Column'
 import CreateTaskModal from './components/CreateTaskModal'
 import TaskCard from './components/TaskCard'
 import TaskDetailPanel from './components/TaskDetailPanel'
+import CalendarView from './components/CalendarView'
 import { motion } from 'framer-motion'
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<Status>('todo')
+  const [view, setView] = useState<'board' | 'calendar'>('board')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -97,7 +99,7 @@ function App() {
   return (
     <div className="min-h-screen bg-black relative overflow-hidden font-sans">
 
-      {/* Dramatic background */}
+      {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute -top-60 -left-60 w-[600px] h-[600px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)' }} />
@@ -115,6 +117,8 @@ function App() {
       {/* HEADER */}
       <div className="relative z-10 border-b border-white/5">
         <div className="max-w-[1400px] mx-auto px-8 py-5 flex items-center justify-between">
+
+          {/* Logo */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -134,6 +138,7 @@ function App() {
             </div>
           </motion.div>
 
+          {/* Stats */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -155,6 +160,7 @@ function App() {
             ))}
           </motion.div>
 
+          {/* Right */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -187,19 +193,52 @@ function App() {
         </div>
       </div>
 
-      {/* BOARD */}
+      {/* MAIN CONTENT */}
       <div className="relative z-10 max-w-[1400px] mx-auto px-8 py-8">
+
+        {/* View toggle + label */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
           className="flex items-center gap-3 mb-6"
         >
-          <span className="text-white/20 text-xs font-mono tracking-[0.3em] uppercase">Board View</span>
+          <div style={{
+            display: 'flex', gap: '4px',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: '10px',
+            padding: '4px',
+          }}>
+            {[
+              { id: 'board', label: '⊞ Board' },
+              { id: 'calendar', label: '⊟ Calendar' },
+            ].map(v => (
+              <button
+                key={v.id}
+                onClick={() => setView(v.id as 'board' | 'calendar')}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: view === v.id ? 'rgba(139,92,246,0.2)' : 'transparent',
+                  color: view === v.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontFamily: 'Space Grotesk',
+                  fontWeight: view === v.id ? 600 : 400,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
           <div className="flex-1 h-px bg-white/5" />
           <span className="text-white/20 text-xs font-mono">{total} tasks</span>
         </motion.div>
 
+        {/* Board or Calendar */}
         {loading ? (
           <div className="flex gap-4">
             {[1,2,3,4].map(i => (
@@ -207,7 +246,7 @@ function App() {
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }} />
             ))}
           </div>
-        ) : (
+        ) : view === 'board' ? (
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="flex gap-5 overflow-x-auto pb-4">
               {COLUMNS.map((column, i) => (
@@ -231,7 +270,6 @@ function App() {
                 </motion.div>
               ))}
             </div>
-
             <DragOverlay>
               {activeTask && (
                 <div className="rotate-1 scale-105">
@@ -240,9 +278,21 @@ function App() {
               )}
             </DragOverlay>
           </DndContext>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <CalendarView
+              tasks={tasks}
+              onOpenTask={setSelectedTask}
+            />
+          </motion.div>
         )}
       </div>
 
+      {/* Modals */}
       {showModal && userId && (
         <CreateTaskModal
           userId={userId}
