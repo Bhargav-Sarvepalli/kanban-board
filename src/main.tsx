@@ -6,6 +6,24 @@ import './index.css'
 import App from './App'
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from './supabase'
+
+function AuthCallback() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) navigate('/app')
+      else navigate('/auth')
+    })
+  }, [])
+  return (
+    <div style={{ background: '#000', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ color: 'white', fontFamily: 'Space Grotesk', fontSize: '16px' }}>Signing you in...</div>
+    </div>
+  )
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -14,6 +32,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/" element={<Landing />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/app" element={<App />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
       </Routes>
     </BrowserRouter>
     <Toaster

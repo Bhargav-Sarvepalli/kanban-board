@@ -37,8 +37,8 @@ export default function Auth() {
       provider: 'google',
       options: {
         redirectTo: window.location.hostname === 'localhost'
-          ? 'http://localhost:5173/app'
-          : 'https://kanban-board-beige-seven.vercel.app/app',
+          ? 'http://localhost:5173/auth/callback'
+          : 'https://kanban-board-beige-seven.vercel.app/auth/callback',
       },
     })
     if (error) { toast.error(error.message); setGoogleLoading(false) }
