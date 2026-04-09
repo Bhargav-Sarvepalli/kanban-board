@@ -1,12 +1,19 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import './index.css'
-import App from './App.tsx'
+import App from './App'
+import Landing from './pages/Landing'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/app" element={<App />} />
+      </Routes>
+    </BrowserRouter>
     <Toaster
       position="bottom-right"
       toastOptions={{
@@ -19,16 +26,10 @@ createRoot(document.getElementById('root')!).render(
           fontSize: '13px',
         },
         success: {
-          iconTheme: {
-            primary: '#10b981',
-            secondary: '#000',
-          },
+          iconTheme: { primary: '#10b981', secondary: '#000' },
         },
         error: {
-          iconTheme: {
-            primary: '#ef4444',
-            secondary: '#000',
-          },
+          iconTheme: { primary: '#ef4444', secondary: '#000' },
         },
       }}
     />
