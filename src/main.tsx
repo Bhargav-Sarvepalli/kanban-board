@@ -5,12 +5,14 @@ import { Toaster } from 'react-hot-toast'
 import './index.css'
 import App from './App'
 import Landing from './pages/Landing'
+import Auth from './pages/Auth'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/auth" element={<Auth />} />
         <Route path="/app" element={<App />} />
       </Routes>
     </BrowserRouter>
@@ -25,12 +27,8 @@ createRoot(document.getElementById('root')!).render(
           fontFamily: 'Space Grotesk, sans-serif',
           fontSize: '13px',
         },
-        success: {
-          iconTheme: { primary: '#10b981', secondary: '#000' },
-        },
-        error: {
-          iconTheme: { primary: '#ef4444', secondary: '#000' },
-        },
+        success: { iconTheme: { primary: '#10b981', secondary: '#000' } },
+        error: { iconTheme: { primary: '#ef4444', secondary: '#000' } },
       }}
     />
   </StrictMode>,

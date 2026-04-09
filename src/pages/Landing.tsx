@@ -319,7 +319,7 @@ export default function Landing() {
         <div style={{ display: 'flex', gap: '8px' }}>
           <motion.button
             whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-            onClick={() => navigate('/app')}
+            onClick={() => navigate('/auth')}
             style={{
               background: 'transparent', border: '1px solid rgba(255,255,255,0.12)',
               borderRadius: '8px', padding: '8px 20px',
@@ -330,7 +330,7 @@ export default function Landing() {
           <motion.button
             whileHover={{ scale: 1.04, boxShadow: '0 0 28px rgba(139,92,246,0.6)' }}
             whileTap={{ scale: 0.96 }}
-            onClick={() => navigate('/app')}
+            onClick={() => navigate('/auth')}
             style={{
               background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
               border: 'none', borderRadius: '8px', padding: '8px 20px',
@@ -457,7 +457,7 @@ export default function Landing() {
             <motion.button
               whileHover={{ scale: 1.06, boxShadow: '0 0 50px rgba(139,92,246,0.7)' }}
               whileTap={{ scale: 0.94 }}
-              onClick={() => navigate('/app')}
+              onClick={() => navigate('/auth')}
               style={{
                 background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
                 border: 'none', borderRadius: '12px',
@@ -886,7 +886,7 @@ export default function Landing() {
             transition={{ delay: 0.4 }}
             whileHover={{ scale: 1.06, boxShadow: '0 0 70px rgba(139,92,246,0.8)' }}
             whileTap={{ scale: 0.94 }}
-            onClick={() => navigate('/app')}
+            onClick={() => navigate('/auth')}
             style={{
               background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
               border: 'none', borderRadius: '14px',

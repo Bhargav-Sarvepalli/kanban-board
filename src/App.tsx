@@ -10,6 +10,7 @@ import TaskCard from './components/TaskCard'
 import TaskDetailPanel from './components/TaskDetailPanel'
 import CalendarView from './components/CalendarView'
 import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 
 function App() {
   const [userId, setUserId] = useState<string | null>(null)
@@ -21,23 +22,29 @@ function App() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<Status>('todo')
   const [view, setView] = useState<'board' | 'calendar'>('board')
+  const navigate = useNavigate()
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
 
   useEffect(() => {
-    const signInAnonymously = async () => {
+    const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         setUserId(session.user.id)
       } else {
-        const { data, error } = await supabase.auth.signInAnonymously()
-        if (error) console.error('Auth error:', error)
-        else setUserId(data.user?.id ?? null)
+        navigate('/auth')
       }
     }
-    signInAnonymously()
+    checkAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) setUserId(session.user.id)
+      else navigate('/auth')
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
