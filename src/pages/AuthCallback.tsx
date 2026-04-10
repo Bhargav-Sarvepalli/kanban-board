@@ -7,10 +7,20 @@ export default function AuthCallback() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate('/app')
-      else navigate('/auth')
-    })
+    const handleCallback = async () => {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(
+        window.location.search
+      )
+      if (error) {
+        console.error('Auth error:', error)
+        navigate('/auth')
+      } else if (data.session) {
+        navigate('/app')
+      } else {
+        navigate('/auth')
+      }
+    }
+    handleCallback()
   }, [navigate])
 
   return (
