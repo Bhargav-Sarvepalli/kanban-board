@@ -36,9 +36,7 @@ export default function Auth() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.hostname === 'localhost'
-          ? 'http://localhost:5173/auth/callback'
-          : 'https://kanban-board-beige-seven.vercel.app/auth/callback',
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     })
     if (error) { toast.error(error.message); setGoogleLoading(false) }
