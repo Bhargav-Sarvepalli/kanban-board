@@ -8,18 +8,49 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(
-        window.location.search
-      )
-      if (error) {
-        console.error('Auth error:', error)
-        navigate('/auth')
-      } else if (data.session) {
-        navigate('/app')
-      } else {
+      try {
+        // First try to get existing session
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          navigate('/app')
+          return
+        }
+
+        // Try exchange code for session
+        const params = new URLSearchParams(window.location.search)
+        const code = params.get('code')
+
+        if (code) {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+          if (error) {
+            console.error('Exchange error:', error)
+            navigate('/auth')
+          } else if (data.session) {
+            navigate('/app')
+          } else {
+            navigate('/auth')
+          }
+        } else {
+          // Check for hash params (implicit flow fallback)
+          const hashParams = new URLSearchParams(window.location.hash.substring(1))
+          const accessToken = hashParams.get('access_token')
+          if (accessToken) {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: hashParams.get('refresh_token') ?? '',
+            })
+            if (data.session) navigate('/app')
+            else navigate('/auth')
+          } else {
+            navigate('/auth')
+          }
+        }
+      } catch (err) {
+        console.error('Callback error:', err)
         navigate('/auth')
       }
     }
+
     handleCallback()
   }, [navigate])
 
