@@ -35,7 +35,7 @@ export default function AuthCallback() {
           const hashParams = new URLSearchParams(window.location.hash.substring(1))
           const accessToken = hashParams.get('access_token')
           if (accessToken) {
-            const { data, error } = await supabase.auth.setSession({
+            const { data } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: hashParams.get('refresh_token') ?? '',
             })
