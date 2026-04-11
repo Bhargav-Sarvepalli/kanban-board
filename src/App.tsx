@@ -64,6 +64,7 @@ function App() {
       }
 
       const { data, error } = await query
+      console.log('Tasks fetched:', data, 'Error:', error)
       if (error) console.error('Fetch error:', error)
       else setTasks(data ?? [])
       setLoading(false)
