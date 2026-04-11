@@ -152,7 +152,9 @@ function App() {
   const completed = tasks.filter(t => t.status === 'done').length
   const overdue = tasks.filter(t => {
     if (!t.due_date) return false
-    return new Date(t.due_date) < new Date(new Date().setHours(0, 0, 0, 0))
+    const [y, m, d] = t.due_date.split('-').map(Number)
+    const due = new Date(y, m - 1, d)
+    return due < new Date(new Date().setHours(0, 0, 0, 0))
   }).length
 
   return (

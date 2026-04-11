@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../supabase'
 import type { Task, Comment, Status } from '../types'
-// COLUMNS removed - not needed
 import { breakIntoSubtasks } from '../lib/ai'
 import toast from 'react-hot-toast'
 
@@ -22,13 +21,14 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
   const [description, setDescription] = useState(task.description ?? '')
   const [status, setStatus] = useState<Status>(task.status)
   const [priority, setPriority] = useState(task.priority)
+  const [dueDate, setDueDate] = useState(task.due_date ?? '')
   const [saving, setSaving] = useState(false)
   const [subtasks, setSubtasks] = useState<string[]>([])
   const [generatingSubtasks, setGeneratingSubtasks] = useState(false)
 
   useEffect(() => {
     fetchComments()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task.id])
 
   const fetchComments = async () => {
@@ -48,23 +48,34 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
 
     const { error } = await supabase
       .from('tasks')
-      .update({ title, description, status, priority })
+      .update({
+        title,
+        description,
+        status,
+        priority,
+        due_date: dueDate || null,
+      })
       .eq('id', task.id)
 
     if (!error && wasNotDone && isNowDone && isRecurring && task.due_date) {
-      const currentDue = new Date(task.due_date)
+      const [y, m, d] = task.due_date.split('-').map(Number)
+      const currentDue = new Date(y, m - 1, d)
       const nextDue = new Date(currentDue)
       if (task.recurring === 'weekly') nextDue.setDate(nextDue.getDate() + 7)
       else if (task.recurring === 'monthly') nextDue.setMonth(nextDue.getMonth() + 1)
+
+      const pad = (n: number) => String(n).padStart(2, '0')
+      const nextDueStr = `${nextDue.getFullYear()}-${pad(nextDue.getMonth() + 1)}-${pad(nextDue.getDate())}`
 
       await supabase.from('tasks').insert({
         title: task.title,
         description: task.description,
         priority: task.priority,
         status: 'todo',
-        due_date: nextDue.toISOString().split('T')[0],
+        due_date: nextDueStr,
         recurring: task.recurring,
         user_id: task.user_id,
+        workspace_id: task.workspace_id ?? null,
       })
       toast.success(`↻ Next ${task.recurring} task created!`)
     }
@@ -116,6 +127,28 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
     })
   }
 
+  // Parse date without timezone shift
+  const formatDueDate = (dateStr: string) => {
+    if (!dateStr) return ''
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const date = new Date(y, m - 1, d)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
+
+  const getDueDateStatus = () => {
+    if (!dueDate) return null
+    const [y, m, d] = dueDate.split('-').map(Number)
+    const due = new Date(y, m - 1, d)
+    const today = new Date(new Date().setHours(0, 0, 0, 0))
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1)
+    if (due < today) return { label: 'Overdue', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' }
+    if (due.getTime() === today.getTime()) return { label: 'Due Today', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' }
+    if (due.getTime() === tomorrow.getTime()) return { label: 'Due Tomorrow', color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' }
+    return { label: formatDueDate(dueDate), color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.05)' }
+  }
+
+  const dueDateStatus = getDueDateStatus()
+
   const statusOptions = [
     { value: 'todo', label: 'To Do', color: '#94a3b8' },
     { value: 'in_progress', label: 'In Progress', color: '#8b5cf6' },
@@ -164,8 +197,7 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
             width: '100%', maxWidth: '520px',
             background: '#050505',
             borderLeft: '1px solid rgba(255,255,255,0.07)',
-            display: 'flex',
-            flexDirection: 'column',
+            display: 'flex', flexDirection: 'column',
             overflow: 'hidden',
           }}
         >
@@ -178,21 +210,28 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
             borderBottom: '1px solid rgba(255,255,255,0.05)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>
                 TASK DETAILS
               </span>
               {task.recurring && (
                 <span style={{
-                  marginLeft: '8px',
-                  fontSize: '9px',
-                  fontFamily: 'Space Mono',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
+                  fontSize: '9px', fontFamily: 'Space Mono',
+                  padding: '2px 6px', borderRadius: '4px',
                   color: task.recurring === 'weekly' ? '#06b6d4' : '#8b5cf6',
                   background: task.recurring === 'weekly' ? 'rgba(6,182,212,0.1)' : 'rgba(139,92,246,0.1)',
                 }}>
                   ↻ {task.recurring.toUpperCase()}
+                </span>
+              )}
+              {dueDateStatus && (
+                <span style={{
+                  fontSize: '9px', fontFamily: 'Space Mono',
+                  padding: '2px 6px', borderRadius: '4px',
+                  color: dueDateStatus.color,
+                  background: dueDateStatus.bg,
+                }}>
+                  {dueDateStatus.label}
                 </span>
               )}
             </div>
@@ -201,10 +240,8 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
               style={{
                 background: 'rgba(255,255,255,0.04)',
                 border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '8px',
-                color: 'rgba(255,255,255,0.3)',
-                cursor: 'pointer',
-                width: '32px', height: '32px',
+                borderRadius: '8px', color: 'rgba(255,255,255,0.3)',
+                cursor: 'pointer', width: '32px', height: '32px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '14px',
               }}
@@ -223,16 +260,11 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                   onChange={e => setTitle(e.target.value)}
                   onBlur={() => setEditingTitle(false)}
                   style={{
-                    width: '100%',
-                    background: 'transparent',
-                    border: 'none',
-                    borderBottom: '1px solid #8b5cf6',
-                    padding: '4px 0',
-                    color: 'white',
-                    fontSize: '20px',
-                    fontFamily: 'Space Grotesk',
-                    fontWeight: 700,
-                    outline: 'none',
+                    width: '100%', background: 'transparent',
+                    border: 'none', borderBottom: '1px solid #8b5cf6',
+                    padding: '4px 0', color: 'white',
+                    fontSize: '20px', fontFamily: 'Space Grotesk',
+                    fontWeight: 700, outline: 'none',
                     letterSpacing: '-0.02em',
                   }}
                 />
@@ -240,13 +272,9 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                 <h2
                   onClick={() => setEditingTitle(true)}
                   style={{
-                    color: 'white',
-                    fontSize: '20px',
-                    fontWeight: 700,
-                    letterSpacing: '-0.02em',
-                    cursor: 'pointer',
-                    margin: 0,
-                    lineHeight: 1.3,
+                    color: 'white', fontSize: '20px', fontWeight: 700,
+                    letterSpacing: '-0.02em', cursor: 'pointer',
+                    margin: 0, lineHeight: 1.3,
                   }}
                   title="Click to edit"
                 >
@@ -267,16 +295,12 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                     key={opt.value}
                     onClick={() => setStatus(opt.value as Status)}
                     style={{
-                      flex: 1,
-                      padding: '8px 4px',
-                      borderRadius: '8px',
+                      flex: 1, padding: '8px 4px', borderRadius: '8px',
                       border: `1px solid ${status === opt.value ? opt.color + '60' : opt.color + '20'}`,
                       background: status === opt.value ? `${opt.color}15` : `${opt.color}05`,
                       color: status === opt.value ? opt.color : opt.color + '60',
-                      cursor: 'pointer',
-                      fontSize: '10px',
-                      fontFamily: 'Space Grotesk',
-                      fontWeight: 600,
+                      cursor: 'pointer', fontSize: '10px',
+                      fontFamily: 'Space Grotesk', fontWeight: 600,
                       transition: 'all 0.15s',
                     }}
                   >
@@ -295,16 +319,12 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                     key={opt.value}
                     onClick={() => setPriority(opt.value as 'low' | 'normal' | 'high')}
                     style={{
-                      flex: 1,
-                      padding: '8px 4px',
-                      borderRadius: '8px',
+                      flex: 1, padding: '8px 4px', borderRadius: '8px',
                       border: `1px solid ${priority === opt.value ? opt.color + '60' : opt.color + '30'}`,
                       background: priority === opt.value ? `${opt.color}15` : `${opt.color}08`,
                       color: priority === opt.value ? opt.color : opt.color + '70',
-                      cursor: 'pointer',
-                      fontSize: '11px',
-                      fontFamily: 'Space Grotesk',
-                      fontWeight: 600,
+                      cursor: 'pointer', fontSize: '11px',
+                      fontFamily: 'Space Grotesk', fontWeight: 600,
                       transition: 'all 0.15s',
                     }}
                   >
@@ -312,6 +332,25 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Due Date */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={labelStyle}>DUE DATE</label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '10px', padding: '10px 14px',
+                  color: 'rgba(255,255,255,0.7)', fontSize: '13px',
+                  fontFamily: 'Space Grotesk', outline: 'none',
+                  colorScheme: 'dark',
+                }}
+              />
             </div>
 
             {/* Description */}
@@ -326,14 +365,10 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                   width: '100%',
                   background: 'rgba(255,255,255,0.02)',
                   border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: '10px',
-                  padding: '12px',
-                  color: 'rgba(255,255,255,0.7)',
-                  fontSize: '13px',
-                  fontFamily: 'Space Grotesk',
-                  outline: 'none',
-                  resize: 'none',
-                  lineHeight: 1.6,
+                  borderRadius: '10px', padding: '12px',
+                  color: 'rgba(255,255,255,0.7)', fontSize: '13px',
+                  fontFamily: 'Space Grotesk', outline: 'none',
+                  resize: 'none', lineHeight: 1.6,
                 }}
               />
             </div>
@@ -347,14 +382,9 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
               style={{
                 width: '100%',
                 background: saving ? 'rgba(139,92,246,0.3)' : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                border: 'none',
-                borderRadius: '10px',
-                padding: '12px',
-                color: 'white',
-                cursor: saving ? 'not-allowed' : 'pointer',
-                fontSize: '13px',
-                fontFamily: 'Space Grotesk',
-                fontWeight: 700,
+                border: 'none', borderRadius: '10px', padding: '12px',
+                color: 'white', cursor: saving ? 'not-allowed' : 'pointer',
+                fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700,
                 marginBottom: '24px',
                 boxShadow: saving ? 'none' : '0 0 20px rgba(139,92,246,0.3)',
               }}
@@ -372,12 +402,9 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                   style={{
                     background: 'rgba(139,92,246,0.08)',
                     border: '1px solid rgba(139,92,246,0.2)',
-                    borderRadius: '6px',
-                    color: '#8b5cf6',
-                    cursor: 'pointer',
-                    fontSize: '11px',
-                    fontFamily: 'Space Grotesk',
-                    padding: '4px 10px',
+                    borderRadius: '6px', color: '#8b5cf6',
+                    cursor: 'pointer', fontSize: '11px',
+                    fontFamily: 'Space Grotesk', padding: '4px 10px',
                   }}
                 >
                   {generatingSubtasks ? '⟳ Breaking down...' : '✨ Generate'}
@@ -396,8 +423,7 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                         display: 'flex', alignItems: 'flex-start', gap: '10px',
                         background: 'rgba(139,92,246,0.05)',
                         border: '1px solid rgba(139,92,246,0.1)',
-                        borderRadius: '8px',
-                        padding: '10px 12px',
+                        borderRadius: '8px', padding: '10px 12px',
                       }}
                     >
                       <span style={{ color: '#8b5cf6', fontSize: '10px', fontFamily: 'Space Mono', marginTop: '2px', flexShrink: 0 }}>
@@ -415,7 +441,6 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
             {/* Comments */}
             <div>
               <label style={labelStyle}>COMMENTS ({comments.length})</label>
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
                 {comments.length === 0 ? (
                   <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: '12px', textAlign: 'center', padding: '20px 0', fontFamily: 'Space Mono' }}>
@@ -430,10 +455,8 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                       style={{
                         background: 'rgba(255,255,255,0.02)',
                         border: '1px solid rgba(255,255,255,0.05)',
-                        borderRadius: '10px',
-                        padding: '12px',
+                        borderRadius: '10px', padding: '12px',
                       }}
-                      className="group"
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                         <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', margin: 0, lineHeight: 1.5, flex: 1 }}>
@@ -444,8 +467,7 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                           style={{
                             background: 'none', border: 'none',
                             color: 'rgba(255,255,255,0.15)',
-                            cursor: 'pointer', fontSize: '10px',
-                            flexShrink: 0,
+                            cursor: 'pointer', fontSize: '10px', flexShrink: 0,
                           }}
                         >✕</button>
                       </div>
@@ -468,12 +490,9 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                     flex: 1,
                     background: 'rgba(255,255,255,0.03)',
                     border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '10px',
-                    padding: '10px 14px',
-                    color: 'white',
-                    fontSize: '13px',
-                    fontFamily: 'Space Grotesk',
-                    outline: 'none',
+                    borderRadius: '10px', padding: '10px 14px',
+                    color: 'white', fontSize: '13px',
+                    fontFamily: 'Space Grotesk', outline: 'none',
                   }}
                 />
                 <motion.button
@@ -483,14 +502,10 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                   disabled={submitting || !newComment.trim()}
                   style={{
                     background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                    border: 'none',
-                    borderRadius: '10px',
-                    padding: '10px 16px',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontFamily: 'Space Grotesk',
-                    fontWeight: 700,
+                    border: 'none', borderRadius: '10px',
+                    padding: '10px 16px', color: 'white',
+                    cursor: 'pointer', fontSize: '12px',
+                    fontFamily: 'Space Grotesk', fontWeight: 700,
                     opacity: !newComment.trim() ? 0.4 : 1,
                   }}
                 >

@@ -26,6 +26,12 @@ const priorityColors = {
   high: { color: '#ef4444', bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)' },
 }
 
+// Parse date without timezone shift
+const parseDate = (dateStr: string) => {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 function CalendarView({ tasks, onOpenTask }: Props) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
@@ -37,10 +43,12 @@ function CalendarView({ tasks, onOpenTask }: Props) {
   const days = eachDayOfInterval({ start: calStart, end: calEnd })
 
   const getTasksForDay = (day: Date) =>
-    tasks.filter(t => t.due_date && isSameDay(new Date(t.due_date), day))
+    tasks.filter(t => t.due_date && isSameDay(parseDate(t.due_date), day))
+
+  const getTasksForMonth = () =>
+    tasks.filter(t => t.due_date && isSameMonth(parseDate(t.due_date), currentMonth))
 
   const selectedDayTasks = selectedDay ? getTasksForDay(selectedDay) : []
-
   const weekDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 
   return (
@@ -52,68 +60,51 @@ function CalendarView({ tasks, onOpenTask }: Props) {
         {/* Month navigation */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
           <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
             onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
             style={{
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '8px',
-              color: 'rgba(255,255,255,0.5)',
-              cursor: 'pointer',
-              width: '36px', height: '36px',
+              borderRadius: '8px', color: 'rgba(255,255,255,0.5)',
+              cursor: 'pointer', width: '36px', height: '36px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '16px',
             }}
-          >
-            ←
-          </motion.button>
+          >←</motion.button>
 
           <div style={{ textAlign: 'center' }}>
             <h2 style={{
-              color: 'white',
-              fontSize: '20px',
-              fontWeight: 700,
-              fontFamily: 'Space Grotesk',
-              letterSpacing: '-0.02em',
-              margin: 0,
+              color: 'white', fontSize: '20px', fontWeight: 700,
+              fontFamily: 'Space Grotesk', letterSpacing: '-0.02em', margin: 0,
             }}>
               {format(currentMonth, 'MMMM yyyy')}
             </h2>
             <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.2em', marginTop: '2px' }}>
-              {tasks.filter(t => t.due_date && isSameMonth(new Date(t.due_date), currentMonth)).length} TASKS THIS MONTH
+              {getTasksForMonth().length} TASKS THIS MONTH
             </p>
           </div>
 
           <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
             onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
             style={{
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '8px',
-              color: 'rgba(255,255,255,0.5)',
-              cursor: 'pointer',
-              width: '36px', height: '36px',
+              borderRadius: '8px', color: 'rgba(255,255,255,0.5)',
+              cursor: 'pointer', width: '36px', height: '36px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '16px',
             }}
-          >
-            →
-          </motion.button>
+          >→</motion.button>
         </div>
 
         {/* Week day headers */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
           {weekDays.map(day => (
             <div key={day} style={{
-              textAlign: 'center',
-              padding: '8px 0',
-              color: 'rgba(255,255,255,0.2)',
-              fontSize: '10px',
-              fontFamily: 'Space Mono',
-              letterSpacing: '0.15em',
+              textAlign: 'center', padding: '8px 0',
+              color: 'rgba(255,255,255,0.2)', fontSize: '10px',
+              fontFamily: 'Space Mono', letterSpacing: '0.15em',
             }}>
               {day}
             </div>
@@ -134,26 +125,18 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                 whileHover={{ scale: 1.02 }}
                 onClick={() => setSelectedDay(isSameDay(day, selectedDay ?? new Date(0)) ? null : day)}
                 style={{
-                  minHeight: '90px',
-                  padding: '8px',
-                  borderRadius: '10px',
+                  minHeight: '90px', padding: '8px',
+                  borderRadius: '10px', cursor: 'pointer',
                   border: `1px solid ${isSelected ? 'rgba(139,92,246,0.5)' : isTodayDate ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.04)'}`,
                   background: isSelected ? 'rgba(139,92,246,0.08)' : isTodayDate ? 'rgba(139,92,246,0.04)' : 'rgba(255,255,255,0.01)',
-                  cursor: 'pointer',
                   transition: 'all 0.15s',
                   opacity: isCurrentMonth ? 1 : 0.3,
                 }}
               >
                 {/* Day number */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '6px',
-                }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <span style={{
-                    fontSize: '12px',
-                    fontFamily: 'Space Mono',
+                    fontSize: '12px', fontFamily: 'Space Mono',
                     fontWeight: isTodayDate ? 700 : 400,
                     color: isTodayDate ? '#8b5cf6' : isCurrentMonth ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.2)',
                     width: '22px', height: '22px',
@@ -164,17 +147,13 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                     {format(day, 'd')}
                   </span>
                   {dayTasks.length > 0 && (
-                    <span style={{
-                      fontSize: '9px',
-                      fontFamily: 'Space Mono',
-                      color: 'rgba(255,255,255,0.3)',
-                    }}>
+                    <span style={{ fontSize: '9px', fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)' }}>
                       {dayTasks.length}
                     </span>
                   )}
                 </div>
 
-                {/* Task dots/pills */}
+                {/* Task pills */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   {dayTasks.slice(0, 3).map(task => {
                     const p = priorityColors[task.priority]
@@ -183,16 +162,11 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                         key={task.id}
                         onClick={e => { e.stopPropagation(); onOpenTask(task) }}
                         style={{
-                          background: p.bg,
-                          border: `1px solid ${p.border}`,
-                          borderRadius: '4px',
-                          padding: '2px 5px',
-                          fontSize: '9px',
-                          fontFamily: 'Space Grotesk',
-                          color: p.color,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
+                          background: p.bg, border: `1px solid ${p.border}`,
+                          borderRadius: '4px', padding: '2px 5px',
+                          fontSize: '9px', fontFamily: 'Space Grotesk',
+                          color: p.color, whiteSpace: 'nowrap',
+                          overflow: 'hidden', textOverflow: 'ellipsis',
                           cursor: 'pointer',
                         }}
                       >
@@ -201,12 +175,7 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                     )
                   })}
                   {dayTasks.length > 3 && (
-                    <div style={{
-                      fontSize: '9px',
-                      fontFamily: 'Space Mono',
-                      color: 'rgba(255,255,255,0.3)',
-                      paddingLeft: '4px',
-                    }}>
+                    <div style={{ fontSize: '9px', fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)', paddingLeft: '4px' }}>
                       +{dayTasks.length - 3} more
                     </div>
                   )}
@@ -217,22 +186,17 @@ function CalendarView({ tasks, onOpenTask }: Props) {
         </div>
       </div>
 
-      {/* Side panel — selected day tasks */}
+      {/* Side panel */}
       <motion.div
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
-        style={{
-          width: '280px',
-          flexShrink: 0,
-          position: 'sticky',
-          top: '24px',
-        }}
+        style={{ width: '280px', flexShrink: 0, position: 'sticky', top: '24px' }}
       >
+        {/* Selected day tasks */}
         <div style={{
           background: 'rgba(255,255,255,0.01)',
           border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '16px',
-          padding: '20px',
+          borderRadius: '16px', padding: '20px', marginBottom: '12px',
         }}>
           {selectedDay ? (
             <>
@@ -259,12 +223,9 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                         whileHover={{ scale: 1.02 }}
                         onClick={() => onOpenTask(task)}
                         style={{
-                          background: p.bg,
-                          border: `1px solid ${p.border}`,
-                          borderRadius: '10px',
-                          padding: '10px 12px',
-                          cursor: 'pointer',
-                          borderLeft: `2px solid ${p.color}`,
+                          background: p.bg, border: `1px solid ${p.border}`,
+                          borderRadius: '10px', padding: '10px 12px',
+                          cursor: 'pointer', borderLeft: `2px solid ${p.color}`,
                         }}
                       >
                         <p style={{ color: 'white', fontSize: '12px', fontWeight: 600, margin: '0 0 4px', fontFamily: 'Space Grotesk' }}>
@@ -300,21 +261,27 @@ function CalendarView({ tasks, onOpenTask }: Props) {
         <div style={{
           background: 'rgba(255,255,255,0.01)',
           border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '16px',
-          padding: '20px',
-          marginTop: '12px',
+          borderRadius: '16px', padding: '20px',
         }}>
           <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.2em', marginBottom: '12px' }}>
             MONTH SUMMARY
           </p>
           {[
-            { label: 'Total', value: tasks.filter(t => t.due_date && isSameMonth(new Date(t.due_date), currentMonth)).length, color: '#8b5cf6' },
-            { label: 'Completed', value: tasks.filter(t => t.due_date && isSameMonth(new Date(t.due_date), currentMonth) && t.status === 'done').length, color: '#10b981' },
-            { label: 'Overdue', value: tasks.filter(t => {
-              if (!t.due_date) return false
-              const due = new Date(t.due_date)
-              return isSameMonth(due, currentMonth) && due < new Date() && t.status !== 'done'
-            }).length, color: '#ef4444' },
+            { label: 'Total', value: getTasksForMonth().length, color: '#8b5cf6' },
+            {
+              label: 'Completed',
+              value: getTasksForMonth().filter(t => t.status === 'done').length,
+              color: '#10b981',
+            },
+            {
+              label: 'Overdue',
+              value: getTasksForMonth().filter(t => {
+                if (!t.due_date) return false
+                const due = parseDate(t.due_date)
+                return due < new Date(new Date().setHours(0, 0, 0, 0)) && t.status !== 'done'
+              }).length,
+              color: '#ef4444',
+            },
           ].map(stat => (
             <div key={stat.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontFamily: 'Space Grotesk' }}>
