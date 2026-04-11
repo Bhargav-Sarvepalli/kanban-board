@@ -25,11 +25,18 @@ function App() {
   const [defaultStatus, setDefaultStatus] = useState<Status>('todo')
   const [view, setView] = useState<'board' | 'calendar'>('board')
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const navigate = useNavigate()
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -38,12 +45,10 @@ function App() {
       else navigate('/auth')
     }
     checkAuth()
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) setUserId(session.user.id)
       else navigate('/auth')
     })
-
     return () => subscription.unsubscribe()
   }, [navigate])
 
@@ -64,7 +69,6 @@ function App() {
       }
 
       const { data, error } = await query
-      console.log('Tasks fetched:', data, 'Error:', error)
       if (error) console.error('Fetch error:', error)
       else setTasks(data ?? [])
       setLoading(false)
@@ -72,36 +76,27 @@ function App() {
 
     fetchTasks()
 
-    // Realtime
     const channelName = currentWorkspace
       ? `workspace-${currentWorkspace.id}`
       : `personal-${userId}`
 
     const channel = supabase
       .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tasks',
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newTask = payload.new as Task
-            const belongs = currentWorkspace
-              ? newTask.workspace_id === currentWorkspace.id
-              : !newTask.workspace_id && newTask.user_id === userId
-            if (belongs) setTasks(prev => [...prev, newTask])
-          } else if (payload.eventType === 'UPDATE') {
-            setTasks(prev => prev.map(t =>
-              t.id === (payload.new as Task).id ? payload.new as Task : t
-            ))
-          } else if (payload.eventType === 'DELETE') {
-            setTasks(prev => prev.filter(t => t.id !== (payload.old as Task).id))
-          }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newTask = payload.new as Task
+          const belongs = currentWorkspace
+            ? newTask.workspace_id === currentWorkspace.id
+            : !newTask.workspace_id && newTask.user_id === userId
+          if (belongs) setTasks(prev => [...prev, newTask])
+        } else if (payload.eventType === 'UPDATE') {
+          setTasks(prev => prev.map(t =>
+            t.id === (payload.new as Task).id ? payload.new as Task : t
+          ))
+        } else if (payload.eventType === 'DELETE') {
+          setTasks(prev => prev.filter(t => t.id !== (payload.old as Task).id))
         }
-      )
+      })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
@@ -157,163 +152,204 @@ function App() {
   const overdue = tasks.filter(t => {
     if (!t.due_date) return false
     const [y, m, d] = t.due_date.split('-').map(Number)
-    const due = new Date(y, m - 1, d)
-    return due < new Date(new Date().setHours(0, 0, 0, 0))
+    return new Date(y, m - 1, d) < new Date(new Date().setHours(0, 0, 0, 0))
   }).length
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden font-sans">
+    <div style={{ minHeight: '100vh', background: '#000', overflowX: 'hidden', fontFamily: 'Space Grotesk, sans-serif' }}>
 
       {/* Background */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute -top-60 -left-60 w-[600px] h-[600px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)' }} />
-        <div className="absolute -bottom-60 -right-60 w-[500px] h-[500px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(236,72,153,0.1) 0%, transparent 70%)' }} />
-        <div className="absolute inset-0 opacity-[0.02]"
-          style={{
-            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,1) 2px, rgba(255,255,255,1) 3px)',
-            backgroundSize: '100% 6px',
-          }} />
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none' }}>
+        <div style={{
+          position: 'absolute', top: '-240px', left: '-240px',
+          width: '600px', height: '600px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: '-240px', right: '-240px',
+          width: '500px', height: '500px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(236,72,153,0.1) 0%, transparent 70%)',
+        }} />
       </div>
 
       {/* HEADER */}
-      <div className="relative z-10 border-b border-white/5">
-        <div className="max-w-[1400px] mx-auto px-8 py-5 flex items-center justify-between">
+      <div style={{ position: 'relative', zIndex: 10, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{
+          maxWidth: '1400px', margin: '0 auto',
+          padding: isMobile ? '14px 16px' : '20px 32px',
+          display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', gap: '12px',
+        }}>
 
           {/* Logo */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-3"
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}
           >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)' }}>
-              <span className="text-white text-sm font-bold">N</span>
-            </div>
+            <div style={{
+              width: '30px', height: '30px', borderRadius: '8px',
+              background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '13px', fontWeight: 800, color: 'white',
+            }}>N</div>
             <div>
-              <h1 className="text-white font-bold text-xl tracking-tight leading-none">
+              <h1 style={{ color: 'white', fontWeight: 800, fontSize: isMobile ? '16px' : '18px', letterSpacing: '-0.02em', margin: 0, lineHeight: 1 }}>
                 NEX<span style={{ color: '#8b5cf6' }}>TASK</span>
               </h1>
-              <p className="text-white/20 text-[10px] font-mono tracking-[0.2em] uppercase">
-                AI-Powered Board
-              </p>
+              {!isMobile && (
+                <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.2em', margin: 0 }}>
+                  AI-POWERED BOARD
+                </p>
+              )}
             </div>
           </motion.div>
 
           {/* Workspace switcher */}
           <motion.button
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => setShowWorkspacePanel(true)}
             style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
+              display: 'flex', alignItems: 'center', gap: '6px',
               background: 'rgba(255,255,255,0.03)',
               border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '10px', padding: '8px 14px',
-              cursor: 'pointer',
+              borderRadius: '10px', padding: '7px 12px',
+              cursor: 'pointer', flexShrink: 0,
             }}
           >
             <div style={{
-              width: '20px', height: '20px', borderRadius: '5px',
-              background: currentWorkspace
-                ? 'linear-gradient(135deg, #8b5cf6, #ec4899)'
-                : 'rgba(255,255,255,0.1)',
+              width: '18px', height: '18px', borderRadius: '4px',
+              background: currentWorkspace ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '10px', fontWeight: 700, color: 'white',
+              fontSize: '9px', fontWeight: 700, color: 'white',
             }}>
               {currentWorkspace ? currentWorkspace.name.charAt(0).toUpperCase() : '👤'}
             </div>
-            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>
+            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 600, maxWidth: isMobile ? '80px' : '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {currentWorkspace ? currentWorkspace.name : 'Personal'}
             </span>
             <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px' }}>⌄</span>
           </motion.button>
 
-          {/* Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="flex items-center gap-1"
-          >
-            {[
-              { label: 'TOTAL', value: total, color: '#8b5cf6' },
-              { label: 'DONE', value: completed, color: '#10b981' },
-              { label: 'OVERDUE', value: overdue, color: '#ef4444' },
-            ].map((stat, i) => (
-              <div key={stat.label} className="px-4 py-2 flex items-center gap-2">
-                {i > 0 && <div className="w-px h-4 bg-white/10 mr-2" />}
-                <span className="font-bold text-lg" style={{ color: stat.color, fontFamily: 'Space Mono' }}>
-                  {String(stat.value).padStart(2, '0')}
-                </span>
-                <span className="text-white/30 text-[10px] font-mono tracking-widest">{stat.label}</span>
-              </div>
-            ))}
-          </motion.div>
+          {/* Stats — desktop only */}
+          {!isMobile && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              {[
+                { label: 'TOTAL', value: total, color: '#8b5cf6' },
+                { label: 'DONE', value: completed, color: '#10b981' },
+                { label: 'OVERDUE', value: overdue, color: '#ef4444' },
+              ].map((stat, i) => (
+                <div key={stat.label} style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {i > 0 && <div style={{ width: '1px', height: '14px', background: 'rgba(255,255,255,0.08)', marginRight: '6px' }} />}
+                  <span style={{ color: stat.color, fontWeight: 700, fontSize: '16px', fontFamily: 'Space Mono' }}>
+                    {String(stat.value).padStart(2, '0')}
+                  </span>
+                  <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>
+                    {stat.label}
+                  </span>
+                </div>
+              ))}
+            </motion.div>
+          )}
 
-          {/* Right */}
+          {/* Right actions */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-3"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}
           >
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-xs">⌕</span>
+            {!isMobile && (
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>⌕</span>
+                <input
+                  type="text"
+                  placeholder="Search tasks..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px', paddingLeft: '30px', paddingRight: '14px',
+                    paddingTop: '8px', paddingBottom: '8px',
+                    color: 'rgba(255,255,255,0.7)', fontSize: '13px',
+                    fontFamily: 'Space Grotesk', outline: 'none', width: '180px',
+                  }}
+                />
+              </div>
+            )}
+
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={handleLogout}
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '8px', padding: '8px 12px',
+                color: 'rgba(255,255,255,0.35)', cursor: 'pointer',
+                fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 600,
+              }}
+            >
+              {isMobile ? '↩' : 'Sign Out'}
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => handleAddTask('todo')}
+              style={{
+                background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                border: 'none', borderRadius: '8px',
+                padding: isMobile ? '8px 12px' : '8px 18px',
+                color: 'white', cursor: 'pointer',
+                fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700,
+                boxShadow: '0 0 20px rgba(139,92,246,0.4)',
+                display: 'flex', alignItems: 'center', gap: '6px',
+              }}
+            >
+              <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span>
+              {!isMobile && 'New Task'}
+            </motion.button>
+          </motion.div>
+        </div>
+
+        {/* Mobile search bar */}
+        {isMobile && (
+          <div style={{ padding: '8px 16px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>⌕</span>
               <input
                 type="text"
                 placeholder="Search tasks..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-lg pl-8 pr-4 py-2 text-sm text-white/70 placeholder-white/20 outline-none focus:border-violet-500/50 w-48 transition-all font-sans"
+                style={{
+                  width: '100%', background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '8px', paddingLeft: '30px', paddingRight: '14px',
+                  paddingTop: '8px', paddingBottom: '8px',
+                  color: 'rgba(255,255,255,0.7)', fontSize: '13px',
+                  fontFamily: 'Space Grotesk', outline: 'none',
+                  boxSizing: 'border-box',
+                }}
               />
             </div>
-
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleLogout}
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '8px', padding: '8px 16px',
-                color: 'rgba(255,255,255,0.35)',
-                cursor: 'pointer', fontSize: '12px',
-                fontFamily: 'Space Grotesk', fontWeight: 600,
-              }}
-            >
-              Sign Out
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => handleAddTask('todo')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
-              style={{
-                background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                boxShadow: '0 0 20px rgba(139,92,246,0.4)',
-              }}
-            >
-              <span>+</span>
-              New Task
-            </motion.button>
-          </motion.div>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="relative z-10 max-w-[1400px] mx-auto px-8 py-8">
+      <div style={{ position: 'relative', zIndex: 10, maxWidth: '1400px', margin: '0 auto', padding: isMobile ? '16px' : '32px' }}>
 
-        {/* View toggle */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="flex items-center gap-3 mb-6"
-        >
+        {/* View toggle + stats mobile */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
           <div style={{
             display: 'flex', gap: '4px',
             background: 'rgba(255,255,255,0.03)',
@@ -328,7 +364,7 @@ function App() {
                 key={v.id}
                 onClick={() => setView(v.id as 'board' | 'calendar')}
                 style={{
-                  padding: '6px 16px', borderRadius: '7px', border: 'none',
+                  padding: '6px 14px', borderRadius: '7px', border: 'none',
                   background: view === v.id ? 'rgba(139,92,246,0.2)' : 'transparent',
                   color: view === v.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)',
                   cursor: 'pointer', fontSize: '12px',
@@ -341,9 +377,34 @@ function App() {
               </button>
             ))}
           </div>
-          <div className="flex-1 h-px bg-white/5" />
 
-          {/* Workspace badge */}
+          {/* Mobile stats */}
+          {isMobile && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {[
+                { value: total, color: '#8b5cf6', label: 'total' },
+                { value: completed, color: '#10b981', label: 'done' },
+                { value: overdue, color: '#ef4444', label: 'late' },
+              ].map(s => (
+                <div key={s.label} style={{
+                  display: 'flex', alignItems: 'center', gap: '4px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '8px', padding: '4px 8px',
+                }}>
+                  <span style={{ color: s.color, fontSize: '13px', fontWeight: 700, fontFamily: 'Space Mono' }}>
+                    {s.value}
+                  </span>
+                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', fontFamily: 'Space Mono' }}>
+                    {s.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+
           {currentWorkspace && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: '6px',
@@ -358,26 +419,41 @@ function App() {
             </div>
           )}
 
-          <span className="text-white/20 text-xs font-mono">{total} tasks</span>
-        </motion.div>
+          {!isMobile && (
+            <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', fontFamily: 'Space Mono' }}>
+              {total} tasks
+            </span>
+          )}
+        </div>
 
         {/* Board or Calendar */}
         {loading ? (
-          <div className="flex gap-4">
+          <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '16px' }}>
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="rounded-2xl w-72 h-96 animate-pulse"
-                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }} />
+              <div key={i} style={{
+                width: 'min(300px, 85vw)', minWidth: 'min(300px, 85vw)',
+                height: '400px', borderRadius: '16px', flexShrink: 0,
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.05)',
+                animation: 'pulse 2s infinite',
+              }} />
             ))}
           </div>
         ) : view === 'board' ? (
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex gap-5 overflow-x-auto pb-4">
+            <div style={{
+              display: 'flex', gap: '16px',
+              overflowX: 'auto', paddingBottom: '16px',
+              WebkitOverflowScrolling: 'touch',
+              scrollSnapType: 'x mandatory',
+            }}>
               {COLUMNS.map((column, i) => (
                 <motion.div
                   key={column.id}
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: i * 0.08 }}
+                  style={{ scrollSnapAlign: 'start' }}
                 >
                   <Column
                     id={column.id}
@@ -395,7 +471,7 @@ function App() {
             </div>
             <DragOverlay>
               {activeTask && (
-                <div className="rotate-1 scale-105">
+                <div style={{ transform: 'rotate(2deg) scale(1.05)' }}>
                   <TaskCard task={activeTask} onDeleted={() => {}} onOpen={() => {}} />
                 </div>
               )}
