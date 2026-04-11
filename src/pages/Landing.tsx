@@ -214,7 +214,7 @@ function CountUp({ end, suffix = '' }: { end: number; suffix?: string }) {
 
 // ─── FEATURES ─────────────────────────────────────────────────
 const FEATURES = [
-  { n: '01', icon: '🤖', title: 'AI Task Intelligence', desc: 'Claude AI writes descriptions, suggests priorities, and breaks tasks into subtasks in seconds.', color: '#8b5cf6' },
+  { n: '01', icon: '🤖', title: 'AI Task Intelligence', desc: 'AI writes descriptions, suggests priorities, and breaks tasks into subtasks in seconds.', color: '#8b5cf6' },
   { n: '02', icon: '⚡', title: 'Instant Drag & Drop', desc: 'Physics-based card motion with spring animations. Every interaction feels alive.', color: '#06b6d4' },
   { n: '03', icon: '🗓️', title: 'Calendar View', desc: 'Your whole workload mapped across time. Overdue tasks glow red. Deadlines pulse orange.', color: '#10b981' },
   { n: '04', icon: '🔄', title: 'Recurring Tasks', desc: 'Weekly or monthly repeats. Complete one and the next appears automatically.', color: '#f59e0b' },
@@ -407,7 +407,7 @@ export default function Landing() {
               marginBottom: isMobile ? '32px' : '48px',
             }}
           >
-            A next-generation Kanban board powered by Claude AI. Built for teams that move fast and think bigger.
+            A next-generation Kanban board powered by AI.<br></br> Built for teams that move fast and think bigger.
           </motion.p>
 
           <motion.div
@@ -464,7 +464,7 @@ export default function Landing() {
           transition={{ duration: 28, repeat: Infinity, ease: 'linear' }}
           style={{ display: 'flex', gap: '56px', whiteSpace: 'nowrap', width: 'max-content' }}
         >
-          {Array(5).fill(['AI POWERED', '✦', 'DRAG & DROP', '✦', 'CALENDAR VIEW', '✦', 'RECURRING TASKS', '✦', 'BUILT WITH CLAUDE AI', '✦', 'ZERO LATENCY', '✦']).flat().map((t, i) => (
+          {Array(5).fill(['AI POWERED', '✦', 'DRAG & DROP', '✦', 'CALENDAR VIEW', '✦', 'RECURRING TASKS', '✦', 'ZERO LATENCY', '✦']).flat().map((t, i) => (
             <span key={i} style={{
               color: i % 2 === 1 ? '#8b5cf6' : 'rgba(255,255,255,0.1)',
               fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.22em',
@@ -863,7 +863,7 @@ export default function Landing() {
             fontSize: '9px', fontWeight: 800, color: 'white',
           }}>N</div>
           <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: '12px', fontFamily: 'Space Grotesk' }}>
-            NexTask · Built with ⚡ and Claude AI
+            NexTask · Built with ⚡
           </span>
         </div>
         <span style={{ color: 'rgba(255,255,255,0.08)', fontSize: '11px', fontFamily: 'Space Mono' }}>
