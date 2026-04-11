@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../supabase'
@@ -11,6 +12,7 @@ interface Props {
   onTaskCreated: () => void
   userId: string
   defaultStatus?: Status
+  workspaceId?: string
 }
 
 const priorityOptions = [
@@ -32,7 +34,7 @@ const recurringOptions = [
   { value: 'monthly', label: 'Monthly', icon: '↻', color: '#8b5cf6' },
 ]
 
-function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Props) {
+function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, workspaceId }: Props) {
   const [step, setStep] = useState(1)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -86,10 +88,12 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
     const { error } = await supabase.from('tasks').insert({
       title: title.trim(),
       description: description.trim() || null,
-      priority, status,
+      priority,
+      status,
       due_date: dueDate || null,
       recurring,
       user_id: userId,
+      workspace_id: workspaceId ?? null,
     })
     if (error) {
       toast.error('Failed to create task')
@@ -114,9 +118,7 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
             background: 'rgba(0,0,0,0.85)',
             backdropFilter: 'blur(12px)',
             zIndex: 50,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '16px',
           }}
         >
@@ -130,8 +132,7 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
               background: '#050505',
               border: '1px solid rgba(255,255,255,0.07)',
               borderRadius: '20px',
-              width: '100%',
-              maxWidth: '480px',
+              width: '100%', maxWidth: '480px',
               overflow: 'hidden',
               boxShadow: '0 30px 80px rgba(0,0,0,0.9), 0 0 60px rgba(139,92,246,0.08)',
             }}
@@ -145,15 +146,13 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                   {[1, 2].map(s => (
                     <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{
-                        width: '24px', height: '24px',
-                        borderRadius: '50%',
+                        width: '24px', height: '24px', borderRadius: '50%',
                         background: step >= s ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.05)',
                         border: `1px solid ${step >= s ? 'transparent' : 'rgba(255,255,255,0.1)'}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '11px', fontWeight: 700,
                         color: step >= s ? 'white' : 'rgba(255,255,255,0.2)',
-                        fontFamily: 'Space Mono',
-                        transition: 'all 0.3s',
+                        fontFamily: 'Space Mono', transition: 'all 0.3s',
                       }}>
                         {s}
                       </div>
@@ -173,10 +172,8 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                 <button onClick={handleClose} style={{
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '8px',
-                  color: 'rgba(255,255,255,0.3)',
-                  cursor: 'pointer',
-                  width: '28px', height: '28px',
+                  borderRadius: '8px', color: 'rgba(255,255,255,0.3)',
+                  cursor: 'pointer', width: '28px', height: '28px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '12px',
                 }}>✕</button>
@@ -199,17 +196,11 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                         onKeyDown={e => e.key === 'Enter' && title.trim() && setStep(2)}
                         placeholder="What needs to be done?"
                         style={{
-                          width: '100%',
-                          background: 'transparent',
-                          border: 'none',
-                          borderBottom: '1px solid rgba(255,255,255,0.1)',
-                          padding: '8px 0',
-                          color: 'white',
-                          fontSize: '20px',
-                          fontFamily: 'Space Grotesk',
-                          fontWeight: 600,
-                          outline: 'none',
-                          letterSpacing: '-0.02em',
+                          width: '100%', background: 'transparent',
+                          border: 'none', borderBottom: '1px solid rgba(255,255,255,0.1)',
+                          padding: '8px 0', color: 'white', fontSize: '20px',
+                          fontFamily: 'Space Grotesk', fontWeight: 600,
+                          outline: 'none', letterSpacing: '-0.02em',
                         }}
                         onFocus={e => e.target.style.borderBottomColor = '#8b5cf6'}
                         onBlur={e => e.target.style.borderBottomColor = 'rgba(255,255,255,0.1)'}
@@ -230,12 +221,9 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                           style={{
                             background: 'rgba(139,92,246,0.08)',
                             border: '1px solid rgba(139,92,246,0.15)',
-                            borderRadius: '6px',
-                            color: '#8b5cf6',
-                            cursor: 'pointer',
-                            fontSize: '11px',
-                            fontFamily: 'Space Grotesk',
-                            padding: '4px 12px',
+                            borderRadius: '6px', color: '#8b5cf6',
+                            cursor: 'pointer', fontSize: '11px',
+                            fontFamily: 'Space Grotesk', padding: '4px 12px',
                             opacity: !title.trim() ? 0.3 : 1,
                           }}
                         >
@@ -251,14 +239,10 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                           width: '100%',
                           background: 'rgba(255,255,255,0.02)',
                           border: '1px solid rgba(255,255,255,0.06)',
-                          borderRadius: '12px',
-                          padding: '14px',
-                          color: 'rgba(255,255,255,0.7)',
-                          fontSize: '13px',
-                          fontFamily: 'Space Grotesk',
-                          outline: 'none',
-                          resize: 'none',
-                          lineHeight: 1.7,
+                          borderRadius: '12px', padding: '14px',
+                          color: 'rgba(255,255,255,0.7)', fontSize: '13px',
+                          fontFamily: 'Space Grotesk', outline: 'none',
+                          resize: 'none', lineHeight: 1.7,
                         }}
                       />
                     </div>
@@ -274,14 +258,10 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                       style={{
                         width: '100%',
                         background: title.trim() ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.05)',
-                        border: 'none',
-                        borderRadius: '12px',
-                        padding: '14px',
+                        border: 'none', borderRadius: '12px', padding: '14px',
                         color: title.trim() ? 'white' : 'rgba(255,255,255,0.2)',
                         cursor: title.trim() ? 'pointer' : 'not-allowed',
-                        fontSize: '13px',
-                        fontFamily: 'Space Grotesk',
-                        fontWeight: 700,
+                        fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700,
                         boxShadow: title.trim() ? '0 0 25px rgba(139,92,246,0.3)' : 'none',
                         transition: 'all 0.2s',
                       }}
@@ -314,9 +294,8 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                           disabled={suggestingPriority}
                           style={{
                             background: 'none', border: 'none',
-                            color: 'rgba(139,92,246,0.7)',
-                            cursor: 'pointer', fontSize: '11px',
-                            fontFamily: 'Space Grotesk',
+                            color: 'rgba(139,92,246,0.7)', cursor: 'pointer',
+                            fontSize: '11px', fontFamily: 'Space Grotesk',
                           }}
                         >
                           {suggestingPriority ? '⟳' : '🤖 AI Suggest'}
@@ -328,13 +307,11 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                             key={opt.value}
                             onClick={() => setPriority(opt.value as 'low' | 'normal' | 'high')}
                             style={{
-                              flex: 1, padding: '12px 8px',
-                              borderRadius: '12px',
+                              flex: 1, padding: '12px 8px', borderRadius: '12px',
                               border: `1px solid ${priority === opt.value ? opt.color : opt.color + '35'}`,
                               background: priority === opt.value ? `${opt.color}18` : `${opt.color}06`,
                               color: priority === opt.value ? opt.color : opt.color + '80',
-                              cursor: 'pointer',
-                              fontSize: '12px',
+                              cursor: 'pointer', fontSize: '12px',
                               fontFamily: 'Space Grotesk',
                               fontWeight: priority === opt.value ? 700 : 500,
                               transition: 'all 0.15s',
@@ -358,23 +335,19 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                             key={opt.value}
                             onClick={() => setStatus(opt.value as Status)}
                             style={{
-                              padding: '10px 12px',
-                              borderRadius: '10px',
+                              padding: '10px 12px', borderRadius: '10px',
                               border: `1px solid ${status === opt.value ? opt.color + '60' : opt.color + '20'}`,
                               background: status === opt.value ? `${opt.color}12` : `${opt.color}05`,
                               color: status === opt.value ? opt.color : opt.color + '60',
-                              cursor: 'pointer',
-                              fontSize: '12px',
+                              cursor: 'pointer', fontSize: '12px',
                               fontFamily: 'Space Grotesk',
                               fontWeight: status === opt.value ? 600 : 400,
-                              textAlign: 'left',
-                              transition: 'all 0.15s',
+                              textAlign: 'left', transition: 'all 0.15s',
                               display: 'flex', alignItems: 'center', gap: '8px',
                             }}
                           >
                             <span style={{
-                              width: '6px', height: '6px',
-                              borderRadius: '50%',
+                              width: '6px', height: '6px', borderRadius: '50%',
                               background: opt.color,
                               boxShadow: status === opt.value ? `0 0 6px ${opt.color}` : 'none',
                               flexShrink: 0,
@@ -396,15 +369,11 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                           value={dueDate}
                           onChange={e => setDueDate(e.target.value)}
                           style={{
-                            width: '100%',
-                            background: 'rgba(255,255,255,0.02)',
+                            width: '100%', background: 'rgba(255,255,255,0.02)',
                             border: '1px solid rgba(255,255,255,0.06)',
-                            borderRadius: '10px',
-                            padding: '10px 12px',
-                            color: 'rgba(255,255,255,0.6)',
-                            fontSize: '12px',
-                            fontFamily: 'Space Grotesk',
-                            outline: 'none',
+                            borderRadius: '10px', padding: '10px 12px',
+                            color: 'rgba(255,255,255,0.6)', fontSize: '12px',
+                            fontFamily: 'Space Grotesk', outline: 'none',
                             colorScheme: 'dark',
                           }}
                         />
@@ -419,15 +388,12 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                               key={opt.value ?? 'none'}
                               onClick={() => setRecurring(opt.value as 'weekly' | 'monthly' | null)}
                               style={{
-                                padding: '7px 10px',
-                                borderRadius: '8px',
+                                padding: '7px 10px', borderRadius: '8px',
                                 border: `1px solid ${recurring === opt.value ? opt.color + '50' : 'rgba(255,255,255,0.06)'}`,
                                 background: recurring === opt.value ? `${opt.color}12` : 'transparent',
                                 color: recurring === opt.value ? opt.color : 'rgba(255,255,255,0.3)',
-                                cursor: 'pointer',
-                                fontSize: '11px',
-                                fontFamily: 'Space Grotesk',
-                                textAlign: 'left',
+                                cursor: 'pointer', fontSize: '11px',
+                                fontFamily: 'Space Grotesk', textAlign: 'left',
                                 transition: 'all 0.15s',
                                 display: 'flex', alignItems: 'center', gap: '6px',
                               }}
@@ -445,16 +411,11 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                       <button
                         onClick={() => setStep(1)}
                         style={{
-                          flex: 1,
-                          background: 'rgba(255,255,255,0.03)',
+                          flex: 1, background: 'rgba(255,255,255,0.03)',
                           border: '1px solid rgba(255,255,255,0.08)',
-                          borderRadius: '12px',
-                          padding: '13px',
-                          color: 'rgba(255,255,255,0.3)',
-                          cursor: 'pointer',
-                          fontSize: '13px',
-                          fontFamily: 'Space Grotesk',
-                          fontWeight: 600,
+                          borderRadius: '12px', padding: '13px',
+                          color: 'rgba(255,255,255,0.3)', cursor: 'pointer',
+                          fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 600,
                         }}
                       >
                         ← Back
@@ -467,14 +428,9 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus }: Prop
                         style={{
                           flex: 2,
                           background: loading ? 'rgba(139,92,246,0.3)' : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                          border: 'none',
-                          borderRadius: '12px',
-                          padding: '13px',
-                          color: 'white',
-                          cursor: loading ? 'not-allowed' : 'pointer',
-                          fontSize: '13px',
-                          fontFamily: 'Space Grotesk',
-                          fontWeight: 700,
+                          border: 'none', borderRadius: '12px', padding: '13px',
+                          color: 'white', cursor: loading ? 'not-allowed' : 'pointer',
+                          fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700,
                           boxShadow: loading ? 'none' : '0 0 25px rgba(139,92,246,0.35)',
                         }}
                       >

@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react'
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { supabase } from './supabase'
-import type { Task, Status } from './types'
+import type { Task, Status, Workspace } from './types'
 import { COLUMNS } from './types'
 import Column from './components/Column'
 import CreateTaskModal from './components/CreateTaskModal'
 import TaskCard from './components/TaskCard'
 import TaskDetailPanel from './components/TaskDetailPanel'
 import CalendarView from './components/CalendarView'
-import { motion } from 'framer-motion'
+import WorkspacePanel from './components/WorkspacePanel'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 
 function App() {
@@ -17,11 +18,13 @@ function App() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [showWorkspacePanel, setShowWorkspacePanel] = useState(false)
   const [search, setSearch] = useState('')
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<Status>('todo')
   const [view, setView] = useState<'board' | 'calendar'>('board')
+  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
   const navigate = useNavigate()
 
   const sensors = useSensors(
@@ -31,11 +34,8 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        setUserId(session.user.id)
-      } else {
-        navigate('/auth')
-      }
+      if (session) setUserId(session.user.id)
+      else navigate('/auth')
     }
     checkAuth()
 
@@ -52,10 +52,18 @@ function App() {
 
     const fetchTasks = async () => {
       setLoading(true)
-      const { data, error } = await supabase
+      let query = supabase
         .from('tasks')
         .select('*')
         .order('created_at', { ascending: true })
+
+      if (currentWorkspace) {
+        query = query.eq('workspace_id', currentWorkspace.id)
+      } else {
+        query = query.is('workspace_id', null).eq('user_id', userId)
+      }
+
+      const { data, error } = await query
       if (error) console.error('Fetch error:', error)
       else setTasks(data ?? [])
       setLoading(false)
@@ -63,20 +71,23 @@ function App() {
 
     fetchTasks()
 
-    // Realtime subscription
+    // Realtime
+    const channelName = currentWorkspace
+      ? `workspace-${currentWorkspace.id}`
+      : `personal-${userId}`
+
     const channel = supabase
-      .channel('tasks-realtime')
+      .channel(channelName)
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tasks',
-          filter: `user_id=eq.${userId}`,
-        },
+        { event: '*', schema: 'public', table: 'tasks' },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setTasks(prev => [...prev, payload.new as Task])
+            const newTask = payload.new as Task
+            const belongs = currentWorkspace
+              ? newTask.workspace_id === currentWorkspace.id
+              : !newTask.workspace_id && newTask.user_id === userId
+            if (belongs) setTasks(prev => [...prev, newTask])
           } else if (payload.eventType === 'UPDATE') {
             setTasks(prev => prev.map(t =>
               t.id === (payload.new as Task).id ? payload.new as Task : t
@@ -88,16 +99,23 @@ function App() {
       )
       .subscribe()
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [userId])
+    return () => { supabase.removeChannel(channel) }
+  }, [userId, currentWorkspace])
 
   const refetchTasks = async () => {
-    const { data } = await supabase
+    if (!userId) return
+    let query = supabase
       .from('tasks')
       .select('*')
       .order('created_at', { ascending: true })
+
+    if (currentWorkspace) {
+      query = query.eq('workspace_id', currentWorkspace.id)
+    } else {
+      query = query.is('workspace_id', null).eq('user_id', userId)
+    }
+
+    const { data } = await query
     setTasks(data ?? [])
   }
 
@@ -115,10 +133,7 @@ function App() {
     const task = tasks.find(t => t.id === taskId)
     if (!task || task.status === newStatus) return
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
-    const { error } = await supabase
-      .from('tasks')
-      .update({ status: newStatus })
-      .eq('id', taskId)
+    const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
     if (error) { console.error('Update error:', error); refetchTasks() }
   }
 
@@ -148,12 +163,10 @@ function App() {
           style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)' }} />
         <div className="absolute -bottom-60 -right-60 w-[500px] h-[500px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(236,72,153,0.1) 0%, transparent 70%)' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full"
-          style={{ background: 'radial-gradient(ellipse, rgba(6,182,212,0.04) 0%, transparent 70%)' }} />
         <div className="absolute inset-0 opacity-[0.02]"
           style={{
             backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,1) 2px, rgba(255,255,255,1) 3px)',
-            backgroundSize: '100% 6px'
+            backgroundSize: '100% 6px',
           }} />
       </div>
 
@@ -180,6 +193,37 @@ function App() {
               </p>
             </div>
           </motion.div>
+
+          {/* Workspace switcher */}
+          <motion.button
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setShowWorkspacePanel(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '10px', padding: '8px 14px',
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{
+              width: '20px', height: '20px', borderRadius: '5px',
+              background: currentWorkspace
+                ? 'linear-gradient(135deg, #8b5cf6, #ec4899)'
+                : 'rgba(255,255,255,0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '10px', fontWeight: 700, color: 'white',
+            }}>
+              {currentWorkspace ? currentWorkspace.name.charAt(0).toUpperCase() : '👤'}
+            </div>
+            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>
+              {currentWorkspace ? currentWorkspace.name : 'Personal'}
+            </span>
+            <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px' }}>⌄</span>
+          </motion.button>
 
           {/* Stats */}
           <motion.div
@@ -220,22 +264,6 @@ function App() {
               />
             </div>
 
-            {/* New Task */}
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => handleAddTask('todo')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
-              style={{
-                background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                boxShadow: '0 0 20px rgba(139,92,246,0.4)',
-              }}
-            >
-              <span>+</span>
-              New Task
-            </motion.button>
-
-            {/* Sign Out */}
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
@@ -251,7 +279,20 @@ function App() {
             >
               Sign Out
             </motion.button>
-            
+
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => handleAddTask('todo')}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
+              style={{
+                background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                boxShadow: '0 0 20px rgba(139,92,246,0.4)',
+              }}
+            >
+              <span>+</span>
+              New Task
+            </motion.button>
           </motion.div>
         </div>
       </div>
@@ -294,6 +335,22 @@ function App() {
             ))}
           </div>
           <div className="flex-1 h-px bg-white/5" />
+
+          {/* Workspace badge */}
+          {currentWorkspace && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: 'rgba(139,92,246,0.08)',
+              border: '1px solid rgba(139,92,246,0.2)',
+              borderRadius: '8px', padding: '4px 10px',
+            }}>
+              <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#8b5cf6', boxShadow: '0 0 6px #8b5cf6' }} />
+              <span style={{ color: '#8b5cf6', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>
+                {currentWorkspace.name}
+              </span>
+            </div>
+          )}
+
           <span className="text-white/20 text-xs font-mono">{total} tasks</span>
         </motion.div>
 
@@ -355,6 +412,7 @@ function App() {
           onClose={() => setShowModal(false)}
           onTaskCreated={refetchTasks}
           defaultStatus={defaultStatus}
+          workspaceId={currentWorkspace?.id}
         />
       )}
 
@@ -366,6 +424,17 @@ function App() {
           onUpdated={() => { refetchTasks(); setSelectedTask(null) }}
         />
       )}
+
+      <AnimatePresence>
+        {showWorkspacePanel && userId && (
+          <WorkspacePanel
+            userId={userId}
+            currentWorkspace={currentWorkspace}
+            onWorkspaceChange={setCurrentWorkspace}
+            onClose={() => setShowWorkspacePanel(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
