@@ -81,7 +81,11 @@ function App() {
       .channel(channelName)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'tasks' },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+        },
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const newTask = payload.new as Task
