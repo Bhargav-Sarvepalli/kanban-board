@@ -214,12 +214,62 @@ function CountUp({ end, suffix = '' }: { end: number; suffix?: string }) {
 
 // ─── FEATURES ─────────────────────────────────────────────────
 const FEATURES = [
-  { n: '01', icon: '🤖', title: 'AI Task Intelligence', desc: 'AI writes descriptions, suggests priorities, and breaks tasks into subtasks in seconds.', color: '#8b5cf6' },
-  { n: '02', icon: '⚡', title: 'Instant Drag & Drop', desc: 'Physics-based card motion with spring animations. Every interaction feels alive.', color: '#06b6d4' },
-  { n: '03', icon: '🗓️', title: 'Calendar View', desc: 'Your whole workload mapped across time. Overdue tasks glow red. Deadlines pulse orange.', color: '#10b981' },
-  { n: '04', icon: '🔄', title: 'Recurring Tasks', desc: 'Weekly or monthly repeats. Complete one and the next appears automatically.', color: '#f59e0b' },
-  { n: '05', icon: '💬', title: 'Task Comments', desc: 'Every task has a live thread. Build context, share updates, track history.', color: '#ec4899' },
-  { n: '06', icon: '🔒', title: 'Zero-Trust Security', desc: 'Row Level Security at the database level. Your data is mathematically isolated.', color: '#ef4444' },
+  {
+    n: '01',
+    icon: '🤖',
+    title: 'AI Task Intelligence',
+    desc: 'Generate task descriptions, get smart priority suggestions, and break complex tasks into actionable subtasks — all powered by AI.',
+    color: '#8b5cf6',
+  },
+  {
+    n: '02',
+    icon: '⚡',
+    title: 'Instant Drag & Drop',
+    desc: 'Physics-based card motion with spring animations. Move tasks between columns with satisfying, zero-lag interactions.',
+    color: '#06b6d4',
+  },
+  {
+    n: '03',
+    icon: '👥',
+    title: 'Team Collaboration',
+    desc: 'Create shared workspaces, invite teammates by email, and see task updates appear in real-time across all connected clients.',
+    color: '#10b981',
+  },
+  {
+    n: '04',
+    icon: '🗓️',
+    title: 'Calendar Intelligence',
+    desc: 'Visualize your entire workload across time. Overdue tasks glow red, upcoming deadlines pulse orange — at a glance.',
+    color: '#f59e0b',
+  },
+  {
+    n: '05',
+    icon: '🔄',
+    title: 'Recurring Workflows',
+    desc: 'Set tasks to repeat weekly or monthly. Complete one and the next appears automatically. Zero friction, zero forgetting.',
+    color: '#ec4899',
+  },
+  {
+    n: '06',
+    icon: '💬',
+    title: 'Task Comments',
+    desc: 'Every task has a live conversation thread. Add context, track decisions, and build a history of your work.',
+    color: '#a78bfa',
+  },
+  {
+    n: '07',
+    icon: '🔐',
+    title: 'Google OAuth & Email Auth',
+    desc: 'Sign in with Google in one click or use email and password. Sessions persist securely across devices.',
+    color: '#34d399',
+  },
+  {
+    n: '08',
+    icon: '🔒',
+    title: 'Zero-Trust Security',
+    desc: 'Row Level Security baked into the database layer. Your data is mathematically isolated — not just hidden by application logic.',
+    color: '#ef4444',
+  },
 ]
 
 // ─── MAIN ─────────────────────────────────────────────────────
@@ -464,7 +514,7 @@ export default function Landing() {
           transition={{ duration: 28, repeat: Infinity, ease: 'linear' }}
           style={{ display: 'flex', gap: '56px', whiteSpace: 'nowrap', width: 'max-content' }}
         >
-          {Array(5).fill(['AI POWERED', '✦', 'DRAG & DROP', '✦', 'CALENDAR VIEW', '✦', 'RECURRING TASKS', '✦', 'ZERO LATENCY', '✦']).flat().map((t, i) => (
+          {Array(5).fill(['AI POWERED', '✦', 'DRAG & DROP', '✦', 'TEAM COLLABORATION', '✦', 'CALENDAR VIEW', '✦', 'RECURRING TASKS', '✦', 'GOOGLE AUTH', '✦', 'REAL-TIME SYNC', '✦', 'ZERO LATENCY', '✦',]).flat().map((t, i) => (
             <span key={i} style={{
               color: i % 2 === 1 ? '#8b5cf6' : 'rgba(255,255,255,0.1)',
               fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.22em',
@@ -569,13 +619,14 @@ export default function Landing() {
             style={{ display: 'flex', gap: '8px', marginTop: '32px', flexWrap: 'wrap', justifyContent: 'center' }}
           >
             {[
-              { label: 'AI-powered', color: '#8b5cf6' },
-              { label: 'Drag & drop', color: '#06b6d4' },
-              { label: 'Calendar view', color: '#10b981' },
-              { label: 'Recurring tasks', color: '#f59e0b' },
-              { label: 'Comments', color: '#ec4899' },
-              { label: 'Secure', color: '#ef4444' },
-            ].map((p, i) => (
+                { label: 'AI-powered', color: '#8b5cf6' },
+                { label: 'Team workspaces', color: '#10b981' },
+                { label: 'Real-time sync', color: '#06b6d4' },
+                { label: 'Calendar view', color: '#f59e0b' },
+                { label: 'Recurring tasks', color: '#ec4899' },
+                { label: 'Google OAuth', color: '#34d399' },
+                { label: 'Secure by default', color: '#ef4444' },
+              ].map((p, i) => (
               <motion.div
                 key={p.label}
                 initial={{ opacity: 0, scale: 0.85 }}
