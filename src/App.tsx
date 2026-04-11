@@ -49,6 +49,7 @@ function App() {
 
   useEffect(() => {
     if (!userId) return
+
     const fetchTasks = async () => {
       setLoading(true)
       const { data, error } = await supabase
@@ -59,7 +60,37 @@ function App() {
       else setTasks(data ?? [])
       setLoading(false)
     }
+
     fetchTasks()
+
+    // Realtime subscription
+    const channel = supabase
+      .channel('tasks-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setTasks(prev => [...prev, payload.new as Task])
+          } else if (payload.eventType === 'UPDATE') {
+            setTasks(prev => prev.map(t =>
+              t.id === (payload.new as Task).id ? payload.new as Task : t
+            ))
+          } else if (payload.eventType === 'DELETE') {
+            setTasks(prev => prev.filter(t => t.id !== (payload.old as Task).id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [userId])
 
   const refetchTasks = async () => {
@@ -94,6 +125,11 @@ function App() {
   const handleAddTask = (status: Status) => {
     setDefaultStatus(status)
     setShowModal(true)
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    navigate('/auth')
   }
 
   const total = tasks.length
@@ -183,6 +219,8 @@ function App() {
                 className="bg-white/5 border border-white/10 rounded-lg pl-8 pr-4 py-2 text-sm text-white/70 placeholder-white/20 outline-none focus:border-violet-500/50 w-48 transition-all font-sans"
               />
             </div>
+
+            {/* New Task */}
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
@@ -196,6 +234,24 @@ function App() {
               <span>+</span>
               New Task
             </motion.button>
+
+            {/* Sign Out */}
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={handleLogout}
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '8px', padding: '8px 16px',
+                color: 'rgba(255,255,255,0.35)',
+                cursor: 'pointer', fontSize: '12px',
+                fontFamily: 'Space Grotesk', fontWeight: 600,
+              }}
+            >
+              Sign Out
+            </motion.button>
+            
           </motion.div>
         </div>
       </div>
@@ -203,7 +259,7 @@ function App() {
       {/* MAIN CONTENT */}
       <div className="relative z-10 max-w-[1400px] mx-auto px-8 py-8">
 
-        {/* View toggle + label */}
+        {/* View toggle */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -214,8 +270,7 @@ function App() {
             display: 'flex', gap: '4px',
             background: 'rgba(255,255,255,0.03)',
             border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: '10px',
-            padding: '4px',
+            borderRadius: '10px', padding: '4px',
           }}>
             {[
               { id: 'board', label: '⊞ Board' },
@@ -225,13 +280,10 @@ function App() {
                 key={v.id}
                 onClick={() => setView(v.id as 'board' | 'calendar')}
                 style={{
-                  padding: '6px 16px',
-                  borderRadius: '7px',
-                  border: 'none',
+                  padding: '6px 16px', borderRadius: '7px', border: 'none',
                   background: view === v.id ? 'rgba(139,92,246,0.2)' : 'transparent',
                   color: view === v.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)',
-                  cursor: 'pointer',
-                  fontSize: '12px',
+                  cursor: 'pointer', fontSize: '12px',
                   fontFamily: 'Space Grotesk',
                   fontWeight: view === v.id ? 600 : 400,
                   transition: 'all 0.15s',
@@ -248,7 +300,7 @@ function App() {
         {/* Board or Calendar */}
         {loading ? (
           <div className="flex gap-4">
-            {[1,2,3,4].map(i => (
+            {[1, 2, 3, 4].map(i => (
               <div key={i} className="rounded-2xl w-72 h-96 animate-pulse"
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }} />
             ))}
@@ -291,10 +343,7 @@ function App() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <CalendarView
-              tasks={tasks}
-              onOpenTask={setSelectedTask}
-            />
+            <CalendarView tasks={tasks} onOpenTask={setSelectedTask} />
           </motion.div>
         )}
       </div>
