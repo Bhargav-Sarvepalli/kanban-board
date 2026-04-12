@@ -407,14 +407,16 @@ function App() {
                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
                     style={{
-                      position: 'absolute', top: '44px', right: 0,
-                      background: '#111111',
+                      position: 'fixed',
+                      top: 'auto',
+                      right: '16px',
+                      background: 'rgba(15,15,15,0.98)',
                       border: '1px solid rgba(255,255,255,0.15)',
-                      borderRadius: '12px', padding: '8px',
-                      minWidth: '200px',
-                      boxShadow: '0 20px 60px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.05)',
-                      zIndex: 100,
-                      backdropFilter: 'blur(20px)',
+                      borderRadius: '12px',
+                      padding: '8px',
+                      minWidth: '220px',
+                      boxShadow: '0 25px 80px rgba(0,0,0,0.95), inset 0 1px 0 rgba(255,255,255,0.08)',
+                      zIndex: 9999,
                     }}
                   >
                     {/* Profile info */}
@@ -530,7 +532,7 @@ function App() {
       {/* Click outside to close profile menu */}
       {showProfileMenu && (
         <div
-          style={{ position: 'fixed', inset: 0, zIndex: 9 }}
+          style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
           onClick={() => setShowProfileMenu(false)}
         />
       )}
