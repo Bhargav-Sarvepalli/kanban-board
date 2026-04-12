@@ -4,12 +4,15 @@ import { supabase } from '../supabase'
 import type { Task, Comment, Status } from '../types'
 import { breakIntoSubtasks } from '../lib/ai'
 import toast from 'react-hot-toast'
+import Avatar from './Avatar'
+import type { Profile } from '../types'
 
 interface Props {
   task: Task
   onClose: () => void
   onUpdated: () => void
   userId: string
+  profiles?: Record<string, Profile>
 }
 
 function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
@@ -54,6 +57,8 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
         status,
         priority,
         due_date: dueDate || null,
+        last_edited_by: userId,
+        last_edited_at: new Date().toISOString(),
       })
       .eq('id', task.id)
 
@@ -352,6 +357,38 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
                 }}
               />
             </div>
+
+            {/* Last edited by */}
+            {task.last_edited_by && profiles?.[task.last_edited_by] && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '10px 12px',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.05)',
+                borderRadius: '10px', marginBottom: '20px',
+              }}>
+                <Avatar
+                  name={profiles[task.last_edited_by].full_name ?? profiles[task.last_edited_by].email}
+                  avatarUrl={profiles[task.last_edited_by].avatar_url}
+                  size={24}
+                />
+                <div>
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>
+                    Last edited by <span style={{ color: 'white', fontWeight: 600 }}>
+                      {profiles[task.last_edited_by].full_name ?? profiles[task.last_edited_by].email}
+                    </span>
+                  </p>
+                  {task.last_edited_at && (
+                    <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px', fontFamily: 'Space Mono', margin: '2px 0 0' }}>
+                      {new Date(task.last_edited_at).toLocaleString('en-US', {
+                        month: 'short', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Description */}
             <div style={{ marginBottom: '20px' }}>

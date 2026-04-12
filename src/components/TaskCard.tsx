@@ -4,14 +4,17 @@ import { motion } from 'framer-motion'
 import type { Task } from '../types'
 import { supabase } from '../supabase'
 import ConfirmDialog from './ConfirmDialog'
+import Avatar from './Avatar'
+import type { Profile } from '../types'
 
 interface Props {
   task: Task
   onDeleted: () => void
   onOpen: () => void
+  profiles?: Record<string, Profile>
 }
 
-function TaskCard({ task, onDeleted, onOpen }: Props) {
+function TaskCard({ task, onDeleted, onOpen,  profiles = {} }: Props) {
   const [showConfirm, setShowConfirm] = useState(false)
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -230,6 +233,25 @@ function TaskCard({ task, onDeleted, onOpen }: Props) {
             </span>
           )}
         </div>
+
+        {/* Last edited by */}
+        {task.last_edited_by && profiles[task.last_edited_by] && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            marginLeft: '20px', marginTop: '6px',
+            paddingTop: '6px',
+            borderTop: '1px solid rgba(255,255,255,0.04)',
+          }}>
+            <Avatar
+              name={profiles[task.last_edited_by].full_name ?? profiles[task.last_edited_by].email}
+              avatarUrl={profiles[task.last_edited_by].avatar_url}
+              size={14}
+            />
+            <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', fontFamily: 'Space Mono' }}>
+              edited by {profiles[task.last_edited_by].full_name?.split(' ')[0] ?? profiles[task.last_edited_by].email?.split('@')[0]}
+            </span>
+          </div>
+        )}
       </motion.div>
 
       {showConfirm && (

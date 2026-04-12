@@ -10,6 +10,8 @@ export interface Task {
   recurring?: 'weekly' | 'monthly' | null
   user_id: string
   workspace_id?: string
+  last_edited_by?: string
+  last_edited_at?: string
   created_at: string
 }
 
@@ -35,6 +37,13 @@ export interface WorkspaceMember {
   role: 'owner' | 'member'
   email: string
   created_at: string
+}
+
+export interface Profile {
+  id: string
+  email: string
+  full_name: string
+  avatar_url: string | null
 }
 
 export const COLUMNS: { id: Status; label: string }[] = [

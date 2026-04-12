@@ -1,6 +1,7 @@
 import { useDroppable } from '@dnd-kit/core'
 import type { Task, Status } from '../types'
 import TaskCard from './TaskCard'
+import type { Profile } from '../types'
 
 interface Props {
   id: Status
@@ -9,6 +10,7 @@ interface Props {
   onDeleted: () => void
   onOpen: (task: Task) => void
   onAddTask: (status: Status) => void
+  profiles?: Record<string, Profile>
 }
 
 const columnConfig: Record<Status, {
@@ -53,7 +55,7 @@ const columnConfig: Record<Status, {
   },
 }
 
-function Column({ id, tasks, onDeleted, onOpen, onAddTask }: Props) {
+function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles = {} }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id })
   const config = columnConfig[id]
 
@@ -149,6 +151,7 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask }: Props) {
                 task={task}
                 onDeleted={onDeleted}
                 onOpen={() => onOpen(task)}
+                profiles={profiles}
               />
             ))}
             {/* Add task button at bottom when has tasks */}

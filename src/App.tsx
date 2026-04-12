@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { supabase } from './supabase'
-import type { Task, Status, Workspace } from './types'
+import type { Task, Status, Workspace, Profile } from './types'
 import { COLUMNS } from './types'
 import Column from './components/Column'
 import CreateTaskModal from './components/CreateTaskModal'
@@ -10,15 +10,19 @@ import TaskCard from './components/TaskCard'
 import TaskDetailPanel from './components/TaskDetailPanel'
 import CalendarView from './components/CalendarView'
 import WorkspacePanel from './components/WorkspacePanel'
+import Avatar from './components/Avatar'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 
 function App() {
   const [userId, setUserId] = useState<string | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({})
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [showWorkspacePanel, setShowWorkspacePanel] = useState(false)
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [search, setSearch] = useState('')
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -41,16 +45,47 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session) setUserId(session.user.id)
-      else navigate('/auth')
+      if (session) {
+        setUserId(session.user.id)
+        fetchProfile(session.user.id)
+      } else {
+        navigate('/auth')
+      }
     }
     checkAuth()
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) setUserId(session.user.id)
-      else navigate('/auth')
+      if (session) {
+        setUserId(session.user.id)
+        fetchProfile(session.user.id)
+      } else {
+        navigate('/auth')
+      }
     })
     return () => subscription.unsubscribe()
   }, [navigate])
+
+  const fetchProfile = async (uid: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', uid)
+      .single()
+    if (data) setProfile(data)
+  }
+
+  const fetchProfiles = async (userIds: string[]) => {
+    if (userIds.length === 0) return
+    const unique = [...new Set(userIds)]
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', unique)
+    if (data) {
+      const map: Record<string, Profile> = {}
+      data.forEach(p => { map[p.id] = p })
+      setProfiles(map)
+    }
+  }
 
   useEffect(() => {
     if (!userId) return
@@ -70,7 +105,15 @@ function App() {
 
       const { data, error } = await query
       if (error) console.error('Fetch error:', error)
-      else setTasks(data ?? [])
+      else {
+        setTasks(data ?? [])
+        // fetch profiles for all editors
+        const editorIds = (data ?? [])
+          .filter(t => t.last_edited_by)
+          .map(t => t.last_edited_by as string)
+        const creatorIds = (data ?? []).map(t => t.user_id)
+        fetchProfiles([...editorIds, ...creatorIds])
+      }
       setLoading(false)
     }
 
@@ -117,6 +160,10 @@ function App() {
 
     const { data } = await query
     setTasks(data ?? [])
+    if (data) {
+      const editorIds = data.filter(t => t.last_edited_by).map(t => t.last_edited_by as string)
+      fetchProfiles(editorIds)
+    }
   }
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -133,7 +180,14 @@ function App() {
     const task = tasks.find(t => t.id === taskId)
     if (!task || task.status === newStatus) return
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
-    const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
+    const { error } = await supabase
+      .from('tasks')
+      .update({
+        status: newStatus,
+        last_edited_by: userId,
+        last_edited_at: new Date().toISOString(),
+      })
+      .eq('id', taskId)
     if (error) { console.error('Update error:', error); refetchTasks() }
   }
 
@@ -176,7 +230,7 @@ function App() {
       <div style={{ position: 'relative', zIndex: 10, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div style={{
           maxWidth: '1400px', margin: '0 auto',
-          padding: isMobile ? '14px 16px' : '20px 32px',
+          padding: isMobile ? '12px 16px' : '16px 32px',
           display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', gap: '12px',
         }}>
@@ -194,7 +248,11 @@ function App() {
               fontSize: '13px', fontWeight: 800, color: 'white',
             }}>N</div>
             <div>
-              <h1 style={{ color: 'white', fontWeight: 800, fontSize: isMobile ? '16px' : '18px', letterSpacing: '-0.02em', margin: 0, lineHeight: 1 }}>
+              <h1 style={{
+                color: 'white', fontWeight: 800,
+                fontSize: isMobile ? '15px' : '17px',
+                letterSpacing: '-0.02em', margin: 0, lineHeight: 1,
+              }}>
                 NEX<span style={{ color: '#8b5cf6' }}>TASK</span>
               </h1>
               {!isMobile && (
@@ -228,7 +286,12 @@ function App() {
             }}>
               {currentWorkspace ? currentWorkspace.name.charAt(0).toUpperCase() : '👤'}
             </div>
-            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 600, maxWidth: isMobile ? '80px' : '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{
+              color: 'rgba(255,255,255,0.6)', fontSize: '12px',
+              fontFamily: 'Space Grotesk', fontWeight: 600,
+              maxWidth: isMobile ? '70px' : '120px',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
               {currentWorkspace ? currentWorkspace.name : 'Personal'}
             </span>
             <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px' }}>⌄</span>
@@ -276,8 +339,8 @@ function App() {
                   style={{
                     background: 'rgba(255,255,255,0.05)',
                     border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '8px', paddingLeft: '30px', paddingRight: '14px',
-                    paddingTop: '8px', paddingBottom: '8px',
+                    borderRadius: '8px', paddingLeft: '30px',
+                    paddingRight: '14px', paddingTop: '8px', paddingBottom: '8px',
                     color: 'rgba(255,255,255,0.7)', fontSize: '13px',
                     fontFamily: 'Space Grotesk', outline: 'none', width: '180px',
                   }}
@@ -285,21 +348,7 @@ function App() {
               </div>
             )}
 
-            <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
-              onClick={handleLogout}
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '8px', padding: '8px 12px',
-                color: 'rgba(255,255,255,0.35)', cursor: 'pointer',
-                fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 600,
-              }}
-            >
-              {isMobile ? '↩' : 'Sign Out'}
-            </motion.button>
-
+            {/* New Task */}
             <motion.button
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
@@ -317,10 +366,142 @@ function App() {
               <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span>
               {!isMobile && 'New Task'}
             </motion.button>
+
+            {/* Profile avatar + dropdown */}
+            <div style={{ position: 'relative' }}>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowProfileMenu(p => !p)}
+                style={{
+                  background: 'none', border: 'none',
+                  cursor: 'pointer', padding: 0,
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                }}
+              >
+                <Avatar
+                  name={profile?.full_name ?? profile?.email ?? 'User'}
+                  avatarUrl={profile?.avatar_url}
+                  size={34}
+                  showTooltip
+                />
+                {!isMobile && (
+                  <div style={{ textAlign: 'left' }}>
+                    <p style={{ color: 'white', fontSize: '12px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0, lineHeight: 1.2 }}>
+                      {profile?.full_name?.split(' ')[0] ?? 'User'}
+                    </p>
+                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', margin: 0 }}>
+                      {profile?.email?.split('@')[0] ?? ''}
+                    </p>
+                  </div>
+                )}
+                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px' }}>⌄</span>
+              </motion.button>
+
+              {/* Profile dropdown */}
+              <AnimatePresence>
+                {showProfileMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    style={{
+                      position: 'absolute', top: '44px', right: 0,
+                      background: '#0a0a0a',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '12px', padding: '8px',
+                      minWidth: '200px',
+                      boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
+                      zIndex: 100,
+                    }}
+                  >
+                    {/* Profile info */}
+                    <div style={{
+                      padding: '10px 12px', marginBottom: '4px',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                        <Avatar
+                          name={profile?.full_name ?? profile?.email ?? 'User'}
+                          avatarUrl={profile?.avatar_url}
+                          size={36}
+                        />
+                        <div>
+                          <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0 }}>
+                            {profile?.full_name ?? 'User'}
+                          </p>
+                          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>
+                            {profile?.email}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Menu items */}
+                    {[
+                      { icon: '⊞', label: 'My Board', action: () => { setCurrentWorkspace(null); setShowProfileMenu(false) } },
+                      { icon: '👥', label: 'Workspaces', action: () => { setShowWorkspacePanel(true); setShowProfileMenu(false) } },
+                    ].map(item => (
+                      <button
+                        key={item.label}
+                        onClick={item.action}
+                        style={{
+                          width: '100%', padding: '9px 12px',
+                          background: 'transparent',
+                          border: 'none', borderRadius: '8px',
+                          color: 'rgba(255,255,255,0.6)', cursor: 'pointer',
+                          fontSize: '13px', fontFamily: 'Space Grotesk',
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                          textAlign: 'left', transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                          e.currentTarget.style.color = 'white'
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'transparent'
+                          e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
+                        }}
+                      >
+                        <span>{item.icon}</span>
+                        {item.label}
+                      </button>
+                    ))}
+
+                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+
+                    <button
+                      onClick={handleLogout}
+                      style={{
+                        width: '100%', padding: '9px 12px',
+                        background: 'transparent',
+                        border: 'none', borderRadius: '8px',
+                        color: 'rgba(239,68,68,0.7)', cursor: 'pointer',
+                        fontSize: '13px', fontFamily: 'Space Grotesk',
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        textAlign: 'left', transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(239,68,68,0.08)'
+                        e.currentTarget.style.color = '#ef4444'
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'transparent'
+                        e.currentTarget.style.color = 'rgba(239,68,68,0.7)'
+                      }}
+                    >
+                      <span>↩</span>
+                      Sign Out
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </motion.div>
         </div>
 
-        {/* Mobile search bar */}
+        {/* Mobile search */}
         {isMobile && (
           <div style={{ padding: '8px 16px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
             <div style={{ position: 'relative' }}>
@@ -333,8 +514,8 @@ function App() {
                 style={{
                   width: '100%', background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '8px', paddingLeft: '30px', paddingRight: '14px',
-                  paddingTop: '8px', paddingBottom: '8px',
+                  borderRadius: '8px', paddingLeft: '30px',
+                  paddingRight: '14px', paddingTop: '8px', paddingBottom: '8px',
                   color: 'rgba(255,255,255,0.7)', fontSize: '13px',
                   fontFamily: 'Space Grotesk', outline: 'none',
                   boxSizing: 'border-box',
@@ -345,10 +526,21 @@ function App() {
         )}
       </div>
 
-      {/* MAIN CONTENT */}
-      <div style={{ position: 'relative', zIndex: 10, maxWidth: '1400px', margin: '0 auto', padding: isMobile ? '16px' : '32px' }}>
+      {/* Click outside to close profile menu */}
+      {showProfileMenu && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 9 }}
+          onClick={() => setShowProfileMenu(false)}
+        />
+      )}
 
-        {/* View toggle + stats mobile */}
+      {/* MAIN CONTENT */}
+      <div style={{
+        position: 'relative', zIndex: 10,
+        maxWidth: '1400px', margin: '0 auto',
+        padding: isMobile ? '16px' : '28px 32px',
+      }}>
+        {/* View toggle */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
           <div style={{
             display: 'flex', gap: '4px',
@@ -392,12 +584,8 @@ function App() {
                   border: '1px solid rgba(255,255,255,0.06)',
                   borderRadius: '8px', padding: '4px 8px',
                 }}>
-                  <span style={{ color: s.color, fontSize: '13px', fontWeight: 700, fontFamily: 'Space Mono' }}>
-                    {s.value}
-                  </span>
-                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', fontFamily: 'Space Mono' }}>
-                    {s.label}
-                  </span>
+                  <span style={{ color: s.color, fontSize: '13px', fontWeight: 700, fontFamily: 'Space Mono' }}>{s.value}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', fontFamily: 'Space Mono' }}>{s.label}</span>
                 </div>
               ))}
             </div>
@@ -435,7 +623,6 @@ function App() {
                 height: '400px', borderRadius: '16px', flexShrink: 0,
                 background: 'rgba(255,255,255,0.02)',
                 border: '1px solid rgba(255,255,255,0.05)',
-                animation: 'pulse 2s infinite',
               }} />
             ))}
           </div>
@@ -465,6 +652,7 @@ function App() {
                     onDeleted={refetchTasks}
                     onOpen={setSelectedTask}
                     onAddTask={handleAddTask}
+                    profiles={profiles}
                   />
                 </motion.div>
               ))}
@@ -472,7 +660,7 @@ function App() {
             <DragOverlay>
               {activeTask && (
                 <div style={{ transform: 'rotate(2deg) scale(1.05)' }}>
-                  <TaskCard task={activeTask} onDeleted={() => {}} onOpen={() => {}} />
+                  <TaskCard task={activeTask} onDeleted={() => {}} onOpen={() => {}} profiles={profiles} />
                 </div>
               )}
             </DragOverlay>
@@ -505,6 +693,7 @@ function App() {
           userId={userId}
           onClose={() => setSelectedTask(null)}
           onUpdated={() => { refetchTasks(); setSelectedTask(null) }}
+          profiles={profiles}
         />
       )}
 
