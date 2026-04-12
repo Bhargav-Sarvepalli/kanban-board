@@ -36,6 +36,29 @@ function App() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
 
+  const fetchProfile = async (uid: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', uid)
+      .single()
+    if (data) setProfile(data)
+  }
+
+  const fetchProfiles = async (userIds: string[]) => {
+    if (userIds.length === 0) return
+    const unique = [...new Set(userIds)]
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', unique)
+    if (data) {
+      const map: Record<string, Profile> = {}
+      data.forEach(p => { map[p.id] = p })
+      setProfiles(map)
+    }
+  }
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
     window.addEventListener('resize', handleResize)
@@ -63,29 +86,6 @@ function App() {
     })
     return () => subscription.unsubscribe()
   }, [navigate])
-
-  const fetchProfile = async (uid: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', uid)
-      .single()
-    if (data) setProfile(data)
-  }
-
-  const fetchProfiles = async (userIds: string[]) => {
-    if (userIds.length === 0) return
-    const unique = [...new Set(userIds)]
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', unique)
-    if (data) {
-      const map: Record<string, Profile> = {}
-      data.forEach(p => { map[p.id] = p })
-      setProfiles(map)
-    }
-  }
 
   useEffect(() => {
     if (!userId) return

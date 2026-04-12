@@ -15,7 +15,7 @@ interface Props {
   profiles?: Record<string, Profile>
 }
 
-function TaskDetailPanel({ task, onClose, onUpdated, userId }: Props) {
+function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Props) {
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
