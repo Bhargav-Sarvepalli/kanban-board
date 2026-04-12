@@ -408,18 +408,19 @@ function App() {
                     transition={{ duration: 0.15 }}
                     style={{
                       position: 'absolute', top: '44px', right: 0,
-                      background: '#0a0a0a',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: '#111111',
+                      border: '1px solid rgba(255,255,255,0.15)',
                       borderRadius: '12px', padding: '8px',
                       minWidth: '200px',
-                      boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
+                      boxShadow: '0 20px 60px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.05)',
                       zIndex: 100,
+                      backdropFilter: 'blur(20px)',
                     }}
                   >
                     {/* Profile info */}
                     <div style={{
                       padding: '10px 12px', marginBottom: '4px',
-                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                      borderBottom: '1px solid rgba(255,255,255,0.1)',
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                         <Avatar
