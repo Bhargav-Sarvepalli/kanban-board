@@ -24,7 +24,7 @@ function GlowOrb({ position, color, speed = 1, distort = 0.5, scale = 1 }: {
   return (
     <Sphere ref={mesh} args={[scale, 64, 64]} position={position}>
       <MeshDistortMaterial color={color} distort={distort} speed={1.5}
-        roughness={0} metalness={0.9} transparent opacity={0.92} />
+        roughness={0} metalness={0.9} transparent opacity={1} />
     </Sphere>
   )
 }
@@ -51,7 +51,7 @@ function FloatParticles() {
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[PARTICLE_POSITIONS, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.022} color="#8b5cf6" transparent opacity={0.4} />
+      <pointsMaterial size={0.025} color="#8b5cf6" transparent opacity={0.7} />
     </points>
   )
 }
@@ -65,21 +65,21 @@ function HeroCanvas({ mx, my }: { mx: number; my: number }) {
   })
   return (
     <group ref={grp}>
-      <ambientLight intensity={0.15} />
-      <pointLight position={[8, 8, 8]} intensity={3} color="#8b5cf6" />
-      <pointLight position={[-8, -8, -4]} intensity={1.5} color="#ec4899" />
-      <Stars radius={80} depth={50} count={1500} factor={3} saturation={0} fade speed={0.2} />
+      <ambientLight intensity={0.4} />
+      <pointLight position={[8, 8, 8]} intensity={6} color="#8b5cf6" />
+      <pointLight position={[-8, -8, -4]} intensity={3} color="#ec4899" />
+      <Stars radius={80} depth={50} count={2000} factor={5} saturation={0} fade speed={0.2} />
       <FloatParticles />
       <GlowOrb position={[-3.5, 0.8, -2]} color="#8b5cf6" speed={0.6} distort={0.6} scale={1.2} />
       <GlowOrb position={[3.5, -0.8, -3]} color="#ec4899" speed={0.9} distort={0.4} scale={0.9} />
       <GlowOrb position={[0.5, 2, -5]} color="#06b6d4" speed={0.4} distort={0.7} scale={0.7} />
       <mesh>
         <torusGeometry args={[4, 0.015, 16, 100]} />
-        <meshStandardMaterial color="#8b5cf6" emissive="#8b5cf6" emissiveIntensity={0.6} transparent opacity={0.35} />
+        <meshStandardMaterial color="#8b5cf6" emissive="#8b5cf6" emissiveIntensity={1.2} transparent opacity={0.6} />
       </mesh>
       <mesh rotation={[0.5, 0, 0.3]}>
         <torusGeometry args={[6, 0.012, 16, 100]} />
-        <meshStandardMaterial color="#ec4899" emissive="#ec4899" emissiveIntensity={0.6} transparent opacity={0.25} />
+        <meshStandardMaterial color="#ec4899" emissive="#ec4899" emissiveIntensity={1.2} transparent opacity={0.5} />
       </mesh>
     </group>
   )
