@@ -438,7 +438,6 @@ function App() {
                     onClick={() => setShowProfileMenu(false)}
                   />
                   <div
-                    className="dropdown-solid"
                     style={{
                       position: 'fixed',
                       top: isMobile ? '60px' : '68px',
@@ -447,8 +446,13 @@ function App() {
                       zIndex: 9999,
                       borderRadius: '14px',
                       padding: '6px',
-                      border: '1px solid #2a2a2a',
-                      boxShadow: '0 0 0 1px #000, 0 24px 64px #000',
+                      border: '1px solid #333',
+                      boxShadow: '0 32px 80px #000, 0 0 0 1px #000',
+                      backgroundColor: '#111',
+                      backgroundImage: 'none',
+                      isolation: 'isolate' as const,
+                      // Force solid background with multiple layers
+                      background: 'linear-gradient(#111, #111)',
                     }}
                   >
                     {/* User info */}
