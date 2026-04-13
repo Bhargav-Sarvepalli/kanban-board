@@ -107,7 +107,6 @@ function App() {
       if (error) console.error('Fetch error:', error)
       else {
         setTasks(data ?? [])
-        // fetch profiles for all editors
         const editorIds = (data ?? [])
           .filter(t => t.last_edited_by)
           .map(t => t.last_edited_by as string)
@@ -213,7 +212,7 @@ function App() {
     <div style={{ minHeight: '100vh', background: '#000', overflowX: 'hidden', fontFamily: 'Space Grotesk, sans-serif' }}>
 
       {/* Background */}
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none' }}>
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
         <div style={{
           position: 'absolute', top: '-240px', left: '-240px',
           width: '600px', height: '600px', borderRadius: '50%',
@@ -227,7 +226,7 @@ function App() {
       </div>
 
       {/* HEADER */}
-      <div style={{ position: 'relative', zIndex: 10, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ position: 'relative', zIndex: 10, borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(20px)' }}>
         <div style={{
           maxWidth: '1400px', margin: '0 auto',
           padding: isMobile ? '12px 16px' : '16px 32px',
@@ -272,8 +271,8 @@ function App() {
             onClick={() => setShowWorkspacePanel(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
               borderRadius: '10px', padding: '7px 12px',
               cursor: 'pointer', flexShrink: 0,
             }}
@@ -287,17 +286,17 @@ function App() {
               {currentWorkspace ? currentWorkspace.name.charAt(0).toUpperCase() : '👤'}
             </div>
             <span style={{
-              color: 'rgba(255,255,255,0.6)', fontSize: '12px',
+              color: 'rgba(255,255,255,0.7)', fontSize: '12px',
               fontFamily: 'Space Grotesk', fontWeight: 600,
               maxWidth: isMobile ? '70px' : '120px',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {currentWorkspace ? currentWorkspace.name : 'Personal'}
             </span>
-            <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px' }}>⌄</span>
+            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>⌄</span>
           </motion.button>
 
-          {/* Stats — desktop only */}
+          {/* Stats desktop only */}
           {!isMobile && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -367,81 +366,88 @@ function App() {
               {!isMobile && 'New Task'}
             </motion.button>
 
-            {/* Profile avatar + dropdown */}
+            {/* Profile avatar */}
             <div style={{ position: 'relative' }}>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowProfileMenu(p => !p)}
                 style={{
-                  background: 'none', border: 'none',
-                  cursor: 'pointer', padding: 0,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '10px',
+                  padding: '5px 10px 5px 5px',
+                  cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: '8px',
                 }}
               >
                 <Avatar
                   name={profile?.full_name ?? profile?.email ?? 'User'}
                   avatarUrl={profile?.avatar_url}
-                  size={34}
+                  size={28}
                   showTooltip
                 />
                 {!isMobile && (
-                  <div style={{ textAlign: 'left' }}>
-                    <p style={{ color: 'white', fontSize: '12px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0, lineHeight: 1.2 }}>
-                      {profile?.full_name?.split(' ')[0] ?? 'User'}
-                    </p>
-                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', margin: 0 }}>
-                      {profile?.email?.split('@')[0] ?? ''}
-                    </p>
-                  </div>
+                  <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>
+                    {profile?.full_name?.split(' ')[0] ?? 'User'}
+                  </span>
                 )}
-                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px' }}>⌄</span>
+                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>⌄</span>
               </motion.button>
 
-              {/* Profile dropdown */}
-              <AnimatePresence>
-                {showProfileMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    style={{
-                      position: 'fixed',
-                      top: 'auto',
-                      right: '16px',
-                      background: 'rgba(15,15,15,0.98)',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      borderRadius: '12px',
-                      padding: '8px',
-                      minWidth: '220px',
-                      boxShadow: '0 25px 80px rgba(0,0,0,0.95), inset 0 1px 0 rgba(255,255,255,0.08)',
-                      zIndex: 9999,
-                    }}
-                  >
-                    {/* Profile info */}
+              {/* Dropdown */}
+              {showProfileMenu && (
+                <>
+                  {/* Backdrop */}
+                  <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+                    onClick={() => setShowProfileMenu(false)}
+                  />
+                  {/* Menu */}
+                  <div style={{
+                    position: 'fixed',
+                    top: isMobile ? '60px' : '68px',
+                    right: '12px',
+                    width: '230px',
+                    zIndex: 9999,
+                    borderRadius: '14px',
+                    padding: '6px',
+                    background: '#111',
+                    border: '1px solid #333',
+                    boxShadow: '0 0 0 1px rgba(0,0,0,1), 0 24px 64px rgba(0,0,0,1)',
+                  }}>
+                    {/* User info */}
                     <div style={{
-                      padding: '10px 12px', marginBottom: '4px',
-                      borderBottom: '1px solid rgba(255,255,255,0.1)',
+                      padding: '12px',
+                      marginBottom: '4px',
+                      borderBottom: '1px solid #222',
+                      display: 'flex', alignItems: 'center', gap: '10px',
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                        <Avatar
-                          name={profile?.full_name ?? profile?.email ?? 'User'}
-                          avatarUrl={profile?.avatar_url}
-                          size={36}
-                        />
-                        <div>
-                          <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0 }}>
-                            {profile?.full_name ?? 'User'}
-                          </p>
-                          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>
-                            {profile?.email}
-                          </p>
-                        </div>
+                      <Avatar
+                        name={profile?.full_name ?? profile?.email ?? 'User'}
+                        avatarUrl={profile?.avatar_url}
+                        size={38}
+                      />
+                      <div style={{ overflow: 'hidden' }}>
+                        <p style={{
+                          color: '#fff', fontSize: '13px',
+                          fontWeight: 700, fontFamily: 'Space Grotesk',
+                          margin: 0, whiteSpace: 'nowrap',
+                          overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>
+                          {profile?.full_name ?? 'User'}
+                        </p>
+                        <p style={{
+                          color: '#888', fontSize: '11px',
+                          fontFamily: 'Space Grotesk', margin: 0,
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>
+                          {profile?.email}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Menu items */}
+                    {/* Menu buttons */}
                     {[
                       { icon: '⊞', label: 'My Board', action: () => { setCurrentWorkspace(null); setShowProfileMenu(false) } },
                       { icon: '👥', label: 'Workspaces', action: () => { setShowWorkspacePanel(true); setShowProfileMenu(false) } },
@@ -451,55 +457,55 @@ function App() {
                         onClick={item.action}
                         style={{
                           width: '100%', padding: '9px 12px',
-                          background: 'transparent',
-                          border: 'none', borderRadius: '8px',
-                          color: 'rgba(255,255,255,0.6)', cursor: 'pointer',
-                          fontSize: '13px', fontFamily: 'Space Grotesk',
+                          background: 'transparent', border: 'none',
+                          borderRadius: '8px', color: '#aaa',
+                          cursor: 'pointer', fontSize: '13px',
+                          fontFamily: 'Space Grotesk',
                           display: 'flex', alignItems: 'center', gap: '10px',
-                          textAlign: 'left', transition: 'all 0.15s',
+                          textAlign: 'left', marginBottom: '2px',
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
-                          e.currentTarget.style.color = 'white'
+                          e.currentTarget.style.background = '#222'
+                          e.currentTarget.style.color = '#fff'
                         }}
                         onMouseLeave={e => {
                           e.currentTarget.style.background = 'transparent'
-                          e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
+                          e.currentTarget.style.color = '#aaa'
                         }}
                       >
-                        <span>{item.icon}</span>
+                        <span style={{ fontSize: '14px' }}>{item.icon}</span>
                         {item.label}
                       </button>
                     ))}
 
-                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+                    <div style={{ height: '1px', background: '#222', margin: '4px 0' }} />
 
                     <button
                       onClick={handleLogout}
                       style={{
                         width: '100%', padding: '9px 12px',
-                        background: 'transparent',
-                        border: 'none', borderRadius: '8px',
-                        color: 'rgba(239,68,68,0.7)', cursor: 'pointer',
-                        fontSize: '13px', fontFamily: 'Space Grotesk',
+                        background: 'transparent', border: 'none',
+                        borderRadius: '8px', color: '#f87171',
+                        cursor: 'pointer', fontSize: '13px',
+                        fontFamily: 'Space Grotesk',
                         display: 'flex', alignItems: 'center', gap: '10px',
-                        textAlign: 'left', transition: 'all 0.15s',
+                        textAlign: 'left',
                       }}
                       onMouseEnter={e => {
-                        e.currentTarget.style.background = 'rgba(239,68,68,0.08)'
+                        e.currentTarget.style.background = 'rgba(239,68,68,0.12)'
                         e.currentTarget.style.color = '#ef4444'
                       }}
                       onMouseLeave={e => {
                         e.currentTarget.style.background = 'transparent'
-                        e.currentTarget.style.color = 'rgba(239,68,68,0.7)'
+                        e.currentTarget.style.color = '#f87171'
                       }}
                     >
                       <span>↩</span>
                       Sign Out
                     </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  </div>
+                </>
+              )}
             </div>
           </motion.div>
         </div>
@@ -529,20 +535,13 @@ function App() {
         )}
       </div>
 
-      {/* Click outside to close profile menu */}
-      {showProfileMenu && (
-        <div
-          style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
-          onClick={() => setShowProfileMenu(false)}
-        />
-      )}
-
       {/* MAIN CONTENT */}
       <div style={{
         position: 'relative', zIndex: 10,
         maxWidth: '1400px', margin: '0 auto',
         padding: isMobile ? '16px' : '28px 32px',
       }}>
+
         {/* View toggle */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
           <div style={{
@@ -573,7 +572,6 @@ function App() {
             ))}
           </div>
 
-          {/* Mobile stats */}
           {isMobile && (
             <div style={{ display: 'flex', gap: '8px' }}>
               {[
