@@ -400,7 +400,7 @@ function App() {
             </motion.button>
 
             {/* Profile */}
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', isolation: 'isolate' as const }}>
               <motion.button
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
@@ -439,20 +439,17 @@ function App() {
                   />
                   <div
                     style={{
-                      position: 'fixed',
-                      top: isMobile ? '60px' : '68px',
-                      right: '12px',
+                      position: 'absolute',
+                      top: 'calc(100% + 8px)',
+                      right: 0,
                       width: '230px',
                       zIndex: 9999,
                       borderRadius: '14px',
                       padding: '6px',
                       border: '1px solid #333',
-                      boxShadow: '0 32px 80px #000, 0 0 0 1px #000',
-                      backgroundColor: '#111',
-                      backgroundImage: 'none',
+                      boxShadow: '0 32px 80px rgba(0,0,0,0.9), 0 0 0 1px #000',
+                      backgroundColor: '#111111',
                       isolation: 'isolate' as const,
-                      // Force solid background with multiple layers
-                      background: 'linear-gradient(#111, #111)',
                     }}
                   >
                     {/* User info */}
