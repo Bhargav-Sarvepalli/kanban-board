@@ -121,3 +121,8 @@ select option {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(139, 92, 246, 0.6);
 }
+
+.dropdown-solid {
+  background-color: #111111 !important;
+  background-image: none !important;
+}

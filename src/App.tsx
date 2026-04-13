@@ -160,7 +160,9 @@ function App() {
     const { data } = await query
     setTasks(data ?? [])
     if (data) {
-      const editorIds = data.filter(t => t.last_edited_by).map(t => t.last_edited_by as string)
+      const editorIds = data
+        .filter(t => t.last_edited_by)
+        .map(t => t.last_edited_by as string)
       fetchProfiles(editorIds)
     }
   }
@@ -209,7 +211,12 @@ function App() {
   }).length
 
   return (
-    <div style={{ minHeight: '100vh', background: '#000', overflowX: 'hidden', fontFamily: 'Space Grotesk, sans-serif' }}>
+    <div style={{
+      minHeight: '100vh',
+      background: '#000',
+      overflowX: 'hidden',
+      fontFamily: 'Space Grotesk, sans-serif',
+    }}>
 
       {/* Background */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
@@ -226,7 +233,12 @@ function App() {
       </div>
 
       {/* HEADER */}
-      <div style={{ position: 'relative', zIndex: 10, borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(20px)' }}>
+      <div style={{
+        position: 'relative', zIndex: 10,
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        background: 'rgba(0,0,0,0.9)',
+        backdropFilter: 'blur(20px)',
+      }}>
         <div style={{
           maxWidth: '1400px', margin: '0 auto',
           padding: isMobile ? '12px 16px' : '16px 32px',
@@ -255,7 +267,10 @@ function App() {
                 NEX<span style={{ color: '#8b5cf6' }}>TASK</span>
               </h1>
               {!isMobile && (
-                <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.2em', margin: 0 }}>
+                <p style={{
+                  color: 'rgba(255,255,255,0.2)', fontSize: '9px',
+                  fontFamily: 'Space Mono', letterSpacing: '0.2em', margin: 0,
+                }}>
                   AI-POWERED BOARD
                 </p>
               )}
@@ -279,7 +294,9 @@ function App() {
           >
             <div style={{
               width: '18px', height: '18px', borderRadius: '4px',
-              background: currentWorkspace ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.1)',
+              background: currentWorkspace
+                ? 'linear-gradient(135deg, #8b5cf6, #ec4899)'
+                : 'rgba(255,255,255,0.1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '9px', fontWeight: 700, color: 'white',
             }}>
@@ -296,7 +313,7 @@ function App() {
             <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>⌄</span>
           </motion.button>
 
-          {/* Stats desktop only */}
+          {/* Stats — desktop only */}
           {!isMobile && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -308,12 +325,24 @@ function App() {
                 { label: 'DONE', value: completed, color: '#10b981' },
                 { label: 'OVERDUE', value: overdue, color: '#ef4444' },
               ].map((stat, i) => (
-                <div key={stat.label} style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {i > 0 && <div style={{ width: '1px', height: '14px', background: 'rgba(255,255,255,0.08)', marginRight: '6px' }} />}
-                  <span style={{ color: stat.color, fontWeight: 700, fontSize: '16px', fontFamily: 'Space Mono' }}>
+                <div key={stat.label} style={{
+                  padding: '6px 12px',
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                }}>
+                  {i > 0 && <div style={{
+                    width: '1px', height: '14px',
+                    background: 'rgba(255,255,255,0.08)', marginRight: '6px',
+                  }} />}
+                  <span style={{
+                    color: stat.color, fontWeight: 700,
+                    fontSize: '16px', fontFamily: 'Space Mono',
+                  }}>
                     {String(stat.value).padStart(2, '0')}
                   </span>
-                  <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>
+                  <span style={{
+                    color: 'rgba(255,255,255,0.25)', fontSize: '9px',
+                    fontFamily: 'Space Mono', letterSpacing: '0.15em',
+                  }}>
                     {stat.label}
                   </span>
                 </div>
@@ -329,7 +358,11 @@ function App() {
           >
             {!isMobile && (
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>⌕</span>
+                <span style={{
+                  position: 'absolute', left: '10px', top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'rgba(255,255,255,0.3)', fontSize: '12px',
+                }}>⌕</span>
                 <input
                   type="text"
                   placeholder="Search tasks..."
@@ -366,11 +399,11 @@ function App() {
               {!isMobile && 'New Task'}
             </motion.button>
 
-            {/* Profile avatar */}
+            {/* Profile */}
             <div style={{ position: 'relative' }}>
               <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
                 onClick={() => setShowProfileMenu(p => !p)}
                 style={{
                   background: 'rgba(255,255,255,0.05)',
@@ -385,37 +418,39 @@ function App() {
                   name={profile?.full_name ?? profile?.email ?? 'User'}
                   avatarUrl={profile?.avatar_url}
                   size={28}
-                  showTooltip
                 />
                 {!isMobile && (
-                  <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>
+                  <span style={{
+                    color: 'rgba(255,255,255,0.8)', fontSize: '12px',
+                    fontFamily: 'Space Grotesk', fontWeight: 600,
+                  }}>
                     {profile?.full_name?.split(' ')[0] ?? 'User'}
                   </span>
                 )}
                 <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>⌄</span>
               </motion.button>
 
-              {/* Dropdown */}
+              {/* Profile dropdown */}
               {showProfileMenu && (
                 <>
-                  {/* Backdrop */}
                   <div
                     style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
                     onClick={() => setShowProfileMenu(false)}
                   />
-                  {/* Menu */}
-                  <div style={{
-                    position: 'fixed',
-                    top: isMobile ? '60px' : '68px',
-                    right: '12px',
-                    width: '230px',
-                    zIndex: 9999,
-                    borderRadius: '14px',
-                    padding: '6px',
-                    background: '#111',
-                    border: '1px solid #333',
-                    boxShadow: '0 0 0 1px rgba(0,0,0,1), 0 24px 64px rgba(0,0,0,1)',
-                  }}>
+                  <div
+                    className="dropdown-solid"
+                    style={{
+                      position: 'fixed',
+                      top: isMobile ? '60px' : '68px',
+                      right: '12px',
+                      width: '230px',
+                      zIndex: 9999,
+                      borderRadius: '14px',
+                      padding: '6px',
+                      border: '1px solid #2a2a2a',
+                      boxShadow: '0 0 0 1px #000, 0 24px 64px #000',
+                    }}
+                  >
                     {/* User info */}
                     <div style={{
                       padding: '12px',
@@ -430,10 +465,9 @@ function App() {
                       />
                       <div style={{ overflow: 'hidden' }}>
                         <p style={{
-                          color: '#fff', fontSize: '13px',
-                          fontWeight: 700, fontFamily: 'Space Grotesk',
-                          margin: 0, whiteSpace: 'nowrap',
-                          overflow: 'hidden', textOverflow: 'ellipsis',
+                          color: '#fff', fontSize: '13px', fontWeight: 700,
+                          fontFamily: 'Space Grotesk', margin: 0,
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>
                           {profile?.full_name ?? 'User'}
                         </p>
@@ -447,7 +481,7 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Menu buttons */}
+                    {/* Menu items */}
                     {[
                       { icon: '⊞', label: 'My Board', action: () => { setCurrentWorkspace(null); setShowProfileMenu(false) } },
                       { icon: '👥', label: 'Workspaces', action: () => { setShowWorkspacePanel(true); setShowProfileMenu(false) } },
@@ -458,7 +492,7 @@ function App() {
                         style={{
                           width: '100%', padding: '9px 12px',
                           background: 'transparent', border: 'none',
-                          borderRadius: '8px', color: '#aaa',
+                          borderRadius: '8px', color: '#bbb',
                           cursor: 'pointer', fontSize: '13px',
                           fontFamily: 'Space Grotesk',
                           display: 'flex', alignItems: 'center', gap: '10px',
@@ -470,7 +504,7 @@ function App() {
                         }}
                         onMouseLeave={e => {
                           e.currentTarget.style.background = 'transparent'
-                          e.currentTarget.style.color = '#aaa'
+                          e.currentTarget.style.color = '#bbb'
                         }}
                       >
                         <span style={{ fontSize: '14px' }}>{item.icon}</span>
@@ -514,7 +548,11 @@ function App() {
         {isMobile && (
           <div style={{ padding: '8px 16px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
             <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>⌕</span>
+              <span style={{
+                position: 'absolute', left: '10px', top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'rgba(255,255,255,0.3)', fontSize: '12px',
+              }}>⌕</span>
               <input
                 type="text"
                 placeholder="Search tasks..."
@@ -543,7 +581,10 @@ function App() {
       }}>
 
         {/* View toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          gap: '12px', marginBottom: '20px', flexWrap: 'wrap',
+        }}>
           <div style={{
             display: 'flex', gap: '4px',
             background: 'rgba(255,255,255,0.03)',
@@ -585,8 +626,12 @@ function App() {
                   border: '1px solid rgba(255,255,255,0.06)',
                   borderRadius: '8px', padding: '4px 8px',
                 }}>
-                  <span style={{ color: s.color, fontSize: '13px', fontWeight: 700, fontFamily: 'Space Mono' }}>{s.value}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', fontFamily: 'Space Mono' }}>{s.label}</span>
+                  <span style={{ color: s.color, fontSize: '13px', fontWeight: 700, fontFamily: 'Space Mono' }}>
+                    {s.value}
+                  </span>
+                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', fontFamily: 'Space Mono' }}>
+                    {s.label}
+                  </span>
                 </div>
               ))}
             </div>
@@ -601,8 +646,14 @@ function App() {
               border: '1px solid rgba(139,92,246,0.2)',
               borderRadius: '8px', padding: '4px 10px',
             }}>
-              <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#8b5cf6', boxShadow: '0 0 6px #8b5cf6' }} />
-              <span style={{ color: '#8b5cf6', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>
+              <div style={{
+                width: '5px', height: '5px', borderRadius: '50%',
+                background: '#8b5cf6', boxShadow: '0 0 6px #8b5cf6',
+              }} />
+              <span style={{
+                color: '#8b5cf6', fontSize: '11px',
+                fontFamily: 'Space Grotesk', fontWeight: 600,
+              }}>
                 {currentWorkspace.name}
               </span>
             </div>
@@ -661,7 +712,12 @@ function App() {
             <DragOverlay>
               {activeTask && (
                 <div style={{ transform: 'rotate(2deg) scale(1.05)' }}>
-                  <TaskCard task={activeTask} onDeleted={() => {}} onOpen={() => {}} profiles={profiles} />
+                  <TaskCard
+                    task={activeTask}
+                    onDeleted={() => {}}
+                    onOpen={() => {}}
+                    profiles={profiles}
+                  />
                 </div>
               )}
             </DragOverlay>
