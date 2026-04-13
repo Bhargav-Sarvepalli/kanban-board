@@ -357,9 +357,9 @@ export default function Landing() {
               whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
               onClick={() => navigate('/auth')}
               style={{
-                background: 'transparent', border: '1px solid rgba(255,255,255,0.12)',
+                background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
                 borderRadius: '8px', padding: '8px 20px',
-                color: 'rgba(255,255,255,0.55)', cursor: 'pointer',
+                color: 'rgba(255,255,255,0.75)', cursor: 'pointer',
                 fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 600,
               }}
             >Sign In</motion.button>
@@ -436,7 +436,7 @@ export default function Landing() {
                   fontSize: isMobile ? 'clamp(52px, 16vw, 72px)' : 'clamp(60px, 10vw, 128px)',
                   fontWeight: 900, fontFamily: 'Space Grotesk',
                   letterSpacing: '-0.055em', lineHeight: 0.9, margin: 0,
-                  color: idx === 0 ? 'white' : idx === 2 ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  color: idx === 0 ? 'white' : idx === 2 ? 'rgba(255,255,255,0.18)' : 'transparent',
                   background: idx === 1 ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'none',
                   WebkitBackgroundClip: idx === 1 ? 'text' : 'unset',
                   WebkitTextFillColor: idx === 1 ? 'transparent' : 'unset',
@@ -450,7 +450,7 @@ export default function Landing() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.1, duration: 0.8 }}
             style={{
-              color: 'rgba(255,255,255,0.35)',
+              color: 'rgba(255,255,255,0.6)',
               fontSize: isMobile ? '14px' : 'clamp(14px, 1.6vw, 17px)',
               fontFamily: 'Space Grotesk', lineHeight: 1.75,
               maxWidth: '480px', margin: '0 auto',
@@ -485,10 +485,10 @@ export default function Landing() {
               whileTap={{ scale: 0.94 }}
               onClick={() => productRef.current?.scrollIntoView({ behavior: 'smooth' })}
               style={{
-                background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
+                background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
                 borderRadius: '12px',
                 padding: isMobile ? '13px 28px' : '15px 40px',
-                color: 'rgba(255,255,255,0.5)', cursor: 'pointer',
+                color: 'rgba(255,255,255,0.75)', cursor: 'pointer',
                 fontSize: isMobile ? '14px' : '15px',
                 fontFamily: 'Space Grotesk', fontWeight: 600,
               }}
@@ -516,7 +516,7 @@ export default function Landing() {
         >
           {Array(5).fill(['AI POWERED', '✦', 'DRAG & DROP', '✦', 'TEAM COLLABORATION', '✦', 'CALENDAR VIEW', '✦', 'RECURRING TASKS', '✦', 'GOOGLE AUTH', '✦', 'REAL-TIME SYNC', '✦', 'ZERO LATENCY', '✦',]).flat().map((t, i) => (
             <span key={i} style={{
-              color: i % 2 === 1 ? '#8b5cf6' : 'rgba(255,255,255,0.1)',
+              color: i % 2 === 1 ? '#8b5cf6' : 'rgba(255,255,255,0.25)',
               fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.22em',
             }}>{t}</span>
           ))}
@@ -533,10 +533,10 @@ export default function Landing() {
             viewport={{ once: true }}
             style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}
           >
-            <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em' }}>
+            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em' }}>
               01 — PRODUCT
             </span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
           </motion.div>
 
           <Reveal
@@ -555,7 +555,7 @@ export default function Landing() {
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
             style={{
-              color: 'rgba(255,255,255,0.28)', fontSize: isMobile ? '14px' : '16px',
+              color: 'rgba(255,255,255,0.6)', fontSize: isMobile ? '14px' : '16px',
               fontFamily: 'Space Grotesk', maxWidth: '480px',
               marginBottom: isMobile ? '40px' : '72px', lineHeight: 1.75,
             }}
@@ -598,7 +598,7 @@ export default function Landing() {
                     display: 'flex', alignItems: 'center', gap: '6px',
                   }}>
                     <span style={{ fontSize: '9px', color: '#10b981' }}>🔒</span>
-                    <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '10px', fontFamily: 'Space Mono' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '10px', fontFamily: 'Space Mono' }}>
                       nextask.app/board
                     </span>
                   </div>
@@ -635,7 +635,7 @@ export default function Landing() {
                 transition={{ delay: i * 0.05 }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '5px',
-                  background: `${p.color}0d`, border: `1px solid ${p.color}22`,
+                  background: `${p.color}0d`, border: `1px solid ${p.color}33`,
                   borderRadius: '999px', padding: '5px 12px',
                 }}
               >
@@ -648,7 +648,7 @@ export default function Landing() {
       </section>
 
       {/* ── FEATURES ── */}
-      <section style={{ padding: isMobile ? '80px 0' : '120px 0', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+      <section style={{ padding: isMobile ? '80px 0' : '120px 0', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: pad }}>
 
           <motion.div
@@ -657,10 +657,10 @@ export default function Landing() {
             viewport={{ once: true }}
             style={{ marginBottom: isMobile ? '40px' : '80px', display: 'flex', alignItems: 'center', gap: '16px' }}
           >
-            <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em' }}>
+            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em' }}>
               02 — CAPABILITIES
             </span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
           </motion.div>
 
           <div style={{
@@ -698,9 +698,9 @@ export default function Landing() {
                       transition: 'all 0.22s',
                     }}
                   >
-                    <span style={{ color: activeF === i ? f.color : 'rgba(255,255,255,0.1)', fontSize: '10px', fontFamily: 'Space Mono', flexShrink: 0 }}>{f.n}</span>
-                    <span style={{ fontSize: '16px', flexShrink: 0, filter: activeF === i ? 'none' : 'grayscale(1) opacity(0.25)' }}>{f.icon}</span>
-                    <span style={{ color: activeF === i ? 'white' : 'rgba(255,255,255,0.28)', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>{f.title}</span>
+                    <span style={{ color: activeF === i ? f.color : 'rgba(255,255,255,0.25)', fontSize: '10px', fontFamily: 'Space Mono', flexShrink: 0 }}>{f.n}</span>
+                    <span style={{ fontSize: '16px', flexShrink: 0, filter: activeF === i ? 'none' : 'grayscale(1) opacity(0.4)' }}>{f.icon}</span>
+                    <span style={{ color: activeF === i ? 'white' : 'rgba(255,255,255,0.5)', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>{f.title}</span>
                     {activeF === i && (
                       <motion.span layoutId="arr" style={{ marginLeft: 'auto', color: f.color, fontSize: '14px' }}>→</motion.span>
                     )}
@@ -709,7 +709,7 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Right detail — hidden on mobile, shown inline */}
+            {/* Right detail */}
             {!isMobile && (
               <div style={{ position: 'sticky', top: '120px' }}>
                 <AnimatePresence mode="wait">
@@ -733,7 +733,7 @@ export default function Landing() {
                       <div style={{ fontSize: '44px', marginBottom: '18px' }}>{FEATURES[activeF].icon}</div>
                       <div style={{ color: FEATURES[activeF].color, fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.2em', marginBottom: '10px' }}>FEATURE {FEATURES[activeF].n}</div>
                       <h3 style={{ color: 'white', fontSize: '26px', fontWeight: 800, fontFamily: 'Space Grotesk', letterSpacing: '-0.02em', marginBottom: '12px', lineHeight: 1.2 }}>{FEATURES[activeF].title}</h3>
-                      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', fontFamily: 'Space Grotesk', lineHeight: 1.8 }}>{FEATURES[activeF].desc}</p>
+                      <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', fontFamily: 'Space Grotesk', lineHeight: 1.8 }}>{FEATURES[activeF].desc}</p>
                     </div>
                     <div style={{ display: 'flex', gap: '5px', marginTop: '24px' }}>
                       {FEATURES.map((_, i) => (
@@ -741,7 +741,7 @@ export default function Landing() {
                           key={i}
                           animate={{
                             width: i === activeF ? 26 : 5,
-                            background: i === activeF ? FEATURES[activeF].color : 'rgba(255,255,255,0.08)',
+                            background: i === activeF ? FEATURES[activeF].color : 'rgba(255,255,255,0.15)',
                           }}
                           style={{ height: '3px', borderRadius: '999px', cursor: 'pointer' }}
                           onClick={() => setActiveF(i)}
@@ -759,7 +759,7 @@ export default function Landing() {
       {/* ── STATS ── */}
       <section style={{
         padding: isMobile ? '80px 20px' : '120px 48px',
-        borderTop: '1px solid rgba(255,255,255,0.04)',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{
@@ -776,10 +776,10 @@ export default function Landing() {
             viewport={{ once: true }}
             style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: isMobile ? '40px' : '80px' }}
           >
-            <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em' }}>
+            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em' }}>
               03 — BY THE NUMBERS
             </span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
           </motion.div>
 
           <div style={{
@@ -810,7 +810,7 @@ export default function Landing() {
                 }}>
                   <CountUp end={s.end} suffix={s.suffix} />
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.18)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
                   {s.label}
                 </div>
               </motion.div>
@@ -851,7 +851,7 @@ export default function Landing() {
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em', display: 'block', marginBottom: '24px' }}
+            style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em', display: 'block', marginBottom: '24px' }}
           >04 — GET STARTED</motion.span>
 
           <Reveal
@@ -870,7 +870,7 @@ export default function Landing() {
             viewport={{ once: true }}
             transition={{ delay: 0.3 }}
             style={{
-              color: 'rgba(255,255,255,0.25)', fontSize: isMobile ? '14px' : '16px',
+              color: 'rgba(255,255,255,0.55)', fontSize: isMobile ? '14px' : '16px',
               fontFamily: 'Space Grotesk', maxWidth: '400px',
               margin: '0 auto 40px', lineHeight: 1.75,
             }}
@@ -901,7 +901,7 @@ export default function Landing() {
 
       {/* ── FOOTER ── */}
       <footer style={{
-        borderTop: '1px solid rgba(255,255,255,0.04)',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
         padding: isMobile ? '20px' : '28px 48px',
         display: 'flex', alignItems: 'center',
         justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px',
@@ -913,11 +913,11 @@ export default function Landing() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '9px', fontWeight: 800, color: 'white',
           }}>N</div>
-          <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: '12px', fontFamily: 'Space Grotesk' }}>
+          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontFamily: 'Space Grotesk' }}>
             NexTask · Built with ⚡
           </span>
         </div>
-        <span style={{ color: 'rgba(255,255,255,0.08)', fontSize: '11px', fontFamily: 'Space Mono' }}>
+        <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px', fontFamily: 'Space Mono' }}>
           © 2026 NEXTASK
         </span>
       </footer>
