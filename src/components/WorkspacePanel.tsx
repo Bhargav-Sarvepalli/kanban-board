@@ -23,6 +23,8 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchWorkspaces = useCallback(async () => {
     const { data } = await supabase
@@ -70,6 +72,7 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
 
   const startEditing = (ws: Workspace, e: React.MouseEvent) => {
     e.stopPropagation()
+    setConfirmDeleteId(null)
     setEditingId(ws.id)
     setEditingName(ws.name)
   }
@@ -97,10 +100,26 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
       setEditingId(null)
       setEditingName('')
       fetchWorkspaces()
-      // If this is the active workspace, update it in parent too
       if (currentWorkspace?.id === wsId) onWorkspaceChange(data)
     }
     setSaving(false)
+  }
+
+  const deleteWorkspace = async (wsId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setDeleting(true)
+    await supabase.from('workspace_members').delete().eq('workspace_id', wsId)
+    await supabase.from('tasks').delete().eq('workspace_id', wsId)
+    const { error } = await supabase.from('workspaces').delete().eq('id', wsId)
+    if (error) {
+      toast.error('Failed to delete workspace')
+    } else {
+      toast.success('Workspace deleted')
+      setConfirmDeleteId(null)
+      if (currentWorkspace?.id === wsId) onWorkspaceChange(null)
+      fetchWorkspaces()
+    }
+    setDeleting(false)
   }
 
   const inviteMember = async () => {
@@ -316,87 +335,126 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
                 {/* Workspace list */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto' }}>
                   {workspaces.map(ws => (
-                    <motion.div
-                      key={ws.id}
-                      whileHover={{ scale: editingId === ws.id ? 1 : 1.01 }}
-                      onClick={() => {
-                        if (editingId === ws.id) return
-                        onWorkspaceChange(ws)
-                        onClose()
-                      }}
-                      style={{
-                        padding: '12px 16px', borderRadius: '12px',
-                        border: `1px solid ${currentWorkspace?.id === ws.id ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.06)'}`,
-                        background: currentWorkspace?.id === ws.id ? 'rgba(139,92,246,0.08)' : 'rgba(255,255,255,0.02)',
-                        cursor: editingId === ws.id ? 'default' : 'pointer',
-                        display: 'flex', alignItems: 'center', gap: '12px',
-                      }}
-                    >
-                      {/* Avatar */}
-                      <div style={{
-                        width: '32px', height: '32px', borderRadius: '8px',
-                        background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: 'white', fontSize: '13px', fontWeight: 700,
-                        fontFamily: 'Space Grotesk', flexShrink: 0,
-                      }}>
-                        {ws.name.charAt(0).toUpperCase()}
-                      </div>
-
-                      {/* Name / edit input */}
-                      {editingId === ws.id ? (
-                        <input
-                          autoFocus
-                          value={editingName}
-                          onChange={e => setEditingName(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') saveEdit(ws.id)
-                            if (e.key === 'Escape') cancelEditing()
-                          }}
-                          onClick={e => e.stopPropagation()}
-                          style={{
-                            flex: 1, padding: '4px 10px',
-                            background: 'rgba(255,255,255,0.07)',
-                            border: '1px solid rgba(139,92,246,0.5)',
-                            borderRadius: '7px', color: 'white',
-                            fontSize: '13px', fontFamily: 'Space Grotesk',
-                            fontWeight: 600, outline: 'none',
-                          }}
-                        />
-                      ) : (
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {ws.name}
-                          </p>
-                          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>
-                            {ws.owner_id === userId ? 'Owner' : 'Member'}
-                          </p>
+                    <div key={ws.id}>
+                      <motion.div
+                        whileHover={{ scale: editingId === ws.id ? 1 : 1.01 }}
+                        onClick={() => {
+                          if (editingId === ws.id || confirmDeleteId === ws.id) return
+                          onWorkspaceChange(ws)
+                          onClose()
+                        }}
+                        style={{
+                          padding: '12px 16px',
+                          borderRadius: confirmDeleteId === ws.id ? '12px 12px 0 0' : '12px',
+                          border: `1px solid ${
+                            confirmDeleteId === ws.id
+                              ? 'rgba(239,68,68,0.3)'
+                              : currentWorkspace?.id === ws.id
+                              ? 'rgba(139,92,246,0.4)'
+                              : 'rgba(255,255,255,0.06)'
+                          }`,
+                          borderBottom: confirmDeleteId === ws.id ? 'none' : undefined,
+                          background: confirmDeleteId === ws.id
+                            ? 'rgba(239,68,68,0.05)'
+                            : currentWorkspace?.id === ws.id
+                            ? 'rgba(139,92,246,0.08)'
+                            : 'rgba(255,255,255,0.02)',
+                          cursor: editingId === ws.id || confirmDeleteId === ws.id ? 'default' : 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '12px',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        {/* Avatar */}
+                        <div style={{
+                          width: '32px', height: '32px', borderRadius: '8px',
+                          background: confirmDeleteId === ws.id
+                            ? 'rgba(239,68,68,0.2)'
+                            : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: confirmDeleteId === ws.id ? '#ef4444' : 'white',
+                          fontSize: confirmDeleteId === ws.id ? '16px' : '13px',
+                          fontWeight: 700, fontFamily: 'Space Grotesk', flexShrink: 0,
+                          transition: 'all 0.15s',
+                        }}>
+                          {confirmDeleteId === ws.id ? '⚠' : ws.name.charAt(0).toUpperCase()}
                         </div>
-                      )}
 
-                      {/* Action buttons */}
-                      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        {/* Name / edit input */}
                         {editingId === ws.id ? (
-                          <>
+                          <input
+                            autoFocus
+                            value={editingName}
+                            onChange={e => setEditingName(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') saveEdit(ws.id)
+                              if (e.key === 'Escape') cancelEditing()
+                            }}
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              flex: 1, padding: '4px 10px',
+                              background: 'rgba(255,255,255,0.07)',
+                              border: '1px solid rgba(139,92,246,0.5)',
+                              borderRadius: '7px', color: 'white',
+                              fontSize: '13px', fontFamily: 'Space Grotesk',
+                              fontWeight: 600, outline: 'none',
+                            }}
+                          />
+                        ) : (
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{
+                              color: confirmDeleteId === ws.id ? '#ef4444' : 'white',
+                              fontSize: '13px', fontWeight: 600,
+                              fontFamily: 'Space Grotesk', margin: 0,
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              transition: 'color 0.15s',
+                            }}>
+                              {ws.name}
+                            </p>
+                            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>
+                              {ws.owner_id === userId ? 'Owner' : 'Member'}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Action buttons */}
+                        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                          {editingId === ws.id ? (
+                            <>
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={e => saveEdit(ws.id, e)}
+                                disabled={saving}
+                                style={{
+                                  background: 'rgba(16,185,129,0.15)',
+                                  border: '1px solid rgba(16,185,129,0.3)',
+                                  borderRadius: '6px', padding: '4px 10px',
+                                  color: '#10b981', cursor: 'pointer',
+                                  fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600,
+                                }}
+                              >
+                                {saving ? '...' : 'Save'}
+                              </motion.button>
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={cancelEditing}
+                                style={{
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  borderRadius: '6px', padding: '4px 10px',
+                                  color: 'rgba(255,255,255,0.4)', cursor: 'pointer',
+                                  fontSize: '11px', fontFamily: 'Space Grotesk',
+                                }}
+                              >
+                                Cancel
+                              </motion.button>
+                            </>
+                          ) : confirmDeleteId === ws.id ? (
                             <motion.button
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}
-                              onClick={e => saveEdit(ws.id, e)}
-                              disabled={saving}
-                              style={{
-                                background: 'rgba(16,185,129,0.15)',
-                                border: '1px solid rgba(16,185,129,0.3)',
-                                borderRadius: '6px', padding: '4px 10px',
-                                color: '#10b981', cursor: 'pointer',
-                                fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600,
-                              }}
-                            >
-                              {saving ? '...' : 'Save'}
-                            </motion.button>
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={cancelEditing}
+                              onClick={e => { e.stopPropagation(); setConfirmDeleteId(null) }}
                               style={{
                                 background: 'rgba(255,255,255,0.05)',
                                 border: '1px solid rgba(255,255,255,0.1)',
@@ -407,32 +465,92 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
                             >
                               Cancel
                             </motion.button>
-                          </>
-                        ) : (
-                          <>
-                            {currentWorkspace?.id === ws.id && (
-                              <div style={{ color: '#8b5cf6', fontSize: '12px' }}>✓ Active</div>
-                            )}
-                            {ws.owner_id === userId && (
-                              <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={e => startEditing(ws, e)}
-                                style={{
-                                  background: 'rgba(139,92,246,0.1)',
-                                  border: '1px solid rgba(139,92,246,0.2)',
-                                  borderRadius: '6px', padding: '4px 8px',
-                                  color: '#8b5cf6', cursor: 'pointer',
-                                  fontSize: '11px', fontFamily: 'Space Grotesk',
-                                }}
-                              >
-                                ✎ Edit
-                              </motion.button>
-                            )}
-                          </>
+                          ) : (
+                            <>
+                              {currentWorkspace?.id === ws.id && (
+                                <div style={{ color: '#8b5cf6', fontSize: '12px' }}>✓ Active</div>
+                              )}
+                              {ws.owner_id === userId && (
+                                <>
+                                  <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={e => startEditing(ws, e)}
+                                    style={{
+                                      background: 'rgba(139,92,246,0.1)',
+                                      border: '1px solid rgba(139,92,246,0.2)',
+                                      borderRadius: '6px', padding: '4px 8px',
+                                      color: '#8b5cf6', cursor: 'pointer',
+                                      fontSize: '11px', fontFamily: 'Space Grotesk',
+                                    }}
+                                  >
+                                    ✎ Edit
+                                  </motion.button>
+                                  <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={e => { e.stopPropagation(); setEditingId(null); setConfirmDeleteId(ws.id) }}
+                                    style={{
+                                      background: 'rgba(239,68,68,0.1)',
+                                      border: '1px solid rgba(239,68,68,0.2)',
+                                      borderRadius: '6px', padding: '4px 8px',
+                                      color: '#ef4444', cursor: 'pointer',
+                                      fontSize: '11px', fontFamily: 'Space Grotesk',
+                                    }}
+                                  >
+                                    🗑
+                                  </motion.button>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </motion.div>
+
+                      {/* Confirm delete banner */}
+                      <AnimatePresence>
+                        {confirmDeleteId === ws.id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            style={{
+                              overflow: 'hidden',
+                              background: 'rgba(239,68,68,0.08)',
+                              border: '1px solid rgba(239,68,68,0.3)',
+                              borderTop: 'none',
+                              borderRadius: '0 0 12px 12px',
+                              padding: '10px 16px',
+                              display: 'flex', alignItems: 'center',
+                              justifyContent: 'space-between', gap: '8px',
+                            }}
+                          >
+                            <p style={{
+                              color: '#fca5a5', fontSize: '11px',
+                              fontFamily: 'Space Grotesk', margin: 0,
+                            }}>
+                              This will delete all tasks in this workspace.
+                            </p>
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={e => deleteWorkspace(ws.id, e)}
+                              disabled={deleting}
+                              style={{
+                                background: 'rgba(239,68,68,0.2)',
+                                border: '1px solid rgba(239,68,68,0.4)',
+                                borderRadius: '6px', padding: '5px 12px',
+                                color: '#ef4444', cursor: 'pointer',
+                                fontSize: '11px', fontFamily: 'Space Grotesk',
+                                fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0,
+                              }}
+                            >
+                              {deleting ? '...' : 'Yes, Delete'}
+                            </motion.button>
+                          </motion.div>
                         )}
-                      </div>
-                    </motion.div>
+                      </AnimatePresence>
+                    </div>
                   ))}
                 </div>
 
