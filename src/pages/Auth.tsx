@@ -197,7 +197,7 @@ export default function Auth() {
               value={fullName}
               onChange={e => setFullName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleEmailAuth()}
-              placeholder="Sree Sai Bhargav"
+              placeholder="Your full name"
               style={inputStyle}
               onFocus={e => e.target.style.borderColor = 'rgba(139,92,246,0.5)'}
               onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
