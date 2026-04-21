@@ -235,8 +235,8 @@ function App() {
       {/* HEADER */}
       <div style={{
         position: 'relative', zIndex: 100,
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        background: 'rgba(0,0,0,0.9)',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(0,0,0,0.92)',
         backdropFilter: 'blur(20px)',
       }}>
         <div style={{
@@ -268,8 +268,11 @@ function App() {
               </h1>
               {!isMobile && (
                 <p style={{
-                  color: 'rgba(255,255,255,0.2)', fontSize: '9px',
-                  fontFamily: 'Space Mono', letterSpacing: '0.2em', margin: 0,
+                  color: 'rgba(255,255,255,0.45)',
+                  fontSize: '9px',
+                  fontFamily: 'Space Mono',
+                  letterSpacing: '0.2em',
+                  margin: 0,
                 }}>
                   AI-POWERED BOARD
                 </p>
@@ -286,8 +289,8 @@ function App() {
             onClick={() => setShowWorkspacePanel(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(255,255,255,0.07)',
+              border: '1px solid rgba(255,255,255,0.15)',
               borderRadius: '10px', padding: '7px 12px',
               cursor: 'pointer', flexShrink: 0,
             }}
@@ -296,21 +299,21 @@ function App() {
               width: '18px', height: '18px', borderRadius: '4px',
               background: currentWorkspace
                 ? 'linear-gradient(135deg, #8b5cf6, #ec4899)'
-                : 'rgba(255,255,255,0.1)',
+                : 'rgba(255,255,255,0.15)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '9px', fontWeight: 700, color: 'white',
             }}>
               {currentWorkspace ? currentWorkspace.name.charAt(0).toUpperCase() : '👤'}
             </div>
             <span style={{
-              color: 'rgba(255,255,255,0.7)', fontSize: '12px',
+              color: 'rgba(255,255,255,0.85)', fontSize: '12px',
               fontFamily: 'Space Grotesk', fontWeight: 600,
               maxWidth: isMobile ? '70px' : '120px',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {currentWorkspace ? currentWorkspace.name : 'Personal'}
             </span>
-            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>⌄</span>
+            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>⌄</span>
           </motion.button>
 
           {/* Stats — desktop only */}
@@ -321,9 +324,9 @@ function App() {
               style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
             >
               {[
-                { label: 'TOTAL', value: total, color: '#8b5cf6' },
-                { label: 'DONE', value: completed, color: '#10b981' },
-                { label: 'OVERDUE', value: overdue, color: '#ef4444' },
+                { label: 'TOTAL', value: total, color: '#a78bfa' },
+                { label: 'DONE', value: completed, color: '#34d399' },
+                { label: 'OVERDUE', value: overdue, color: '#f87171' },
               ].map((stat, i) => (
                 <div key={stat.label} style={{
                   padding: '6px 12px',
@@ -331,7 +334,7 @@ function App() {
                 }}>
                   {i > 0 && <div style={{
                     width: '1px', height: '14px',
-                    background: 'rgba(255,255,255,0.08)', marginRight: '6px',
+                    background: 'rgba(255,255,255,0.12)', marginRight: '6px',
                   }} />}
                   <span style={{
                     color: stat.color, fontWeight: 700,
@@ -340,7 +343,7 @@ function App() {
                     {String(stat.value).padStart(2, '0')}
                   </span>
                   <span style={{
-                    color: 'rgba(255,255,255,0.25)', fontSize: '9px',
+                    color: 'rgba(255,255,255,0.5)', fontSize: '9px',
                     fontFamily: 'Space Mono', letterSpacing: '0.15em',
                   }}>
                     {stat.label}
@@ -361,7 +364,7 @@ function App() {
                 <span style={{
                   position: 'absolute', left: '10px', top: '50%',
                   transform: 'translateY(-50%)',
-                  color: 'rgba(255,255,255,0.3)', fontSize: '12px',
+                  color: 'rgba(255,255,255,0.45)', fontSize: '12px',
                 }}>⌕</span>
                 <input
                   type="text"
@@ -369,11 +372,11 @@ function App() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.07)',
+                    border: '1px solid rgba(255,255,255,0.15)',
                     borderRadius: '8px', paddingLeft: '30px',
                     paddingRight: '14px', paddingTop: '8px', paddingBottom: '8px',
-                    color: 'rgba(255,255,255,0.7)', fontSize: '13px',
+                    color: 'rgba(255,255,255,0.85)', fontSize: '13px',
                     fontFamily: 'Space Grotesk', outline: 'none', width: '180px',
                   }}
                 />
@@ -406,8 +409,8 @@ function App() {
                 whileTap={{ scale: 0.96 }}
                 onClick={() => setShowProfileMenu(p => !p)}
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.07)',
+                  border: '1px solid rgba(255,255,255,0.15)',
                   borderRadius: '10px',
                   padding: '5px 10px 5px 5px',
                   cursor: 'pointer',
@@ -421,13 +424,13 @@ function App() {
                 />
                 {!isMobile && (
                   <span style={{
-                    color: 'rgba(255,255,255,0.8)', fontSize: '12px',
+                    color: 'rgba(255,255,255,0.9)', fontSize: '12px',
                     fontFamily: 'Space Grotesk', fontWeight: 600,
                   }}>
                     {profile?.full_name?.split(' ')[0] ?? 'User'}
                   </span>
                 )}
-                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>⌄</span>
+                <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>⌄</span>
               </motion.button>
 
               {/* Profile dropdown */}
@@ -473,7 +476,7 @@ function App() {
                           {profile?.full_name ?? 'User'}
                         </p>
                         <p style={{
-                          color: '#888', fontSize: '11px',
+                          color: '#aaa', fontSize: '11px',
                           fontFamily: 'Space Grotesk', margin: 0,
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>
@@ -493,7 +496,7 @@ function App() {
                         style={{
                           width: '100%', padding: '9px 12px',
                           background: 'transparent', border: 'none',
-                          borderRadius: '8px', color: '#bbb',
+                          borderRadius: '8px', color: '#ccc',
                           cursor: 'pointer', fontSize: '13px',
                           fontFamily: 'Space Grotesk',
                           display: 'flex', alignItems: 'center', gap: '10px',
@@ -505,7 +508,7 @@ function App() {
                         }}
                         onMouseLeave={e => {
                           e.currentTarget.style.background = 'transparent'
-                          e.currentTarget.style.color = '#bbb'
+                          e.currentTarget.style.color = '#ccc'
                         }}
                       >
                         <span style={{ fontSize: '14px' }}>{item.icon}</span>
@@ -513,7 +516,7 @@ function App() {
                       </button>
                     ))}
 
-                    <div style={{ height: '1px', background: '#222', margin: '4px 0' }} />
+                    <div style={{ height: '1px', background: '#333', margin: '4px 0' }} />
 
                     <button
                       onClick={handleLogout}
@@ -547,12 +550,12 @@ function App() {
 
         {/* Mobile search */}
         {isMobile && (
-          <div style={{ padding: '8px 16px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+          <div style={{ padding: '8px 16px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
             <div style={{ position: 'relative' }}>
               <span style={{
                 position: 'absolute', left: '10px', top: '50%',
                 transform: 'translateY(-50%)',
-                color: 'rgba(255,255,255,0.3)', fontSize: '12px',
+                color: 'rgba(255,255,255,0.45)', fontSize: '12px',
               }}>⌕</span>
               <input
                 type="text"
@@ -560,11 +563,11 @@ function App() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 style={{
-                  width: '100%', background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  width: '100%', background: 'rgba(255,255,255,0.07)',
+                  border: '1px solid rgba(255,255,255,0.15)',
                   borderRadius: '8px', paddingLeft: '30px',
                   paddingRight: '14px', paddingTop: '8px', paddingBottom: '8px',
-                  color: 'rgba(255,255,255,0.7)', fontSize: '13px',
+                  color: 'rgba(255,255,255,0.85)', fontSize: '13px',
                   fontFamily: 'Space Grotesk', outline: 'none',
                   boxSizing: 'border-box',
                 }}
@@ -588,8 +591,8 @@ function App() {
         }}>
           <div style={{
             display: 'flex', gap: '4px',
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: '10px', padding: '4px',
           }}>
             {[
@@ -601,8 +604,8 @@ function App() {
                 onClick={() => setView(v.id as 'board' | 'calendar')}
                 style={{
                   padding: '6px 14px', borderRadius: '7px', border: 'none',
-                  background: view === v.id ? 'rgba(139,92,246,0.2)' : 'transparent',
-                  color: view === v.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)',
+                  background: view === v.id ? 'rgba(139,92,246,0.25)' : 'transparent',
+                  color: view === v.id ? '#a78bfa' : 'rgba(255,255,255,0.5)',
                   cursor: 'pointer', fontSize: '12px',
                   fontFamily: 'Space Grotesk',
                   fontWeight: view === v.id ? 600 : 400,
@@ -617,20 +620,20 @@ function App() {
           {isMobile && (
             <div style={{ display: 'flex', gap: '8px' }}>
               {[
-                { value: total, color: '#8b5cf6', label: 'total' },
-                { value: completed, color: '#10b981', label: 'done' },
-                { value: overdue, color: '#ef4444', label: 'late' },
+                { value: total, color: '#a78bfa', label: 'total' },
+                { value: completed, color: '#34d399', label: 'done' },
+                { value: overdue, color: '#f87171', label: 'late' },
               ].map(s => (
                 <div key={s.label} style={{
                   display: 'flex', alignItems: 'center', gap: '4px',
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
                   borderRadius: '8px', padding: '4px 8px',
                 }}>
                   <span style={{ color: s.color, fontSize: '13px', fontWeight: 700, fontFamily: 'Space Mono' }}>
                     {s.value}
                   </span>
-                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', fontFamily: 'Space Mono' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono' }}>
                     {s.label}
                   </span>
                 </div>
@@ -638,13 +641,13 @@ function App() {
             </div>
           )}
 
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
 
           {currentWorkspace && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: '6px',
-              background: 'rgba(139,92,246,0.08)',
-              border: '1px solid rgba(139,92,246,0.2)',
+              background: 'rgba(139,92,246,0.1)',
+              border: '1px solid rgba(139,92,246,0.3)',
               borderRadius: '8px', padding: '4px 10px',
             }}>
               <div style={{
@@ -652,7 +655,7 @@ function App() {
                 background: '#8b5cf6', boxShadow: '0 0 6px #8b5cf6',
               }} />
               <span style={{
-                color: '#8b5cf6', fontSize: '11px',
+                color: '#a78bfa', fontSize: '11px',
                 fontFamily: 'Space Grotesk', fontWeight: 600,
               }}>
                 {currentWorkspace.name}
@@ -661,7 +664,7 @@ function App() {
           )}
 
           {!isMobile && (
-            <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', fontFamily: 'Space Mono' }}>
+            <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', fontFamily: 'Space Mono' }}>
               {total} tasks
             </span>
           )}
@@ -674,8 +677,8 @@ function App() {
               <div key={i} style={{
                 width: 'min(300px, 85vw)', minWidth: 'min(300px, 85vw)',
                 height: '400px', borderRadius: '16px', flexShrink: 0,
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.08)',
               }} />
             ))}
           </div>
