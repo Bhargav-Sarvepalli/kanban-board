@@ -21,12 +21,11 @@ interface Props {
 }
 
 const priorityColors = {
-  low: { color: '#64748b', bg: 'rgba(100,116,139,0.15)', border: 'rgba(100,116,139,0.3)' },
-  normal: { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', border: 'rgba(139,92,246,0.3)' },
-  high: { color: '#ef4444', bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)' },
+  low: { color: '#94a3b8', bg: 'rgba(148,163,184,0.15)', border: 'rgba(148,163,184,0.35)' },
+  normal: { color: '#a78bfa', bg: 'rgba(139,92,246,0.15)', border: 'rgba(139,92,246,0.35)' },
+  high: { color: '#f87171', bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.35)' },
 }
 
-// Parse date without timezone shift
 const parseDate = (dateStr: string) => {
   const [y, m, d] = dateStr.split('-').map(Number)
   return new Date(y, m - 1, d)
@@ -63,9 +62,9 @@ function CalendarView({ tasks, onOpenTask }: Props) {
             whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
             onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
             style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '8px', color: 'rgba(255,255,255,0.5)',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '8px', color: 'rgba(255,255,255,0.7)',
               cursor: 'pointer', width: '36px', height: '36px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '16px',
@@ -79,7 +78,7 @@ function CalendarView({ tasks, onOpenTask }: Props) {
             }}>
               {format(currentMonth, 'MMMM yyyy')}
             </h2>
-            <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.2em', marginTop: '2px' }}>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.2em', marginTop: '2px' }}>
               {getTasksForMonth().length} TASKS THIS MONTH
             </p>
           </div>
@@ -88,9 +87,9 @@ function CalendarView({ tasks, onOpenTask }: Props) {
             whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
             onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
             style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '8px', color: 'rgba(255,255,255,0.5)',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '8px', color: 'rgba(255,255,255,0.7)',
               cursor: 'pointer', width: '36px', height: '36px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '16px',
@@ -103,7 +102,7 @@ function CalendarView({ tasks, onOpenTask }: Props) {
           {weekDays.map(day => (
             <div key={day} style={{
               textAlign: 'center', padding: '8px 0',
-              color: 'rgba(255,255,255,0.2)', fontSize: '10px',
+              color: 'rgba(255,255,255,0.45)', fontSize: '10px',
               fontFamily: 'Space Mono', letterSpacing: '0.15em',
             }}>
               {day}
@@ -127,10 +126,20 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                 style={{
                   minHeight: '90px', padding: '8px',
                   borderRadius: '10px', cursor: 'pointer',
-                  border: `1px solid ${isSelected ? 'rgba(139,92,246,0.5)' : isTodayDate ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.04)'}`,
-                  background: isSelected ? 'rgba(139,92,246,0.08)' : isTodayDate ? 'rgba(139,92,246,0.04)' : 'rgba(255,255,255,0.01)',
+                  border: `1px solid ${
+                    isSelected
+                      ? 'rgba(139,92,246,0.6)'
+                      : isTodayDate
+                      ? 'rgba(139,92,246,0.35)'
+                      : 'rgba(255,255,255,0.08)'
+                  }`,
+                  background: isSelected
+                    ? 'rgba(139,92,246,0.1)'
+                    : isTodayDate
+                    ? 'rgba(139,92,246,0.05)'
+                    : 'rgba(255,255,255,0.02)',
                   transition: 'all 0.15s',
-                  opacity: isCurrentMonth ? 1 : 0.3,
+                  opacity: isCurrentMonth ? 1 : 0.35,
                 }}
               >
                 {/* Day number */}
@@ -138,16 +147,16 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                   <span style={{
                     fontSize: '12px', fontFamily: 'Space Mono',
                     fontWeight: isTodayDate ? 700 : 400,
-                    color: isTodayDate ? '#8b5cf6' : isCurrentMonth ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.2)',
+                    color: isTodayDate ? '#a78bfa' : isCurrentMonth ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.25)',
                     width: '22px', height: '22px',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     borderRadius: '50%',
-                    background: isTodayDate ? 'rgba(139,92,246,0.2)' : 'transparent',
+                    background: isTodayDate ? 'rgba(139,92,246,0.25)' : 'transparent',
                   }}>
                     {format(day, 'd')}
                   </span>
                   {dayTasks.length > 0 && (
-                    <span style={{ fontSize: '9px', fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)' }}>
+                    <span style={{ fontSize: '9px', fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.45)' }}>
                       {dayTasks.length}
                     </span>
                   )}
@@ -162,7 +171,8 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                         key={task.id}
                         onClick={e => { e.stopPropagation(); onOpenTask(task) }}
                         style={{
-                          background: p.bg, border: `1px solid ${p.border}`,
+                          background: p.bg,
+                          border: `1px solid ${p.border}`,
                           borderRadius: '4px', padding: '2px 5px',
                           fontSize: '9px', fontFamily: 'Space Grotesk',
                           color: p.color, whiteSpace: 'nowrap',
@@ -175,7 +185,7 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                     )
                   })}
                   {dayTasks.length > 3 && (
-                    <div style={{ fontSize: '9px', fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)', paddingLeft: '4px' }}>
+                    <div style={{ fontSize: '9px', fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.45)', paddingLeft: '4px' }}>
                       +{dayTasks.length - 3} more
                     </div>
                   )}
@@ -194,8 +204,8 @@ function CalendarView({ tasks, onOpenTask }: Props) {
       >
         {/* Selected day tasks */}
         <div style={{
-          background: 'rgba(255,255,255,0.01)',
-          border: '1px solid rgba(255,255,255,0.06)',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.1)',
           borderRadius: '16px', padding: '20px', marginBottom: '12px',
         }}>
           {selectedDay ? (
@@ -204,13 +214,13 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                 <h3 style={{ color: 'white', fontSize: '16px', fontWeight: 700, margin: 0, fontFamily: 'Space Grotesk' }}>
                   {format(selectedDay, 'MMMM d')}
                 </h3>
-                <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.15em', marginTop: '2px' }}>
+                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.15em', marginTop: '2px' }}>
                   {format(selectedDay, 'EEEE').toUpperCase()}
                 </p>
               </div>
 
               {selectedDayTasks.length === 0 ? (
-                <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', fontFamily: 'Space Mono', textAlign: 'center', padding: '20px 0' }}>
+                <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '12px', fontFamily: 'Space Mono', textAlign: 'center', padding: '20px 0' }}>
                   NO TASKS
                 </p>
               ) : (
@@ -223,19 +233,20 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                         whileHover={{ scale: 1.02 }}
                         onClick={() => onOpenTask(task)}
                         style={{
-                          background: p.bg, border: `1px solid ${p.border}`,
+                          background: p.bg,
+                          border: `1px solid ${p.border}`,
                           borderRadius: '10px', padding: '10px 12px',
                           cursor: 'pointer', borderLeft: `2px solid ${p.color}`,
                         }}
                       >
-                        <p style={{ color: 'white', fontSize: '12px', fontWeight: 600, margin: '0 0 4px', fontFamily: 'Space Grotesk' }}>
+                        <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: 600, margin: '0 0 4px', fontFamily: 'Space Grotesk' }}>
                           {task.title}
                         </p>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span style={{ color: p.color, fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.1em' }}>
                             {task.priority.toUpperCase()}
                           </span>
-                          <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '9px', fontFamily: 'Space Mono' }}>
+                          <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono' }}>
                             {task.status.replace('_', ' ').toUpperCase()}
                           </span>
                         </div>
@@ -247,10 +258,10 @@ function CalendarView({ tasks, onOpenTask }: Props) {
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>
+              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>
                 SELECT A DAY
               </p>
-              <p style={{ color: 'rgba(255,255,255,0.1)', fontSize: '11px', fontFamily: 'Space Mono', marginTop: '4px' }}>
+              <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px', fontFamily: 'Space Mono', marginTop: '4px' }}>
                 TO SEE TASKS
               </p>
             </div>
@@ -259,11 +270,11 @@ function CalendarView({ tasks, onOpenTask }: Props) {
 
         {/* Month summary */}
         <div style={{
-          background: 'rgba(255,255,255,0.01)',
-          border: '1px solid rgba(255,255,255,0.06)',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.1)',
           borderRadius: '16px', padding: '20px',
         }}>
-          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.2em', marginBottom: '12px' }}>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.2em', marginBottom: '16px' }}>
             MONTH SUMMARY
           </p>
           {[
@@ -283,8 +294,13 @@ function CalendarView({ tasks, onOpenTask }: Props) {
               color: '#ef4444',
             },
           ].map(stat => (
-            <div key={stat.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontFamily: 'Space Grotesk' }}>
+            <div key={stat.label} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              marginBottom: '10px',
+              paddingBottom: '10px',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+            }}>
+              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', fontFamily: 'Space Grotesk' }}>
                 {stat.label}
               </span>
               <span style={{ color: stat.color, fontSize: '16px', fontWeight: 700, fontFamily: 'Space Mono' }}>
