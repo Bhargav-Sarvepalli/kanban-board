@@ -9,19 +9,39 @@ export default function Auth() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [fullName, setFullName] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
   const handleEmailAuth = async () => {
     if (!email || !password) return toast.error('Please fill in all fields')
+    if (mode === 'signup' && !fullName.trim()) return toast.error('Please enter your full name')
     if (password.length < 6) return toast.error('Password must be at least 6 characters')
     setLoading(true)
+
     if (mode === 'signup') {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) toast.error(error.message)
-      else {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName.trim() },
+        },
+      })
+      if (error) {
+        toast.error(error.message)
+      } else {
+        // Upsert profile with full name immediately
+        if (data.user) {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            email: data.user.email,
+            full_name: fullName.trim(),
+            updated_at: new Date().toISOString(),
+          })
+        }
         toast.success('Account created! Check your email to confirm.')
         setMode('login')
+        setFullName('')
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -40,6 +60,22 @@ export default function Auth() {
       },
     })
     if (error) { toast.error(error.message); setGoogleLoading(false) }
+  }
+
+  const inputStyle = {
+    width: '100%', padding: '11px 14px',
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '10px', color: 'white',
+    fontSize: '14px', fontFamily: 'Space Grotesk',
+    outline: 'none', boxSizing: 'border-box' as const,
+    transition: 'border-color 0.2s',
+  }
+
+  const labelStyle = {
+    color: 'rgba(255,255,255,0.4)', fontSize: '11px',
+    fontFamily: 'Space Mono', letterSpacing: '0.1em',
+    display: 'block', marginBottom: '8px',
   }
 
   return (
@@ -67,10 +103,7 @@ export default function Auth() {
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        style={{
-          width: '100%', maxWidth: '420px',
-          margin: '0 24px',
-        }}
+        style={{ width: '100%', maxWidth: '420px', margin: '0 24px' }}
       >
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
@@ -93,7 +126,7 @@ export default function Auth() {
               NEX<span style={{ color: '#8b5cf6' }}>TASK</span>
             </span>
           </motion.div>
-          <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '13px', margin: 0 }}>
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px', margin: 0 }}>
             {mode === 'login' ? 'Welcome back' : 'Create your account'}
           </p>
         </div>
@@ -105,7 +138,6 @@ export default function Auth() {
           borderRadius: '20px', padding: '32px',
           boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
         }}>
-          {/* Top gradient line */}
           <div style={{
             height: '1px', marginBottom: '28px',
             background: 'linear-gradient(90deg, transparent, rgba(139,92,246,0.6), rgba(236,72,153,0.6), transparent)',
@@ -152,54 +184,59 @@ export default function Auth() {
             <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
           </div>
 
-          {/* Email field */}
+          {/* Full name — signup only */}
+          <motion.div
+            initial={false}
+            animate={{ height: mode === 'signup' ? 'auto' : 0, opacity: mode === 'signup' ? 1 : 0, marginBottom: mode === 'signup' ? 12 : 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            style={{ overflow: 'hidden' }}
+          >
+            <label style={labelStyle}>FULL NAME</label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleEmailAuth()}
+              placeholder="Sree Sai Bhargav"
+              style={inputStyle}
+              onFocus={e => e.target.style.borderColor = 'rgba(139,92,246,0.5)'}
+              onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+            />
+          </motion.div>
+
+          {/* Email */}
           <div style={{ marginBottom: '12px' }}>
-            <label style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.1em', display: 'block', marginBottom: '8px' }}>
-              EMAIL
-            </label>
+            <label style={labelStyle}>EMAIL</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleEmailAuth()}
               placeholder="you@example.com"
-              style={{
-                width: '100%', padding: '11px 14px',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '10px', color: 'white',
-                fontSize: '14px', fontFamily: 'Space Grotesk',
-                outline: 'none', boxSizing: 'border-box',
-                transition: 'border-color 0.2s',
-              }}
+              style={inputStyle}
               onFocus={e => e.target.style.borderColor = 'rgba(139,92,246,0.5)'}
               onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
             />
           </div>
 
-          {/* Password field */}
+          {/* Password */}
           <div style={{ marginBottom: '24px' }}>
-            <label style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.1em', display: 'block', marginBottom: '8px' }}>
-              PASSWORD
-            </label>
+            <label style={labelStyle}>PASSWORD</label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleEmailAuth()}
               placeholder="••••••••"
-              style={{
-                width: '100%', padding: '11px 14px',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '10px', color: 'white',
-                fontSize: '14px', fontFamily: 'Space Grotesk',
-                outline: 'none', boxSizing: 'border-box',
-                transition: 'border-color 0.2s',
-              }}
+              style={inputStyle}
               onFocus={e => e.target.style.borderColor = 'rgba(139,92,246,0.5)'}
               onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
             />
+            {mode === 'signup' && (
+              <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '6px 0 0' }}>
+                Minimum 6 characters
+              </p>
+            )}
           </div>
 
           {/* Submit */}
@@ -229,11 +266,11 @@ export default function Auth() {
         </div>
 
         {/* Toggle mode */}
-        <p style={{ textAlign: 'center', marginTop: '20px', color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>
+        <p style={{ textAlign: 'center', marginTop: '20px', color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>
           {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
           <motion.span
             whileHover={{ color: '#8b5cf6' }}
-            onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+            onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setFullName('') }}
             style={{ color: '#8b5cf6', cursor: 'pointer', fontWeight: 600, transition: 'color 0.2s' }}
           >
             {mode === 'login' ? 'Sign up' : 'Sign in'}
