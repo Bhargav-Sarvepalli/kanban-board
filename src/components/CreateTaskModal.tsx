@@ -15,22 +15,22 @@ interface Props {
 }
 
 const priorityOptions = [
-  { value: 'low', label: 'Low', color: '#64748b', glow: 'rgba(100,116,139,0.3)' },
-  { value: 'normal', label: 'Normal', color: '#8b5cf6', glow: 'rgba(139,92,246,0.3)' },
-  { value: 'high', label: 'High', color: '#ef4444', glow: 'rgba(239,68,68,0.3)' },
+  { value: 'low', label: 'Low', color: '#94a3b8', glow: 'rgba(148,163,184,0.3)' },
+  { value: 'normal', label: 'Normal', color: '#a78bfa', glow: 'rgba(139,92,246,0.3)' },
+  { value: 'high', label: 'High', color: '#f87171', glow: 'rgba(239,68,68,0.3)' },
 ]
 
 const statusOptions = [
   { value: 'todo', label: 'To Do', color: '#94a3b8' },
-  { value: 'in_progress', label: 'In Progress', color: '#8b5cf6' },
-  { value: 'in_review', label: 'In Review', color: '#f59e0b' },
-  { value: 'done', label: 'Done', color: '#10b981' },
+  { value: 'in_progress', label: 'In Progress', color: '#a78bfa' },
+  { value: 'in_review', label: 'In Review', color: '#fbbf24' },
+  { value: 'done', label: 'Done', color: '#34d399' },
 ]
 
 const recurringOptions = [
-  { value: null, label: 'One-time', icon: '○', color: 'rgba(255,255,255,0.4)' },
-  { value: 'weekly', label: 'Weekly', icon: '↻', color: '#06b6d4' },
-  { value: 'monthly', label: 'Monthly', icon: '↻', color: '#8b5cf6' },
+  { value: null, label: 'One-time', icon: '○', color: '#94a3b8', glow: 'rgba(148,163,184,0.25)' },
+  { value: 'weekly', label: 'Weekly', icon: '↻', color: '#06b6d4', glow: 'rgba(6,182,212,0.25)' },
+  { value: 'monthly', label: 'Monthly', icon: '↻', color: '#a78bfa', glow: 'rgba(139,92,246,0.25)' },
 ]
 
 function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, workspaceId }: Props) {
@@ -128,8 +128,8 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             onClick={e => e.stopPropagation()}
             style={{
-              background: '#050505',
-              border: '1px solid rgba(255,255,255,0.07)',
+              background: '#0d0d0d',
+              border: '1px solid rgba(255,255,255,0.1)',
               borderRadius: '20px',
               width: '100%', maxWidth: '480px',
               overflow: 'hidden',
@@ -146,11 +146,11 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                     <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{
                         width: '24px', height: '24px', borderRadius: '50%',
-                        background: step >= s ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.05)',
-                        border: `1px solid ${step >= s ? 'transparent' : 'rgba(255,255,255,0.1)'}`,
+                        background: step >= s ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.08)',
+                        border: `1px solid ${step >= s ? 'transparent' : 'rgba(255,255,255,0.15)'}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '11px', fontWeight: 700,
-                        color: step >= s ? 'white' : 'rgba(255,255,255,0.2)',
+                        color: step >= s ? 'white' : 'rgba(255,255,255,0.4)',
                         fontFamily: 'Space Mono', transition: 'all 0.3s',
                       }}>
                         {s}
@@ -158,20 +158,20 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                       {s === 1 && (
                         <div style={{
                           width: '32px', height: '1px',
-                          background: step >= 2 ? 'linear-gradient(90deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.08)',
+                          background: step >= 2 ? 'linear-gradient(90deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.12)',
                           transition: 'all 0.3s',
                         }} />
                       )}
                     </div>
                   ))}
-                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', fontFamily: 'Space Mono', marginLeft: '4px' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Mono', marginLeft: '4px' }}>
                     {step === 1 ? 'DETAILS' : 'OPTIONS'}
                   </span>
                 </div>
                 <button onClick={handleClose} style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '8px', color: 'rgba(255,255,255,0.3)',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '8px', color: 'rgba(255,255,255,0.5)',
                   cursor: 'pointer', width: '28px', height: '28px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '12px',
@@ -196,34 +196,34 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                         placeholder="What needs to be done?"
                         style={{
                           width: '100%', background: 'transparent',
-                          border: 'none', borderBottom: '1px solid rgba(255,255,255,0.1)',
+                          border: 'none', borderBottom: '1px solid rgba(255,255,255,0.15)',
                           padding: '8px 0', color: 'white', fontSize: '20px',
                           fontFamily: 'Space Grotesk', fontWeight: 600,
                           outline: 'none', letterSpacing: '-0.02em',
                         }}
                         onFocus={e => e.target.style.borderBottomColor = '#8b5cf6'}
-                        onBlur={e => e.target.style.borderBottomColor = 'rgba(255,255,255,0.1)'}
+                        onBlur={e => e.target.style.borderBottomColor = 'rgba(255,255,255,0.15)'}
                       />
-                      <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: '11px', fontFamily: 'Space Mono', marginTop: '6px' }}>
+                      <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', fontFamily: 'Space Mono', marginTop: '6px' }}>
                         PRESS ENTER TO CONTINUE
                       </p>
                     </div>
 
                     <div style={{ marginBottom: '24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>
                           DESCRIPTION
                         </span>
                         <button
                           onClick={handleGenerateDescription}
                           disabled={generatingDesc || !title.trim()}
                           style={{
-                            background: 'rgba(139,92,246,0.08)',
-                            border: '1px solid rgba(139,92,246,0.15)',
-                            borderRadius: '6px', color: '#8b5cf6',
+                            background: 'rgba(139,92,246,0.12)',
+                            border: '1px solid rgba(139,92,246,0.25)',
+                            borderRadius: '6px', color: '#a78bfa',
                             cursor: 'pointer', fontSize: '11px',
                             fontFamily: 'Space Grotesk', padding: '4px 12px',
-                            opacity: !title.trim() ? 0.3 : 1,
+                            opacity: !title.trim() ? 0.4 : 1,
                           }}
                         >
                           {generatingDesc ? '⟳ Writing...' : '✨ AI Write'}
@@ -236,12 +236,13 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                         rows={4}
                         style={{
                           width: '100%',
-                          background: 'rgba(255,255,255,0.02)',
-                          border: '1px solid rgba(255,255,255,0.06)',
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '1px solid rgba(255,255,255,0.1)',
                           borderRadius: '12px', padding: '14px',
-                          color: 'rgba(255,255,255,0.7)', fontSize: '13px',
+                          color: 'rgba(255,255,255,0.8)', fontSize: '13px',
                           fontFamily: 'Space Grotesk', outline: 'none',
                           resize: 'none', lineHeight: 1.7,
+                          boxSizing: 'border-box',
                         }}
                       />
                     </div>
@@ -256,9 +257,9 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                       }}
                       style={{
                         width: '100%',
-                        background: title.trim() ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.05)',
+                        background: title.trim() ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.06)',
                         border: 'none', borderRadius: '12px', padding: '14px',
-                        color: title.trim() ? 'white' : 'rgba(255,255,255,0.2)',
+                        color: title.trim() ? 'white' : 'rgba(255,255,255,0.3)',
                         cursor: title.trim() ? 'pointer' : 'not-allowed',
                         fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700,
                         boxShadow: title.trim() ? '0 0 25px rgba(139,92,246,0.3)' : 'none',
@@ -269,7 +270,7 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                     </motion.button>
 
                     {error && (
-                      <p style={{ color: '#ef4444', fontSize: '12px', textAlign: 'center', marginTop: '8px', fontFamily: 'Space Grotesk' }}>
+                      <p style={{ color: '#f87171', fontSize: '12px', textAlign: 'center', marginTop: '8px', fontFamily: 'Space Grotesk' }}>
                         ⚠ {error}
                       </p>
                     )}
@@ -285,7 +286,7 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                     {/* Priority */}
                     <div style={{ marginBottom: '20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>
                           PRIORITY
                         </span>
                         <button
@@ -293,7 +294,7 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                           disabled={suggestingPriority}
                           style={{
                             background: 'none', border: 'none',
-                            color: 'rgba(139,92,246,0.7)', cursor: 'pointer',
+                            color: '#a78bfa', cursor: 'pointer',
                             fontSize: '11px', fontFamily: 'Space Grotesk',
                           }}
                         >
@@ -307,9 +308,9 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                             onClick={() => setPriority(opt.value as 'low' | 'normal' | 'high')}
                             style={{
                               flex: 1, padding: '12px 8px', borderRadius: '12px',
-                              border: `1px solid ${priority === opt.value ? opt.color : opt.color + '35'}`,
-                              background: priority === opt.value ? `${opt.color}18` : `${opt.color}06`,
-                              color: priority === opt.value ? opt.color : opt.color + '80',
+                              border: `1px solid ${priority === opt.value ? opt.color : opt.color + '40'}`,
+                              background: priority === opt.value ? `${opt.color}20` : `${opt.color}08`,
+                              color: priority === opt.value ? opt.color : opt.color + '99',
                               cursor: 'pointer', fontSize: '12px',
                               fontFamily: 'Space Grotesk',
                               fontWeight: priority === opt.value ? 700 : 500,
@@ -325,7 +326,7 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
 
                     {/* Column */}
                     <div style={{ marginBottom: '20px' }}>
-                      <span style={{ display: 'block', color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em', marginBottom: '10px' }}>
+                      <span style={{ display: 'block', color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em', marginBottom: '10px' }}>
                         COLUMN
                       </span>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
@@ -335,9 +336,9 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                             onClick={() => setStatus(opt.value as Status)}
                             style={{
                               padding: '10px 12px', borderRadius: '10px',
-                              border: `1px solid ${status === opt.value ? opt.color + '60' : opt.color + '20'}`,
-                              background: status === opt.value ? `${opt.color}12` : `${opt.color}05`,
-                              color: status === opt.value ? opt.color : opt.color + '60',
+                              border: `1px solid ${status === opt.value ? opt.color + '70' : opt.color + '30'}`,
+                              background: status === opt.value ? `${opt.color}18` : `${opt.color}08`,
+                              color: status === opt.value ? opt.color : opt.color + '80',
                               cursor: 'pointer', fontSize: '12px',
                               fontFamily: 'Space Grotesk',
                               fontWeight: status === opt.value ? 600 : 400,
@@ -360,7 +361,7 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                     {/* Due Date + Repeat */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
                       <div>
-                        <span style={{ display: 'block', color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em', marginBottom: '10px' }}>
+                        <span style={{ display: 'block', color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em', marginBottom: '10px' }}>
                           DUE DATE
                         </span>
                         <input
@@ -368,39 +369,50 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                           value={dueDate}
                           onChange={e => setDueDate(e.target.value)}
                           style={{
-                            width: '100%', background: 'rgba(255,255,255,0.02)',
-                            border: '1px solid rgba(255,255,255,0.06)',
+                            width: '100%',
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.12)',
                             borderRadius: '10px', padding: '10px 12px',
-                            color: 'rgba(255,255,255,0.6)', fontSize: '12px',
+                            color: 'rgba(255,255,255,0.75)', fontSize: '12px',
                             fontFamily: 'Space Grotesk', outline: 'none',
-                            colorScheme: 'dark',
+                            colorScheme: 'dark', boxSizing: 'border-box',
                           }}
                         />
                       </div>
                       <div>
-                        <span style={{ display: 'block', color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em', marginBottom: '10px' }}>
+                        <span style={{ display: 'block', color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em', marginBottom: '10px' }}>
                           REPEAT
                         </span>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          {recurringOptions.map(opt => (
-                            <button
-                              key={opt.value ?? 'none'}
-                              onClick={() => setRecurring(opt.value as 'weekly' | 'monthly' | null)}
-                              style={{
-                                padding: '7px 10px', borderRadius: '8px',
-                                border: `1px solid ${recurring === opt.value ? opt.color + '50' : 'rgba(255,255,255,0.06)'}`,
-                                background: recurring === opt.value ? `${opt.color}12` : 'transparent',
-                                color: recurring === opt.value ? opt.color : 'rgba(255,255,255,0.3)',
-                                cursor: 'pointer', fontSize: '11px',
-                                fontFamily: 'Space Grotesk', textAlign: 'left',
-                                transition: 'all 0.15s',
-                                display: 'flex', alignItems: 'center', gap: '6px',
-                              }}
-                            >
-                              <span style={{ fontSize: '12px', color: opt.color }}>{opt.icon}</span>
-                              {opt.label}
-                            </button>
-                          ))}
+                          {recurringOptions.map(opt => {
+                            const isSelected = recurring === opt.value
+                            return (
+                              <button
+                                key={opt.value ?? 'none'}
+                                onClick={() => setRecurring(opt.value as 'weekly' | 'monthly' | null)}
+                                style={{
+                                  padding: '8px 10px', borderRadius: '8px',
+                                  border: `1px solid ${isSelected ? opt.color + '60' : 'rgba(255,255,255,0.1)'}`,
+                                  background: isSelected ? `${opt.color}18` : 'rgba(255,255,255,0.03)',
+                                  color: isSelected ? opt.color : 'rgba(255,255,255,0.55)',
+                                  cursor: 'pointer', fontSize: '11px',
+                                  fontFamily: 'Space Grotesk', textAlign: 'left',
+                                  fontWeight: isSelected ? 600 : 400,
+                                  transition: 'all 0.15s',
+                                  display: 'flex', alignItems: 'center', gap: '6px',
+                                  boxShadow: isSelected ? `0 0 10px ${opt.glow}` : 'none',
+                                }}
+                              >
+                                <span style={{
+                                  fontSize: '13px',
+                                  color: isSelected ? opt.color : 'rgba(255,255,255,0.4)',
+                                }}>
+                                  {opt.icon}
+                                </span>
+                                {opt.label}
+                              </button>
+                            )
+                          })}
                         </div>
                       </div>
                     </div>
@@ -410,10 +422,11 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                       <button
                         onClick={() => setStep(1)}
                         style={{
-                          flex: 1, background: 'rgba(255,255,255,0.03)',
-                          border: '1px solid rgba(255,255,255,0.08)',
+                          flex: 1,
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.12)',
                           borderRadius: '12px', padding: '13px',
-                          color: 'rgba(255,255,255,0.3)', cursor: 'pointer',
+                          color: 'rgba(255,255,255,0.6)', cursor: 'pointer',
                           fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 600,
                         }}
                       >
