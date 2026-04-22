@@ -402,28 +402,7 @@ export default function Landing() {
           textAlign: 'center', padding: isMobile ? '0 20px' : '0 24px',
           maxWidth: '900px', width: '100%',
         }}>
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.85 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.4, duration: 0.6 }}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '8px',
-              border: '1px solid rgba(139,92,246,0.35)',
-              borderRadius: '999px', padding: '5px 14px',
-              marginBottom: isMobile ? '28px' : '44px',
-              background: 'rgba(139,92,246,0.07)',
-            }}
-          >
-            <motion.span
-              animate={{ opacity: [1, 0.2, 1], scale: [1, 1.4, 1] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#8b5cf6', display: 'block', boxShadow: '0 0 8px #8b5cf6' }}
-            />
-            <span style={{ color: '#a78bfa', fontSize: isMobile ? '9px' : '11px', fontFamily: 'Space Mono', letterSpacing: '0.12em' }}>
-              {isMobile ? 'AI-POWERED KANBAN' : 'AI-POWERED · KANBAN · FUTURISTIC'}
-            </span>
-          </motion.div>
+
 
           {/* Headlines */}
           {['MANAGE', 'SMARTER.', 'FASTER.'].map((word, idx) => (
