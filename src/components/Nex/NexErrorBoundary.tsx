@@ -12,7 +12,7 @@ export default class NexErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
-    console.warn('Nex crashed silently:', error.message)
+    console.error('[Nex] Component crashed:', error.message, error.stack)
   }
 
   render() {
