@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../supabase'
 import NexGlobe from './NexGlobe'
-import { askNex } from '../../lib/nex'
+import { askNex, buildGreeting } from '../../lib/nex'
 import type { TaskContext, NexActionResult } from '../../lib/nex'
 
 type GlobeState = 'idle' | 'listening' | 'thinking' | 'speaking'
 
 interface NexAssistantProps {
-  workspaceId: string | null  // null = personal board
+  workspaceId: string | null
   userId: string | null
   isPro: boolean
 }
@@ -49,27 +49,26 @@ export default function NexAssistant({ workspaceId, userId, isPro }: NexAssistan
 
   useEffect(() => { globeStateRef.current = globeState }, [globeState])
 
-  // Inject keyframes once
   useEffect(() => {
     if (document.getElementById('nex-styles')) return
     const style = document.createElement('style')
     style.id = 'nex-styles'
     style.textContent = `
       @keyframes nexPulse {
-        0%   { transform: scale(1);    opacity: 0.5; }
-        100% { transform: scale(1.6);  opacity: 0;   }
+        0%   { transform: scale(1);   opacity: 0.6; }
+        100% { transform: scale(1.7); opacity: 0;   }
       }
       @keyframes nexFadeUp {
-        from { opacity: 0; transform: translateY(10px); }
-        to   { opacity: 1; transform: translateY(0);    }
-      }
-      @keyframes nexScan {
-        0%   { background-position: 0% 0%;   }
-        100% { background-position: 0% 100%; }
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0);   }
       }
       @keyframes nexBlink {
         0%, 100% { opacity: 1; }
-        50%       { opacity: 0; }
+        50%       { opacity: 0.2; }
+      }
+      @keyframes nexScanline {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(300%);  }
       }
     `
     document.head.appendChild(style)
@@ -85,7 +84,6 @@ export default function NexAssistant({ workspaceId, userId, isPro }: NexAssistan
     if (workspaceId) {
       tasksQuery = tasksQuery.eq('workspace_id', workspaceId)
     } else {
-      // Personal board — tasks with no workspace owned by this user
       tasksQuery = tasksQuery.is('workspace_id', null).eq('user_id', userId)
     }
 
@@ -94,31 +92,37 @@ export default function NexAssistant({ workspaceId, userId, isPro }: NexAssistan
       supabase.from('profiles').select('full_name').eq('id', userId).single(),
     ])
 
-    let workspaceName = 'Personal Board'
+    let workspaceName = 'Personal'
     if (workspaceId) {
       const { data: ws } = await supabase
         .from('workspaces').select('name').eq('id', workspaceId).single()
       workspaceName = ws?.name ?? 'Workspace'
     }
 
+    const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
+
     setTaskCtx({
       tasks: tasks ?? [],
       workspaceName,
-      userName: profile?.full_name?.split(' ')[0] ?? 'there',
+      userName: firstName,
       isPersonal: !workspaceId,
     })
+
+    return { tasks: tasks ?? [], workspaceName, userName: firstName, isPersonal: !workspaceId }
   }, [workspaceId, userId])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void loadContext() }, [loadContext])
 
-  const showText = useCallback((text: string, duration = 5000) => {
+  const showText = useCallback((text: string, duration = 6000) => {
     if (displayTimeoutRef.current) clearTimeout(displayTimeoutRef.current)
     setDisplayText(text)
-    displayTimeoutRef.current = setTimeout(() => setDisplayText(''), duration)
+    if (duration > 0) {
+      displayTimeoutRef.current = setTimeout(() => setDisplayText(''), duration)
+    }
   }, [])
 
-  const speak = useCallback((text: string) => {
+  const speak = useCallback((text: string, onDone?: () => void) => {
     window.speechSynthesis.cancel()
     const utter = new SpeechSynthesisUtterance(text)
 
@@ -126,22 +130,24 @@ export default function NexAssistant({ workspaceId, userId, isPro }: NexAssistan
       const voices = window.speechSynthesis.getVoices()
       const preferred =
         voices.find(v => v.name.includes('Google UK English Male')) ??
-        voices.find(v => v.name.includes('Daniel')) ??
+        voices.find(v => v.name === 'Daniel') ??
         voices.find(v => v.name === 'Alex') ??
         voices.find(v => v.lang === 'en-GB') ??
         voices.find(v => v.lang.startsWith('en'))
 
       if (preferred) utter.voice = preferred
-      utter.rate = 0.9
-      utter.pitch = 0.85
+      utter.rate = 0.88
+      utter.pitch = 0.82
       utter.volume = 1
 
       utter.onstart = () => {
         setGlobeState('speaking')
-        showText(text, text.length * 60 + 1000)
+        showText(text, 0) // hold until speech ends
       }
       utter.onend = () => {
         setGlobeState('idle')
+        setDisplayText('')
+        onDone?.()
       }
       window.speechSynthesis.speak(utter)
     }
@@ -162,7 +168,7 @@ export default function NexAssistant({ workspaceId, userId, isPro }: NexAssistan
   const startListening = useCallback(() => {
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition
     if (!SR) {
-      speak('Voice recognition unavailable. Use Chrome.')
+      speak('Voice recognition unavailable. Switch to Chrome.')
       return
     }
 
@@ -175,17 +181,17 @@ export default function NexAssistant({ workspaceId, userId, isPro }: NexAssistan
       const text = event.results[0][0].transcript
       setTranscript(text)
       setGlobeState('thinking')
-      showText('...')
+      showText('', 0)
 
       void (async () => {
-        if (!userId) { speak('Not authenticated.'); return }
+        if (!userId) { speak('Authentication required.'); return }
         try {
           const { speech, action } = await askNex(text, taskCtx, workspaceId, userId)
           if (action) handleAction(action)
           speak(speech)
         } catch (err) {
           console.error('Nex error:', err)
-          speak('An error occurred.')
+          speak('Systems encountered an error.')
           setGlobeState('idle')
         }
       })()
@@ -205,18 +211,20 @@ export default function NexAssistant({ workspaceId, userId, isPro }: NexAssistan
     recognition.start()
     setGlobeState('listening')
     setTranscript('')
-    showText('Listening')
+    showText('', 0)
   }, [taskCtx, workspaceId, userId, speak, handleAction, showText])
 
   const handleGlobeClick = useCallback(() => {
     if (!isPro) {
-      speak('Nex is a Pro feature.')
+      speak('Nex is available on the Pro plan.')
       return
     }
     if (!userId) {
-      speak('Not authenticated.')
+      speak('Authentication required.')
       return
     }
+
+    // Stop if already active
     if (globeStateRef.current === 'listening') {
       recognitionRef.current?.stop()
       window.speechSynthesis.cancel()
@@ -231,160 +239,187 @@ export default function NexAssistant({ workspaceId, userId, isPro }: NexAssistan
       setDisplayText('')
       return
     }
+    if (globeStateRef.current === 'thinking') return
+
     if (!isActive) {
+      // First activation — load context, deliver Jarvis greeting, then listen
       setIsActive(true)
-      void loadContext().then(() => {
-        setTimeout(() => startListening(), 300)
+      void loadContext().then((ctx) => {
+        if (!ctx) { startListening(); return }
+        const greeting = buildGreeting(ctx)
+        // Speak greeting, then immediately go to listening
+        speak(greeting, () => {
+          setTimeout(() => startListening(), 300)
+        })
       })
       return
     }
+
     startListening()
   }, [isPro, userId, isActive, speak, startListening, loadContext])
 
   const isListening = globeState === 'listening'
   const isThinking = globeState === 'thinking'
   const isSpeaking = globeState === 'speaking'
+  const isEngaged = isListening || isThinking || isSpeaking
+
+  const hudColor = isThinking
+    ? 'rgba(180,160,255,0.9)'
+    : isListening
+    ? 'rgba(0,255,230,0.95)'
+    : 'rgba(0,229,255,0.88)'
+
+  const hudGlow = isThinking
+    ? '0 0 14px rgba(123,47,255,0.7)'
+    : isListening
+    ? '0 0 14px rgba(0,255,230,0.8)'
+    : '0 0 8px rgba(0,229,255,0.4)'
 
   return (
     <div style={{
       position: 'fixed',
-      bottom: '24px',
+      bottom: '20px',
       left: '50%',
       transform: 'translateX(-50%)',
       zIndex: 9999,
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      gap: '0px',
       pointerEvents: 'none',
       userSelect: 'none',
     }}>
 
-      {/* HUD display — Jarvis style readout */}
+      {/* ── HUD READOUT ───────────────────────────────── */}
       <div style={{
-        marginBottom: '12px',
-        minHeight: '48px',
+        marginBottom: '8px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '4px',
-        pointerEvents: 'none',
+        gap: '5px',
+        minHeight: '52px',
+        justifyContent: 'flex-end',
       }}>
 
-        {/* Main text line */}
-        {(displayText || isListening || isThinking) && (
-          <div
-            key={displayText + globeState}
-            style={{
-              fontFamily: 'Space Mono, monospace',
-              fontSize: '12px',
-              fontWeight: 400,
-              letterSpacing: '0.12em',
-              color: isListening
-                ? 'rgba(79,230,255,0.95)'
-                : isThinking
-                ? 'rgba(130,180,255,0.85)'
-                : 'rgba(180,220,255,0.9)',
-              textShadow: isListening
-                ? '0 0 12px rgba(79,230,255,0.8)'
-                : '0 0 8px rgba(100,180,255,0.5)',
-              animation: 'nexFadeUp 0.25s ease',
-              maxWidth: '280px',
-              textAlign: 'center',
-              lineHeight: 1.5,
-            }}
-          >
+        {/* State label */}
+        {isEngaged && (
+          <div style={{
+            fontFamily: 'Space Mono, monospace',
+            fontSize: '9px',
+            letterSpacing: '0.3em',
+            color: hudColor,
+            textShadow: hudGlow,
+            animation: 'nexFadeUp 0.2s ease',
+          }}>
             {isListening ? (
               <span>
                 LISTENING
-                <span style={{ animation: 'nexBlink 1s ease infinite', marginLeft: '2px' }}>_</span>
+                <span style={{ animation: 'nexBlink 0.9s ease infinite', marginLeft: '2px' }}>_</span>
               </span>
-            ) : isThinking ? (
-              <span style={{ opacity: 0.7 }}>PROCESSING</span>
-            ) : (
-              displayText
-            )}
+            ) : isThinking ? 'PROCESSING' : 'NEX'}
           </div>
         )}
 
-        {/* Transcript echo — dim, smaller */}
+        {/* Main display text — spoken words or status */}
+        {(displayText && isSpeaking) && (
+          <div
+            key={displayText.slice(0, 20)}
+            style={{
+              fontFamily: 'Space Mono, monospace',
+              fontSize: '11px',
+              letterSpacing: '0.06em',
+              color: hudColor,
+              textShadow: hudGlow,
+              animation: 'nexFadeUp 0.25s ease',
+              maxWidth: '300px',
+              textAlign: 'center',
+              lineHeight: 1.6,
+              position: 'relative',
+              padding: '0 4px',
+            }}
+          >
+            {/* Scanline effect */}
+            <span style={{
+              position: 'absolute',
+              top: 0, left: 0, right: 0, bottom: 0,
+              background: 'linear-gradient(90deg, transparent 0%, rgba(0,229,255,0.08) 50%, transparent 100%)',
+              animation: 'nexScanline 2.5s ease infinite',
+              pointerEvents: 'none',
+            }} />
+            {displayText.length > 80 ? displayText.slice(0, 80) + '…' : displayText}
+          </div>
+        )}
+
+        {/* Transcript echo while thinking */}
         {transcript && isThinking && (
           <div style={{
             fontFamily: 'Space Mono, monospace',
             fontSize: '10px',
-            color: 'rgba(100,160,220,0.45)',
+            color: 'rgba(160,140,255,0.5)',
             letterSpacing: '0.08em',
-            maxWidth: '220px',
-            textAlign: 'center',
             fontStyle: 'italic',
             animation: 'nexFadeUp 0.2s ease',
+            maxWidth: '240px',
+            textAlign: 'center',
           }}>
-            "{transcript.length > 38 ? transcript.slice(0, 38) + '…' : transcript}"
+            "{transcript.length > 42 ? transcript.slice(0, 42) + '…' : transcript}"
           </div>
-        )}
-
-        {/* Scan line decoration when speaking */}
-        {isSpeaking && (
-          <div style={{
-            width: '120px',
-            height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(79,195,247,0.6), transparent)',
-            marginTop: '2px',
-            animation: 'nexFadeUp 0.3s ease',
-          }} />
         )}
       </div>
 
-      {/* NEX label — always shown when active, minimal when idle */}
+      {/* ── NEX LABEL ─────────────────────────────────── */}
       {isActive && (
         <div style={{
           fontFamily: 'Space Mono, monospace',
-          fontSize: '9px',
-          letterSpacing: '0.3em',
-          color: isListening
-            ? 'rgba(79,230,255,0.7)'
-            : isSpeaking
-            ? 'rgba(100,180,255,0.7)'
-            : 'rgba(79,195,247,0.35)',
-          marginBottom: '6px',
-          transition: 'color 0.4s ease',
-          textShadow: isListening ? '0 0 10px rgba(79,230,255,0.5)' : 'none',
+          fontSize: '8px',
+          letterSpacing: '0.38em',
+          color: isEngaged ? hudColor : 'rgba(0,229,255,0.28)',
+          textShadow: isEngaged ? hudGlow : 'none',
+          marginBottom: '4px',
+          transition: 'all 0.5s ease',
         }}>
           NEX
         </div>
       )}
 
-      {/* Globe */}
+      {/* ── GLOBE ─────────────────────────────────────── */}
       <div style={{ pointerEvents: 'all' }}>
         <NexGlobe state={globeState} onClick={handleGlobeClick} />
       </div>
 
-      {/* Bottom status bar — thin line with state */}
+      {/* ── STATUS BAR ────────────────────────────────── */}
       {isActive && (
         <div style={{
-          marginTop: '10px',
+          marginTop: '8px',
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
+          gap: '8px',
           fontFamily: 'Space Mono, monospace',
-          fontSize: '9px',
-          letterSpacing: '0.2em',
-          color: 'rgba(79,195,247,0.25)',
+          fontSize: '8px',
+          letterSpacing: '0.22em',
+          color: isEngaged ? 'rgba(0,229,255,0.45)' : 'rgba(0,229,255,0.2)',
+          transition: 'color 0.4s ease',
         }}>
+          {/* Status dot */}
           <div style={{
-            width: '4px', height: '4px', borderRadius: '50%',
+            width: '5px', height: '5px', borderRadius: '50%',
             background: isListening
-              ? 'rgba(79,230,255,0.9)'
+              ? 'rgba(0,255,230,1)'
               : isSpeaking
-              ? 'rgba(100,180,255,0.8)'
-              : 'rgba(79,195,247,0.3)',
-            boxShadow: isListening ? '0 0 6px rgba(79,230,255,0.8)' : 'none',
+              ? 'rgba(0,229,255,0.9)'
+              : isThinking
+              ? 'rgba(160,140,255,0.9)'
+              : 'rgba(0,229,255,0.25)',
+            boxShadow: isEngaged
+              ? isThinking
+                ? '0 0 8px rgba(160,140,255,0.9)'
+                : '0 0 8px rgba(0,229,255,0.9)'
+              : 'none',
             transition: 'all 0.3s ease',
           }} />
           <span>
-            {taskCtx.isPersonal ? 'PERSONAL' : taskCtx.workspaceName.toUpperCase().slice(0, 12)}
+            {taskCtx.isPersonal ? 'PERSONAL' : taskCtx.workspaceName.toUpperCase().slice(0, 14)}
           </span>
-          <span style={{ opacity: 0.4 }}>·</span>
+          <span style={{ opacity: 0.35 }}>·</span>
           <span>{taskCtx.tasks.length} TASKS</span>
         </div>
       )}
