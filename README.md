@@ -13,7 +13,7 @@
 
 **A full-stack task management platform with real-time collaboration, AI features, and a cinematic landing experience.**
 
-[Live Demo](https://kanban-board-beige-seven.vercel.app) · [GitHub](https://github.com/Bhargav-Sarvepalli/kanban-board)
+[Live Demo](https://nextask.live) · [GitHub](https://github.com/Bhargav-Sarvepalli/kanban-board)
 
 </div>
 
