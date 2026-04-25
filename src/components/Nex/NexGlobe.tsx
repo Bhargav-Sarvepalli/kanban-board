@@ -17,7 +17,7 @@ export default function NexGlobe({ state, onClick }: NexGlobeProps) {
   useEffect(() => {
     if (!mountRef.current) return
     const el = mountRef.current
-    const SIZE = 160
+    const SIZE = 80
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setSize(SIZE, SIZE)
@@ -26,78 +26,60 @@ export default function NexGlobe({ state, onClick }: NexGlobeProps) {
     el.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100)
-    camera.position.z = 3.8
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100)
+    camera.position.z = 3.2
 
-    // ── CORE — bright glowing sphere ──────────────────────────────
-    const coreMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.95 })
-    const core = new THREE.Mesh(new THREE.SphereGeometry(0.28, 32, 32), coreMat)
+    // Core — bright center
+    const coreMat = new THREE.MeshBasicMaterial({ color: 0xc084fc, transparent: true, opacity: 0.95 })
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.22, 32, 32), coreMat)
     scene.add(core)
 
-    // ── INNER ENERGY SPHERE ───────────────────────────────────────
-    const innerMat = new THREE.MeshBasicMaterial({ color: 0x0077b6, transparent: true, opacity: 0.6 })
-    const inner = new THREE.Mesh(new THREE.SphereGeometry(0.52, 32, 32), innerMat)
+    // Inner sphere
+    const innerMat = new THREE.MeshBasicMaterial({ color: 0x7c3aed, transparent: true, opacity: 0.55 })
+    const inner = new THREE.Mesh(new THREE.SphereGeometry(0.46, 32, 32), innerMat)
     scene.add(inner)
 
-    // ── OUTER SHELL — icosahedron wireframe ───────────────────────
+    // Outer icosahedron wireframe shell
     const shellMat = new THREE.MeshBasicMaterial({
-      color: 0x00b4d8, wireframe: true, transparent: true, opacity: 0.12,
+      color: 0xa855f7, wireframe: true, transparent: true, opacity: 0.14,
     })
-    const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(0.88, 2), shellMat)
+    const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(0.82, 2), shellMat)
     scene.add(shell)
 
-    // ── ORBITING RINGS — 5 rings on different axes ─────────────────
+    // Orbiting rings — purple to pink gradient feel via separate colors
     const ringDefs = [
-      { rx: Math.PI / 2, ry: 0,            rz: 0,            r: 1.05, tube: 0.008, speed: 0.38,  color: 0x00e5ff, opacity: 0.9 },
-      { rx: Math.PI / 4, ry: 0,            rz: 0,            r: 1.05, tube: 0.006, speed: -0.26, color: 0x0096c7, opacity: 0.7 },
-      { rx: 0,           ry: Math.PI / 3,  rz: Math.PI / 6,  r: 1.12, tube: 0.005, speed: 0.19,  color: 0x48cae4, opacity: 0.55 },
-      { rx: Math.PI / 3, ry: Math.PI / 4,  rz: 0,            r: 1.18, tube: 0.004, speed: -0.14, color: 0x90e0ef, opacity: 0.35 },
-      { rx: Math.PI / 6, ry: -Math.PI / 3, rz: Math.PI / 4,  r: 1.25, tube: 0.003, speed: 0.10,  color: 0xade8f4, opacity: 0.25 },
+      { rx: Math.PI / 2, ry: 0,           rz: 0,           r: 0.98, tube: 0.007, speed: 0.42,  color: 0xc084fc, opacity: 0.95 },
+      { rx: Math.PI / 4, ry: 0,           rz: 0,           r: 0.98, tube: 0.005, speed: -0.28, color: 0xa855f7, opacity: 0.7  },
+      { rx: 0,           ry: Math.PI / 3, rz: Math.PI / 6, r: 1.06, tube: 0.004, speed: 0.18,  color: 0xec4899, opacity: 0.5  },
+      { rx: Math.PI / 3, ry: Math.PI / 4, rz: 0,           r: 1.12, tube: 0.003, speed: -0.13, color: 0xf472b6, opacity: 0.3  },
     ]
 
-    type RingObj = { mesh: THREE.Mesh; speed: number; mat: THREE.MeshBasicMaterial }
+    type RingObj = { mesh: THREE.Mesh; speed: number; mat: THREE.MeshBasicMaterial; baseOpacity: number }
     const rings: RingObj[] = ringDefs.map(def => {
       const mat = new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: def.opacity })
-      const mesh = new THREE.Mesh(new THREE.TorusGeometry(def.r, def.tube, 8, 128), mat)
+      const mesh = new THREE.Mesh(new THREE.TorusGeometry(def.r, def.tube, 8, 96), mat)
       mesh.rotation.set(def.rx, def.ry, def.rz)
       scene.add(mesh)
-      return { mesh, speed: def.speed, mat }
+      return { mesh, speed: def.speed, mat, baseOpacity: def.opacity }
     })
 
-    // ── ENERGY ARC PARTICLES — dots orbiting the equator ──────────
-    const arcCount = 60
+    // Arc particles orbiting equator
+    const arcCount = 48
     const arcPositions = new Float32Array(arcCount * 3)
     const arcSpeeds = new Float32Array(arcCount)
     for (let i = 0; i < arcCount; i++) {
       const angle = (i / arcCount) * Math.PI * 2
-      const r = 0.95 + Math.random() * 0.15
+      const r = 0.88 + Math.random() * 0.12
       arcPositions[i * 3]     = r * Math.cos(angle)
-      arcPositions[i * 3 + 1] = (Math.random() - 0.5) * 0.3
+      arcPositions[i * 3 + 1] = (Math.random() - 0.5) * 0.22
       arcPositions[i * 3 + 2] = r * Math.sin(angle)
-      arcSpeeds[i] = 0.4 + Math.random() * 0.8
+      arcSpeeds[i] = 0.5 + Math.random() * 0.9
     }
     const arcGeo = new THREE.BufferGeometry()
     arcGeo.setAttribute('position', new THREE.BufferAttribute(arcPositions, 3))
-    const arcMat = new THREE.PointsMaterial({ color: 0x00e5ff, size: 0.04, transparent: true, opacity: 0.9 })
+    const arcMat = new THREE.PointsMaterial({ color: 0xc084fc, size: 0.035, transparent: true, opacity: 0.85 })
     const arcParticles = new THREE.Points(arcGeo, arcMat)
     scene.add(arcParticles)
-
-    // ── OUTER PARTICLE CLOUD ───────────────────────────────────────
-    const cloudCount = 220
-    const cloudPos = new Float32Array(cloudCount * 3)
-    for (let i = 0; i < cloudCount; i++) {
-      const phi = Math.acos(2 * Math.random() - 1)
-      const theta = Math.random() * Math.PI * 2
-      const r = 1.32 + Math.random() * 0.28
-      cloudPos[i * 3]     = r * Math.sin(phi) * Math.cos(theta)
-      cloudPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
-      cloudPos[i * 3 + 2] = r * Math.cos(phi)
-    }
-    const cloudGeo = new THREE.BufferGeometry()
-    cloudGeo.setAttribute('position', new THREE.BufferAttribute(cloudPos, 3))
-    const cloudMat = new THREE.PointsMaterial({ color: 0x48cae4, size: 0.018, transparent: true, opacity: 0.4 })
-    const cloud = new THREE.Points(cloudGeo, cloudMat)
-    scene.add(cloud)
 
     const clock = new THREE.Clock()
     let animId: number
@@ -107,115 +89,94 @@ export default function NexGlobe({ state, onClick }: NexGlobeProps) {
       const t = clock.getElapsedTime()
       const s = stateRef.current
 
-      // ── Animate arc particles orbiting ──────────────────────────
+      // Animate arc particles
       const arcPos = arcGeo.attributes.position as THREE.BufferAttribute
       for (let i = 0; i < arcCount; i++) {
-        const baseAngle = (i / arcCount) * Math.PI * 2
-        const speed = arcSpeeds[i]
-        const angle = baseAngle + t * speed * (s === 'thinking' ? 3 : s === 'listening' ? 1.8 : 1)
-        const r = 0.95 + Math.sin(t * 2 + i) * 0.06
-        arcPos.setXYZ(
-          i,
+        const base = (i / arcCount) * Math.PI * 2
+        const spd = arcSpeeds[i] * (s === 'thinking' ? 3.5 : s === 'listening' ? 2 : 1)
+        const angle = base + t * spd
+        const r = 0.88 + Math.sin(t * 1.5 + i) * 0.05
+        arcPos.setXYZ(i,
           r * Math.cos(angle),
-          Math.sin(t * 1.5 + i * 0.5) * 0.18,
+          Math.sin(t + i * 0.4) * 0.12,
           r * Math.sin(angle)
         )
       }
       arcPos.needsUpdate = true
 
-      // ── State-driven animation ──────────────────────────────────
       if (s === 'idle') {
-        shell.rotation.y = t * 0.12
-        shell.rotation.x = Math.sin(t * 0.07) * 0.06
-        shellMat.opacity = 0.12
-        coreMat.opacity = 0.85 + Math.sin(t * 1.2) * 0.12
-        coreMat.color.setHex(0x00e5ff)
-        innerMat.opacity = 0.5 + Math.sin(t * 0.9) * 0.08
-        arcMat.opacity = 0.6
-        cloudMat.opacity = 0.25
-        const breathe = 1 + Math.sin(t * 0.9) * 0.015
-        shell.scale.setScalar(breathe)
-        inner.scale.setScalar(1 + Math.sin(t * 1.1) * 0.02)
-        core.scale.setScalar(1 + Math.sin(t * 1.4) * 0.06)
-
-        rings.forEach((r2, i) => {
-          r2.mesh.rotation.z += r2.speed * 0.008
-          r2.mat.opacity = ringDefs[i].opacity * 0.7
+        shell.rotation.y = t * 0.14
+        shell.rotation.x = Math.sin(t * 0.08) * 0.05
+        shellMat.opacity = 0.14
+        coreMat.color.setHex(0xc084fc)
+        coreMat.opacity = 0.88 + Math.sin(t * 1.1) * 0.1
+        innerMat.opacity = 0.45 + Math.sin(t * 0.85) * 0.07
+        arcMat.color.setHex(0xc084fc)
+        arcMat.opacity = 0.55
+        shell.scale.setScalar(1 + Math.sin(t * 0.85) * 0.014)
+        inner.scale.setScalar(1 + Math.sin(t * 1.0) * 0.02)
+        core.scale.setScalar(1 + Math.sin(t * 1.3) * 0.06)
+        rings.forEach((r2) => {
+          r2.mesh.rotation.z += r2.speed * 0.009
+          r2.mat.opacity = r2.baseOpacity * 0.65
         })
 
       } else if (s === 'listening') {
-        shell.rotation.y = t * 0.35
-        shell.rotation.z = t * 0.08
-        shellMat.opacity = 0.28
-        coreMat.color.setHex(0x00ffea)
-        coreMat.opacity = 0.95
-        innerMat.opacity = 0.75
+        shell.rotation.y = t * 0.38
+        shell.rotation.z = t * 0.07
+        shellMat.opacity = 0.26
+        coreMat.color.setHex(0xe879f9)
+        coreMat.opacity = 1.0
+        innerMat.opacity = 0.72
+        arcMat.color.setHex(0xf0abfc)
         arcMat.opacity = 1.0
-        arcMat.color.setHex(0x00ffea)
-        cloudMat.opacity = 0.55
-        const pulse = 1 + Math.sin(t * 7) * 0.055
+        const pulse = 1 + Math.sin(t * 7) * 0.05
         shell.scale.setScalar(pulse)
         inner.scale.setScalar(1 + Math.sin(t * 5) * 0.04)
-        core.scale.setScalar(1 + Math.sin(t * 9) * 0.12)
-
-        rings.forEach((r2, i) => {
-          r2.mesh.rotation.z += r2.speed * 0.022
-          r2.mat.opacity = ringDefs[i].opacity * 1.4
+        core.scale.setScalar(1 + Math.sin(t * 9) * 0.13)
+        rings.forEach((r2) => {
+          r2.mesh.rotation.z += r2.speed * 0.024
+          r2.mat.opacity = r2.baseOpacity * 1.35
         })
 
       } else if (s === 'thinking') {
-        shell.rotation.y = t * 1.4
-        shell.rotation.z = t * 0.45
-        shell.rotation.x = t * 0.2
-        shellMat.opacity = 0.4
-        coreMat.color.setHex(0x7b2fff)
+        shell.rotation.y = t * 1.5
+        shell.rotation.z = t * 0.5
+        shell.rotation.x = t * 0.22
+        shellMat.opacity = 0.38
+        coreMat.color.setHex(0xf472b6)
         coreMat.opacity = 1.0
-        innerMat.color.setHex(0x3a0ca3)
-        innerMat.opacity = 0.85
-        arcMat.color.setHex(0xb5a4ff)
+        innerMat.opacity = 0.82
+        arcMat.color.setHex(0xfda4af)
         arcMat.opacity = 1.0
-        cloudMat.opacity = 0.7
-        const spin = 1 + Math.sin(t * 14) * 0.03
-        shell.scale.setScalar(spin)
-        core.scale.setScalar(1 + Math.sin(t * 18) * 0.15)
-        inner.scale.setScalar(1 + Math.sin(t * 11) * 0.06)
-
-        rings.forEach((r2, i) => {
-          r2.mesh.rotation.z += r2.speed * 0.045
-          r2.mesh.rotation.x += r2.speed * 0.02
-          r2.mat.opacity = ringDefs[i].opacity * 1.8
-          r2.mat.color.setHex(0x9d4edd)
+        shell.scale.setScalar(1 + Math.sin(t * 14) * 0.028)
+        core.scale.setScalar(1 + Math.sin(t * 18) * 0.16)
+        inner.scale.setScalar(1 + Math.sin(t * 10) * 0.06)
+        rings.forEach((r2) => {
+          r2.mesh.rotation.z += r2.speed * 0.048
+          r2.mesh.rotation.x += r2.speed * 0.018
+          r2.mat.opacity = r2.baseOpacity * 1.9
         })
 
       } else {
         // speaking
-        shell.rotation.y = t * 0.55
-        shell.rotation.x = Math.sin(t * 0.3) * 0.12
-        shellMat.opacity = 0.32
-        coreMat.color.setHex(0x00e5ff)
-        coreMat.opacity = 0.9 + Math.sin(t * 12) * 0.1
-        innerMat.color.setHex(0x0077b6)
-        innerMat.opacity = 0.65 + Math.sin(t * 8) * 0.12
-        arcMat.color.setHex(0x00e5ff)
-        arcMat.opacity = 0.85 + Math.sin(t * 10) * 0.15
-        cloudMat.opacity = 0.45
-        const wave = 1 + Math.sin(t * 9) * 0.06 + Math.sin(t * 5.5) * 0.025
+        shell.rotation.y = t * 0.52
+        shell.rotation.x = Math.sin(t * 0.28) * 0.1
+        shellMat.opacity = 0.3
+        coreMat.color.setHex(0xc084fc)
+        coreMat.opacity = 0.92 + Math.sin(t * 11) * 0.08
+        innerMat.opacity = 0.62 + Math.sin(t * 7.5) * 0.1
+        arcMat.color.setHex(0xd8b4fe)
+        arcMat.opacity = 0.9 + Math.sin(t * 9) * 0.1
+        const wave = 1 + Math.sin(t * 9) * 0.055 + Math.sin(t * 5.5) * 0.022
         shell.scale.setScalar(wave)
-        core.scale.setScalar(1 + Math.sin(t * 13) * 0.18)
-        inner.scale.setScalar(1 + Math.sin(t * 7) * 0.05)
-
+        core.scale.setScalar(1 + Math.sin(t * 13) * 0.17)
+        inner.scale.setScalar(1 + Math.sin(t * 6.5) * 0.05)
         rings.forEach((r2, i) => {
-          r2.mesh.rotation.z += r2.speed * 0.028
-          r2.mat.opacity = ringDefs[i].opacity * (1.2 + Math.sin(t * 6 + i) * 0.4)
-          r2.mat.color.setHex(0x00e5ff)
+          r2.mesh.rotation.z += r2.speed * 0.03
+          r2.mat.opacity = r2.baseOpacity * (1.15 + Math.sin(t * 5 + i) * 0.35)
         })
       }
-
-      // Reset inner color when not thinking
-      if (s !== 'thinking') innerMat.color.setHex(0x0077b6)
-
-      cloud.rotation.y = t * 0.04
-      cloud.rotation.x = Math.sin(t * 0.08) * 0.03
 
       renderer.render(scene, camera)
     }
@@ -229,12 +190,15 @@ export default function NexGlobe({ state, onClick }: NexGlobeProps) {
     }
   }, [])
 
-  // CSS glow — colour shifts per state
-  const glowDef = {
-    idle:      { color: 'rgba(0,229,255,0.18)',  size: '160px', pulse: false },
-    listening: { color: 'rgba(0,255,234,0.45)',  size: '180px', pulse: true  },
-    thinking:  { color: 'rgba(123,47,255,0.5)',  size: '188px', pulse: true  },
-    speaking:  { color: 'rgba(0,229,255,0.38)',  size: '172px', pulse: true  },
+  const glowColor = {
+    idle:      'rgba(139,92,246,0.2)',
+    listening: 'rgba(192,132,252,0.45)',
+    thinking:  'rgba(236,72,153,0.45)',
+    speaking:  'rgba(139,92,246,0.35)',
+  }[state]
+
+  const glowSize = {
+    idle: '80px', listening: '96px', thinking: '100px', speaking: '90px',
   }[state]
 
   return (
@@ -243,51 +207,45 @@ export default function NexGlobe({ state, onClick }: NexGlobeProps) {
       title="Talk to Nex"
       style={{
         position: 'relative',
-        width: '160px', height: '160px',
+        width: '80px', height: '80px',
         background: 'none', border: 'none',
         cursor: 'pointer', padding: 0, outline: 'none',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
     >
-      {/* Ambient radial glow */}
+      {/* Glow */}
       <span style={{
         position: 'absolute',
-        width: glowDef.size, height: glowDef.size,
+        width: glowSize, height: glowSize,
         borderRadius: '50%',
-        background: `radial-gradient(circle, ${glowDef.color} 0%, transparent 68%)`,
-        transition: 'all 0.5s ease',
+        background: `radial-gradient(circle, ${glowColor} 0%, transparent 70%)`,
+        transition: 'all 0.45s ease',
         pointerEvents: 'none',
       }} />
 
-      {/* Outer pulse ring */}
-      {glowDef.pulse && (
-        <span style={{
-          position: 'absolute',
-          width: '190px', height: '190px',
-          borderRadius: '50%',
-          border: state === 'thinking'
-            ? '1px solid rgba(123,47,255,0.5)'
-            : '1px solid rgba(0,229,255,0.35)',
-          animation: 'nexPulse 1.4s ease-out infinite',
-          pointerEvents: 'none',
-        }} />
+      {/* Pulse rings — only when active */}
+      {state !== 'idle' && (
+        <>
+          <span style={{
+            position: 'absolute', width: '104px', height: '104px', borderRadius: '50%',
+            border: state === 'thinking'
+              ? '1px solid rgba(236,72,153,0.4)'
+              : '1px solid rgba(139,92,246,0.4)',
+            animation: 'nexPulse 1.5s ease-out infinite',
+            pointerEvents: 'none',
+          }} />
+          <span style={{
+            position: 'absolute', width: '120px', height: '120px', borderRadius: '50%',
+            border: state === 'thinking'
+              ? '1px solid rgba(236,72,153,0.2)'
+              : '1px solid rgba(139,92,246,0.2)',
+            animation: 'nexPulse 1.5s ease-out 0.55s infinite',
+            pointerEvents: 'none',
+          }} />
+        </>
       )}
 
-      {/* Second slower pulse ring */}
-      {glowDef.pulse && (
-        <span style={{
-          position: 'absolute',
-          width: '210px', height: '210px',
-          borderRadius: '50%',
-          border: state === 'thinking'
-            ? '1px solid rgba(123,47,255,0.25)'
-            : '1px solid rgba(0,229,255,0.15)',
-          animation: 'nexPulse 1.4s ease-out 0.5s infinite',
-          pointerEvents: 'none',
-        }} />
-      )}
-
-      <div ref={mountRef} style={{ width: 160, height: 160 }} />
+      <div ref={mountRef} style={{ width: 80, height: 80 }} />
     </button>
   )
 }
