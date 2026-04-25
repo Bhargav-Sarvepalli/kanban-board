@@ -11,6 +11,7 @@ import TaskDetailPanel from './components/TaskDetailPanel'
 import CalendarView from './components/CalendarView'
 import WorkspacePanel from './components/WorkspacePanel'
 import Avatar from './components/Avatar'
+import NexAssistant from './components/Nex/NexAssistant'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 
@@ -31,6 +32,9 @@ function App() {
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const navigate = useNavigate()
+
+  // Set isPro = true while building. Gate on profile.plan === 'pro' when Stripe is live.
+  const isPro = true
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -433,29 +437,25 @@ function App() {
                 <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>⌄</span>
               </motion.button>
 
-              {/* Profile dropdown */}
               {showProfileMenu && (
                 <>
                   <div
                     style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
                     onClick={() => setShowProfileMenu(false)}
                   />
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 8px)',
-                      right: 0,
-                      width: '230px',
-                      zIndex: 9999,
-                      borderRadius: '14px',
-                      padding: '6px',
-                      border: '1px solid #333',
-                      boxShadow: '0 32px 80px rgba(0,0,0,0.9), 0 0 0 1px #000',
-                      backgroundColor: '#111111',
-                      isolation: 'isolate' as const,
-                    }}
-                  >
-                    {/* User info */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    width: '230px',
+                    zIndex: 9999,
+                    borderRadius: '14px',
+                    padding: '6px',
+                    border: '1px solid #333',
+                    boxShadow: '0 32px 80px rgba(0,0,0,0.9), 0 0 0 1px #000',
+                    backgroundColor: '#111111',
+                    isolation: 'isolate' as const,
+                  }}>
                     <div style={{
                       padding: '12px',
                       marginBottom: '4px',
@@ -485,7 +485,6 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Menu items */}
                     {[
                       { icon: '⊞', label: 'My Board', action: () => { setCurrentWorkspace(null); setShowProfileMenu(false) } },
                       { icon: '👥', label: 'Workspaces', action: () => { setShowWorkspacePanel(true); setShowProfileMenu(false) } },
@@ -502,14 +501,8 @@ function App() {
                           display: 'flex', alignItems: 'center', gap: '10px',
                           textAlign: 'left', marginBottom: '2px',
                         }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.background = '#222'
-                          e.currentTarget.style.color = '#fff'
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = 'transparent'
-                          e.currentTarget.style.color = '#ccc'
-                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#222'; e.currentTarget.style.color = '#fff' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#ccc' }}
                       >
                         <span style={{ fontSize: '14px' }}>{item.icon}</span>
                         {item.label}
@@ -529,14 +522,8 @@ function App() {
                         display: 'flex', alignItems: 'center', gap: '10px',
                         textAlign: 'left',
                       }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = 'rgba(239,68,68,0.12)'
-                        e.currentTarget.style.color = '#ef4444'
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'transparent'
-                        e.currentTarget.style.color = '#f87171'
-                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#f87171' }}
                     >
                       <span>↩</span>
                       Sign Out
@@ -768,6 +755,12 @@ function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* NEX — floats over everything, always rendered */}
+      <NexAssistant
+        workspaceId={currentWorkspace?.id ?? null}
+        isPro={isPro}
+      />
     </div>
   )
 }
