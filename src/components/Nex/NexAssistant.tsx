@@ -129,15 +129,20 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled }:
 
     const trySpeak = () => {
       const voices = window.speechSynthesis.getVoices()
+      // Deep, natural female voice — priority order
       const preferred =
-        voices.find(v => v.name === 'Google UK English Male') ??
-        voices.find(v => v.name === 'Daniel') ??
-        voices.find(v => v.name === 'Arthur') ??
+        voices.find(v => v.name === 'Google UK English Female') ??
+        voices.find(v => v.name === 'Samantha') ??     // macOS warm female
+        voices.find(v => v.name === 'Karen') ??         // macOS Australian female
+        voices.find(v => v.name === 'Moira') ??         // macOS Irish female
+        voices.find(v => v.name === 'Serena') ??        // macOS UK female
         voices.find(v => v.name === 'Google US English') ??
-        voices.find(v => v.lang === 'en-GB') ??
+        voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('female')) ??
         voices.find(v => v.lang.startsWith('en'))
       if (preferred) utter.voice = preferred
-      utter.rate = 0.92; utter.pitch = 0.88; utter.volume = 1
+      utter.rate = 1.1      // confident pace — not slow, not rushed
+      utter.pitch = 0.82    // lower = deeper, warmer, less robotic
+      utter.volume = 1
       utter.onstart = () => { setGlobeState('speaking'); setSpeechText(text) }
       utter.onend   = () => {
         setGlobeState('idle')
