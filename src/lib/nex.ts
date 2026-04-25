@@ -19,6 +19,7 @@ export interface TaskContext {
   }[]
   workspaceName: string
   userName: string
+  isPersonal: boolean
 }
 
 export interface NexActionResult {
@@ -27,23 +28,26 @@ export interface NexActionResult {
 }
 
 const NEX_SYSTEM_PROMPT = (ctx: TaskContext) => `
-You are Nex, an AI assistant embedded in NexTask — a Kanban productivity app.
-You are calm, dry, and professional. Like Jarvis from Iron Man.
-Speak in short, confident sentences. Never say "Sure!" or "Great question!" or "Of course!".
-Address the user directly. Keep responses under 3 sentences unless asked for more.
-When uncertain, say so in one sentence. Never apologise.
+You are Nex, an AI assistant embedded in NexTask.
+You are calm, precise, and professional — like Jarvis from Iron Man.
+Speak in short, confident sentences. Never use markdown formatting — no asterisks, no bold, no bullet points, no headers.
+Never say "Sure", "Great", "Of course", "Certainly", or any filler phrase.
+Address the user directly. Keep every response under 2 sentences.
+Never apologise. If uncertain, say so in one sentence.
+Speak as plain text only — your words will be read aloud.
 
 Current user: ${ctx.userName}
-Current workspace: ${ctx.workspaceName}
+Current board: ${ctx.isPersonal ? 'Personal Board' : ctx.workspaceName}
 Current time: ${new Date().toLocaleString()}
 
 Task snapshot:
-${ctx.tasks.length === 0 ? 'No tasks in this workspace.' : ctx.tasks.map(t =>
-  `- [${t.status}] ${t.title} | priority: ${t.priority ?? 'none'} | due: ${t.due_date ?? 'none'}`
-).join('\n')}
+${ctx.tasks.length === 0
+    ? 'No tasks on this board.'
+    : ctx.tasks.map(t =>
+      `- [${t.status}] ${t.title} | priority: ${t.priority ?? 'none'} | due: ${t.due_date ?? 'none'}`
+    ).join('\n')}
 
 When calling a tool, do so immediately without preamble.
-When answering questions, keep it under 40 words.
 `.trim()
 
 const NEX_TOOLS = [
@@ -103,18 +107,33 @@ const NEX_TOOLS = [
   },
 ]
 
+// Strip all markdown formatting so speech sounds clean
+export function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')   // bold
+    .replace(/\*(.*?)\*/g, '$1')        // italic
+    .replace(/`(.*?)`/g, '$1')          // inline code
+    .replace(/#{1,6}\s/g, '')           // headings
+    .replace(/^\s*[-*+]\s/gm, '')       // bullets
+    .replace(/^\s*\d+\.\s/gm, '')       // numbered lists
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
+    .replace(/\n{2,}/g, '. ')           // double newlines → pause
+    .replace(/\n/g, ' ')                // single newlines
+    .trim()
+}
+
 export async function executeNexTool(
   tool: NexTool,
   input: Record<string, unknown>,
   ctx: TaskContext,
-  workspaceId: string,
+  workspaceId: string | null,
   userId: string
 ): Promise<{ result: string; action?: NexActionResult }> {
   switch (tool) {
     case 'get_task_summary': {
       const grouped: Record<string, number> = {}
       ctx.tasks.forEach(t => { grouped[t.status] = (grouped[t.status] ?? 0) + 1 })
-      const lines = Object.entries(grouped).map(([s, n]) => `${s}: ${n}`)
+      const lines = Object.entries(grouped).map(([s, n]) => `${s.replace('_', ' ')}: ${n}`)
       return { result: lines.join(', ') || 'No tasks found.' }
     }
 
@@ -143,7 +162,7 @@ export async function executeNexTool(
       const top = sorted[0]
       return {
         result: top
-          ? `Focus on: "${top.title}". Priority: ${top.priority ?? 'none'}. Due: ${top.due_date ?? 'no date'}.`
+          ? `Recommended: ${top.title}. Priority ${top.priority ?? 'unset'}, due ${top.due_date ?? 'no date'}.`
           : 'All tasks complete.',
       }
     }
@@ -157,14 +176,14 @@ export async function executeNexTool(
         due_date: (input.due_date as string) ?? null,
         description: (input.description as string) ?? null,
         status: 'todo',
-        workspace_id: workspaceId,
+        workspace_id: workspaceId ?? null,
         user_id: userId,
         last_edited_by: userId,
         last_edited_at: new Date().toISOString(),
       }).select().single()
       if (error) return { result: `Failed to create task: ${error.message}` }
       return {
-        result: `Task "${data.title}" created.`,
+        result: `Task created: ${data.title}.`,
         action: { type: 'create_task', data: { task: data } },
       }
     }
@@ -186,7 +205,7 @@ export async function executeNexTool(
       if (error) return { result: `Update failed: ${error.message}` }
       const task = ctx.tasks.find(t => t.id === taskId)
       return {
-        result: `"${task?.title ?? 'Task'}" moved to ${newStatus.replace('_', ' ')}.`,
+        result: `${task?.title ?? 'Task'} moved to ${newStatus.replace('_', ' ')}.`,
         action: { type: 'update_task_status', data: { taskId, newStatus } },
       }
     }
@@ -196,7 +215,7 @@ export async function executeNexTool(
       const taskId = input.task_id as string | undefined
       const task = ctx.tasks.find(t => t.id === taskId)
       return {
-        result: `Focus session started. ${duration} minutes.${task ? ` Task: "${task.title}".` : ''}`,
+        result: `Focus session started. ${duration} minutes${task ? ` on ${task.title}` : ''}.`,
         action: { type: 'start_focus_session', data: { duration, taskId } },
       }
     }
@@ -209,7 +228,7 @@ export async function executeNexTool(
 export async function askNex(
   transcript: string,
   ctx: TaskContext,
-  workspaceId: string,
+  workspaceId: string | null,
   userId: string
 ): Promise<{ speech: string; action?: NexActionResult }> {
   const headers = {
@@ -233,7 +252,7 @@ export async function askNex(
 
   if (!res.ok) {
     console.error('Nex API error:', await res.text())
-    return { speech: 'Something went wrong. Try again.' }
+    return { speech: 'Something went wrong.' }
   }
 
   const data = await res.json()
@@ -269,9 +288,10 @@ export async function askNex(
 
     const followData = await followRes.json()
     const textBlock = followData.content?.find((b: { type: string }) => b.type === 'text')
-    return { speech: textBlock?.text ?? toolResult.result, action: toolResult.action }
+    const rawText = textBlock?.text ?? toolResult.result
+    return { speech: stripMarkdown(rawText), action: toolResult.action }
   }
 
   const textBlock = data.content?.find((b: { type: string }) => b.type === 'text')
-  return { speech: textBlock?.text ?? 'No response.' }
+  return { speech: stripMarkdown(textBlock?.text ?? 'No response.') }
 }

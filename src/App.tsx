@@ -759,6 +759,7 @@ function App() {
       {/* NEX — floats over everything, always rendered */}
       <NexAssistant
         workspaceId={currentWorkspace?.id ?? null}
+        userId={userId}
         isPro={isPro}
       />
     </div>
