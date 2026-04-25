@@ -12,6 +12,7 @@ import CalendarView from './components/CalendarView'
 import WorkspacePanel from './components/WorkspacePanel'
 import Avatar from './components/Avatar'
 import NexAssistant from './components/Nex/NexAssistant'
+import NexErrorBoundary from './components/Nex/NexErrorBoundary'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 
@@ -756,12 +757,16 @@ function App() {
         )}
       </AnimatePresence>
 
-      {/* NEX — floats over everything, always rendered */}
-      <NexAssistant
-        workspaceId={currentWorkspace?.id ?? null}
-        userId={userId}
-        isPro={isPro}
-      />
+      {/* NEX — only mount after auth confirmed, error boundary prevents app crash */}
+      {userId && (
+        <NexErrorBoundary>
+          <NexAssistant
+            workspaceId={currentWorkspace?.id ?? null}
+            userId={userId}
+            isPro={isPro}
+          />
+        </NexErrorBoundary>
+      )}
     </div>
   )
 }
