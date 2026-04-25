@@ -123,16 +123,15 @@ export function stripMarkdown(text: string): string {
     .trim()
 }
 
-// Jarvis greeting — no name (avoids pronunciation issues), time-aware, task-aware
 export function buildGreeting(ctx: TaskContext): string {
   const hour = new Date().getHours()
 
   const timeGreeting =
-    hour < 5  ? "Working late, I see." :
-    hour < 12 ? "Good morning." :
-    hour < 17 ? "Good afternoon." :
-    hour < 21 ? "Good evening." :
-                "Still at it."
+    hour < 5  ? 'Working late, I see.' :
+    hour < 12 ? 'Good morning.' :
+    hour < 17 ? 'Good afternoon.' :
+    hour < 21 ? 'Good evening.' :
+                'Still at it.'
 
   const today = new Date().toISOString().split('T')[0]
   const overdue = ctx.tasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done')
@@ -143,12 +142,12 @@ export function buildGreeting(ctx: TaskContext): string {
     return `${timeGreeting} Your board is clear. What are we building today?`
   }
   if (overdue.length > 0) {
-    const plural = overdue.length === 1 ? 'task is' : 'tasks are'
-    return `${timeGreeting} ${overdue.length} ${plural} overdue. I'd address that first.`
+    const p = overdue.length === 1 ? 'task is' : 'tasks are'
+    return `${timeGreeting} ${overdue.length} ${p} overdue. I'd address that first.`
   }
   if (dueToday.length > 0) {
-    const plural = dueToday.length === 1 ? 'task' : 'tasks'
-    return `${timeGreeting} ${dueToday.length} ${plural} due today. Shall I walk you through them?`
+    const p = dueToday.length === 1 ? 'task' : 'tasks'
+    return `${timeGreeting} ${dueToday.length} ${p} due today. Shall I walk you through them?`
   }
   if (inProgress.length > 0) {
     return `${timeGreeting} You have ${inProgress.length} in progress. Ready to continue?`
