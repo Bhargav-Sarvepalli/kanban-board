@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { CSSProperties } from 'react'
 
 type GlobeState = 'idle' | 'listening' | 'thinking' | 'speaking'
@@ -5,145 +6,134 @@ type GlobeState = 'idle' | 'listening' | 'thinking' | 'speaking'
 interface NexGlobeProps {
   state: GlobeState
   onClick: () => void
+  onDismiss?: () => void
+  showDismiss?: boolean
 }
 
-export default function NexGlobe({ state, onClick }: NexGlobeProps) {
-  const isActive = state !== 'idle'
-  const isThinking = state === 'thinking'
-  const isListening = state === 'listening'
-  const isSpeaking = state === 'speaking'
-
-  // Core color per state
-  const coreColor = isThinking
-    ? '#ec4899'
-    : isListening
-    ? '#c084fc'
-    : '#8b5cf6'
-
-  const glowColor = isThinking
-    ? 'rgba(236,72,153,0.45)'
-    : isListening
-    ? 'rgba(192,132,252,0.45)'
-    : 'rgba(139,92,246,0.3)'
-
-  const animSpeed = isThinking
-    ? '1.2s'
-    : isListening
-    ? '1.6s'
-    : isSpeaking
-    ? '1.4s'
-    : '3s'
-
-  // Injected once
-  if (typeof document !== 'undefined' && !document.getElementById('nex-globe-styles')) {
+export default function NexGlobe({ state, onClick, onDismiss, showDismiss }: NexGlobeProps) {
+  useEffect(() => {
+    if (document.getElementById('nex-globe-styles')) return
     const s = document.createElement('style')
     s.id = 'nex-globe-styles'
     s.textContent = `
-      @keyframes nexOrb {
+      @keyframes nexRing1 {
+        from { transform: rotateX(70deg) rotateZ(0deg); }
+        to   { transform: rotateX(70deg) rotateZ(360deg); }
+      }
+      @keyframes nexRing2 {
+        from { transform: rotateX(80deg) rotateY(20deg) rotateZ(0deg); }
+        to   { transform: rotateX(80deg) rotateY(20deg) rotateZ(-360deg); }
+      }
+      @keyframes nexRing3 {
+        from { transform: rotateX(60deg) rotateY(-30deg) rotateZ(45deg); }
+        to   { transform: rotateX(60deg) rotateY(-30deg) rotateZ(405deg); }
+      }
+      @keyframes nexRing1Fast {
+        from { transform: rotateX(70deg) rotateZ(0deg); }
+        to   { transform: rotateX(70deg) rotateZ(360deg); }
+      }
+      @keyframes nexCorePulse {
         0%,100% { transform: scale(1); }
-        50%      { transform: scale(1.06); }
+        50%      { transform: scale(1.07); }
       }
-      @keyframes nexOrbFast {
+      @keyframes nexCoreThink {
+        0%,100% { transform: scale(1); opacity: 1; }
+        50%      { transform: scale(1.14); opacity: 0.85; }
+      }
+      @keyframes nexCoreListen {
         0%,100% { transform: scale(1); }
-        50%      { transform: scale(1.12); }
+        25%      { transform: scale(1.1); }
+        75%      { transform: scale(0.96); }
       }
-      @keyframes nexSpin1 {
-        from { transform: rotate(0deg); }
-        to   { transform: rotate(360deg); }
+      @keyframes nexCoreSpeak {
+        0%,100% { transform: scale(1); }
+        20%      { transform: scale(1.12); }
+        40%      { transform: scale(0.98); }
+        60%      { transform: scale(1.08); }
+        80%      { transform: scale(1.02); }
       }
-      @keyframes nexSpin2 {
-        from { transform: rotate(0deg); }
-        to   { transform: rotate(-360deg); }
+      @keyframes nexGlowPulse {
+        0%,100% { opacity: 0.6; transform: scale(1); }
+        50%      { opacity: 1;   transform: scale(1.08); }
       }
-      @keyframes nexSpin3 {
-        from { transform: rotate(45deg); }
-        to   { transform: rotate(405deg); }
-      }
-      @keyframes nexPulse {
-        0%   { transform: scale(1);   opacity: 0.6; }
-        100% { transform: scale(1.9); opacity: 0;   }
+      @keyframes nexOuterPulse {
+        0%   { transform: scale(1);   opacity: 0.55; }
+        100% { transform: scale(2.2); opacity: 0; }
       }
       @keyframes nexFadeIn {
         from { opacity: 0; transform: translateY(4px); }
-        to   { opacity: 1; transform: translateY(0);   }
+        to   { opacity: 1; transform: translateY(0); }
       }
-      @keyframes nexGlow {
-        0%,100% { opacity: 0.7; }
-        50%      { opacity: 1;   }
+      @keyframes nexPulse {
+        0%   { transform: scale(1);   opacity: 0.5; }
+        100% { transform: scale(1.9); opacity: 0; }
+      }
+      .nex-tooltip {
+        animation: nexFadeIn 0.2s ease;
       }
     `
     document.head.appendChild(s)
-  }
+  }, [])
+
+  const isListening = state === 'listening'
+  const isThinking  = state === 'thinking'
+  const isSpeaking  = state === 'speaking'
+  const isActive    = state !== 'idle'
+
+  // Ring speed multiplier per state
+  const ringSpeed = isThinking ? 0.6 : isListening ? 1.0 : isSpeaking ? 0.8 : 2.8
+
+  // Core gradient per state
+  const coreGradient = isThinking
+    ? `radial-gradient(circle at 32% 28%,
+        rgba(255,255,255,0.92) 0%, transparent 16%),
+       radial-gradient(circle at 65% 68%, rgba(244,114,182,0.55) 0%, transparent 35%),
+       radial-gradient(circle at 35% 35%, #fda4af 0%, #ec4899 22%, #9d174d 52%, #1a0015 80%, #000 100%)`
+    : isListening
+    ? `radial-gradient(circle at 32% 28%,
+        rgba(255,255,255,0.95) 0%, transparent 17%),
+       radial-gradient(circle at 65% 68%, rgba(103,232,249,0.4) 0%, transparent 35%),
+       radial-gradient(circle at 35% 35%, #e0f2fe 0%, #67e8f9 18%, #7c3aed 45%, #1e1b4b 75%, #000 100%)`
+    : `radial-gradient(circle at 32% 28%,
+        rgba(255,255,255,0.92) 0%, transparent 17%),
+       radial-gradient(circle at 65% 68%, rgba(236,72,153,0.45) 0%, transparent 35%),
+       radial-gradient(circle at 35% 35%, #ede9fe 0%, #c084fc 20%, #7c3aed 48%, #1e1b4b 78%, #000 100%)`
+
+  // Core glow per state
+  const coreGlow = isThinking
+    ? '0 0 18px rgba(236,72,153,0.9), 0 0 40px rgba(236,72,153,0.4), 0 0 70px rgba(236,72,153,0.15)'
+    : isListening
+    ? '0 0 18px rgba(103,232,249,0.8), 0 0 40px rgba(139,92,246,0.5), 0 0 70px rgba(139,92,246,0.2)'
+    : isSpeaking
+    ? '0 0 18px rgba(192,132,252,0.9), 0 0 40px rgba(139,92,246,0.45), 0 0 70px rgba(139,92,246,0.18)'
+    : '0 0 14px rgba(168,85,247,0.7), 0 0 30px rgba(139,92,246,0.35), 0 0 55px rgba(139,92,246,0.12)'
+
+  // Ring colors per state
+  const ring1Color = isThinking ? 'rgba(244,114,182,0.7)' : isListening ? 'rgba(103,232,249,0.65)' : 'rgba(192,132,252,0.6)'
+  const ring2Color = isThinking ? 'rgba(251,113,133,0.5)' : isListening ? 'rgba(139,92,246,0.55)'  : 'rgba(236,72,153,0.45)'
+  const ring3Color = isThinking ? 'rgba(236,72,153,0.35)' : isListening ? 'rgba(167,139,250,0.4)'  : 'rgba(139,92,246,0.35)'
+
+  const coreAnim = isThinking  ? `nexCoreThink  ${0.7}s ease-in-out infinite`
+    : isListening ? `nexCoreListen ${0.5}s ease-in-out infinite`
+    : isSpeaking  ? `nexCoreSpeak  ${0.6}s ease-in-out infinite`
+    : `nexCorePulse 2.8s ease-in-out infinite`
 
   const wrap: CSSProperties = {
     position: 'relative',
-    width: '80px',
-    height: '80px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'none',
-    border: 'none',
+    width: '80px', height: '80px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
     cursor: 'pointer',
-    padding: 0,
-    outline: 'none',
-    borderRadius: '50%',
+    background: 'none', border: 'none', padding: 0, outline: 'none',
+    WebkitTapHighlightColor: 'transparent',
   }
 
-  // The orb itself — layered CSS radial gradients for depth
-  const orbSize = '64px'
-
-  const orbStyle: CSSProperties = {
-    width: orbSize,
-    height: orbSize,
-    borderRadius: '50%',
-    background: isThinking
-      ? `radial-gradient(circle at 35% 35%, #f9a8d4 0%, #ec4899 35%, #9d174d 70%, #1a0010 100%)`
-      : isListening
-      ? `radial-gradient(circle at 35% 35%, #e9d5ff 0%, #c084fc 35%, #6d28d9 70%, #0d0020 100%)`
-      : `radial-gradient(circle at 35% 35%, #ddd6fe 0%, #8b5cf6 35%, #4c1d95 70%, #0d0020 100%)`,
-    boxShadow: `
-      0 0 24px ${glowColor},
-      0 0 48px ${glowColor.replace('0.45', '0.2').replace('0.3', '0.15')},
-      inset 0 0 16px rgba(0,0,0,0.4)
-    `,
-    animation: `${isThinking || isListening ? 'nexOrbFast' : 'nexOrb'} ${animSpeed} ease-in-out infinite`,
-    position: 'relative',
-    transition: 'background 0.5s ease, box-shadow 0.5s ease',
-    flexShrink: 0,
-  }
-
-  // Orbiting ring — thin arc, rotates continuously
-  const ringBase: CSSProperties = {
+  // 3D ring wrapper — perspective parent
+  const ringWrap: CSSProperties = {
     position: 'absolute',
-    borderRadius: '50%',
-    border: '1px solid transparent',
+    width: '80px', height: '80px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    perspective: '300px',
     pointerEvents: 'none',
-  }
-
-  const ring1: CSSProperties = {
-    ...ringBase,
-    width: '72px', height: '72px',
-    borderTop: `1px solid ${coreColor}88`,
-    borderRight: `1px solid ${coreColor}33`,
-    animation: `nexSpin1 ${isActive ? '2s' : '5s'} linear infinite`,
-  }
-
-  const ring2: CSSProperties = {
-    ...ringBase,
-    width: '78px', height: '78px',
-    borderBottom: `1px solid ${coreColor}66`,
-    borderLeft: `1px solid ${coreColor}22`,
-    animation: `nexSpin2 ${isActive ? '2.8s' : '7s'} linear infinite`,
-  }
-
-  const ring3: CSSProperties = {
-    ...ringBase,
-    width: '68px', height: '68px',
-    borderTop: `1px solid ${isThinking ? '#f472b6' : '#a855f7'}44`,
-    animation: `nexSpin3 ${isActive ? '3.5s' : '9s'} linear infinite`,
-    opacity: isActive ? 1 : 0.4,
-    transition: 'opacity 0.4s ease',
   }
 
   return (
@@ -152,41 +142,115 @@ export default function NexGlobe({ state, onClick }: NexGlobeProps) {
       {/* Ambient glow behind everything */}
       <span style={{
         position: 'absolute',
-        inset: '-10px',
+        inset: '-14px',
         borderRadius: '50%',
-        background: `radial-gradient(circle, ${glowColor} 0%, transparent 70%)`,
-        animation: 'nexGlow 2s ease-in-out infinite',
-        pointerEvents: 'none',
+        background: isThinking
+          ? 'radial-gradient(circle, rgba(236,72,153,0.2) 0%, transparent 68%)'
+          : isListening
+          ? 'radial-gradient(circle, rgba(103,232,249,0.18) 0%, transparent 68%)'
+          : 'radial-gradient(circle, rgba(139,92,246,0.18) 0%, transparent 68%)',
+        animation: 'nexGlowPulse 2.2s ease-in-out infinite',
         transition: 'background 0.5s ease',
+        pointerEvents: 'none',
       }} />
 
-      {/* Pulse rings — active states only */}
+      {/* Outer pulse rings — active states only */}
       {isActive && (<>
         <span style={{
           position: 'absolute',
-          width: '96px', height: '96px',
-          borderRadius: '50%',
-          border: `1px solid ${glowColor}`,
-          animation: 'nexPulse 1.8s ease-out infinite',
+          width: '100px', height: '100px', borderRadius: '50%',
+          border: `1px solid ${isThinking ? 'rgba(236,72,153,0.4)' : 'rgba(139,92,246,0.35)'}`,
+          animation: 'nexPulse 1.6s ease-out infinite',
           pointerEvents: 'none',
         }} />
         <span style={{
           position: 'absolute',
-          width: '112px', height: '112px',
-          borderRadius: '50%',
-          border: `1px solid ${glowColor.replace('0.45', '0.2').replace('0.3', '0.12')}`,
-          animation: 'nexPulse 1.8s ease-out 0.65s infinite',
+          width: '118px', height: '118px', borderRadius: '50%',
+          border: `1px solid ${isThinking ? 'rgba(236,72,153,0.2)' : 'rgba(139,92,246,0.18)'}`,
+          animation: 'nexPulse 1.6s ease-out 0.55s infinite',
           pointerEvents: 'none',
         }} />
       </>)}
 
-      {/* Orbiting rings */}
-      <span style={ring1} />
-      <span style={ring2} />
-      <span style={ring3} />
+      {/* ── 3 GYROSCOPE RINGS ── */}
+      <div style={ringWrap}>
+        {/* Ring 1 — equatorial */}
+        <span style={{
+          position: 'absolute',
+          width: '76px', height: '76px', borderRadius: '50%',
+          border: `1px solid ${ring1Color}`,
+          boxShadow: `0 0 6px ${ring1Color}`,
+          animation: `nexRing1 ${ringSpeed}s linear infinite`,
+          pointerEvents: 'none',
+        }} />
+        {/* Ring 2 — tilted */}
+        <span style={{
+          position: 'absolute',
+          width: '70px', height: '70px', borderRadius: '50%',
+          border: `1px solid ${ring2Color}`,
+          boxShadow: `0 0 5px ${ring2Color}`,
+          animation: `nexRing2 ${ringSpeed * 1.3}s linear infinite`,
+          pointerEvents: 'none',
+        }} />
+        {/* Ring 3 — polar */}
+        <span style={{
+          position: 'absolute',
+          width: '64px', height: '64px', borderRadius: '50%',
+          border: `1px solid ${ring3Color}`,
+          animation: `nexRing3 ${ringSpeed * 1.7}s linear infinite`,
+          pointerEvents: 'none',
+          opacity: isActive ? 1 : 0.55,
+        }} />
+      </div>
 
-      {/* The orb */}
-      <span style={orbStyle} />
+      {/* ── PLASMA CORE ── */}
+      <span style={{
+        position: 'relative',
+        zIndex: 2,
+        width: '44px', height: '44px',
+        borderRadius: '50%',
+        background: coreGradient,
+        boxShadow: coreGlow,
+        animation: coreAnim,
+        transition: 'background 0.5s ease, box-shadow 0.5s ease',
+        flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {/* Mic icon — idle only */}
+        {!isActive && (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.55 }}>
+            <rect x="9" y="2" width="6" height="12" rx="3" fill="white"/>
+            <path d="M5 10a7 7 0 0 0 14 0" stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+            <line x1="12" y1="17" x2="12" y2="21" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+            <line x1="9" y1="21" x2="15" y2="21" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        )}
+      </span>
+
+      {/* Dismiss × button — shows on hover via parent */}
+      {showDismiss && onDismiss && (
+        <button
+          onClick={e => { e.stopPropagation(); onDismiss() }}
+          title="Hide Nex"
+          style={{
+            position: 'absolute',
+            top: '-2px', right: '-2px',
+            width: '18px', height: '18px',
+            borderRadius: '50%',
+            background: 'rgba(30,10,60,0.9)',
+            border: '1px solid rgba(139,92,246,0.4)',
+            color: 'rgba(255,255,255,0.7)',
+            fontSize: '10px',
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 10,
+            lineHeight: 1,
+            animation: 'nexFadeIn 0.15s ease',
+          }}
+        >
+          ×
+        </button>
+      )}
     </button>
   )
 }

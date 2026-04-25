@@ -37,6 +37,20 @@ function App() {
   // Set isPro = true while building. Gate on profile.plan === 'pro' when Stripe is live.
   const isPro = true
 
+  // Nex toggle — persisted to localStorage
+  const [nexEnabled, setNexEnabled] = useState(() => {
+    try { return localStorage.getItem('nex_enabled') !== 'false' }
+    catch { return true }
+  })
+
+  const toggleNex = () => {
+    setNexEnabled(prev => {
+      const next = !prev
+      try { localStorage.setItem('nex_enabled', String(next)) } catch (e) { void e }
+      return next
+    })
+  }
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
@@ -510,6 +524,62 @@ function App() {
                       </button>
                     ))}
 
+                    {/* Nex Assistant toggle */}
+                    <button
+                      onClick={toggleNex}
+                      style={{
+                        width: '100%', padding: '9px 12px',
+                        background: 'transparent', border: 'none',
+                        borderRadius: '8px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        textAlign: 'left', marginBottom: '2px',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#222' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      {/* Purple orb icon */}
+                      <span style={{
+                        width: '16px', height: '16px', borderRadius: '50%',
+                        background: nexEnabled
+                          ? 'radial-gradient(circle at 35% 30%, #ddd6fe, #8b5cf6)'
+                          : 'rgba(255,255,255,0.15)',
+                        boxShadow: nexEnabled ? '0 0 8px rgba(139,92,246,0.6)' : 'none',
+                        flexShrink: 0,
+                        transition: 'all 0.3s ease',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '9px',
+                      }} />
+                      <span style={{
+                        flex: 1, fontSize: '13px',
+                        fontFamily: 'Space Grotesk',
+                        color: nexEnabled ? '#c084fc' : '#888',
+                        transition: 'color 0.3s ease',
+                      }}>
+                        Nex Assistant
+                      </span>
+                      {/* Toggle pill */}
+                      <span style={{
+                        width: '32px', height: '18px',
+                        borderRadius: '9px',
+                        background: nexEnabled ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.1)',
+                        border: nexEnabled ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.15)',
+                        position: 'relative',
+                        transition: 'all 0.25s ease',
+                        flexShrink: 0,
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          top: '2px',
+                          left: nexEnabled ? '14px' : '2px',
+                          width: '12px', height: '12px',
+                          borderRadius: '50%',
+                          background: nexEnabled ? '#c084fc' : 'rgba(255,255,255,0.35)',
+                          boxShadow: nexEnabled ? '0 0 6px rgba(192,132,252,0.8)' : 'none',
+                          transition: 'all 0.25s ease',
+                        }} />
+                      </span>
+                    </button>
+
                     <div style={{ height: '1px', background: '#333', margin: '4px 0' }} />
 
                     <button
@@ -764,6 +834,7 @@ function App() {
             workspaceId={currentWorkspace?.id ?? null}
             userId={userId}
             isPro={isPro}
+            nexEnabled={nexEnabled}
           />
         </NexErrorBoundary>
       )}
