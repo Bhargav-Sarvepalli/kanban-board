@@ -24,9 +24,26 @@ const EXAMPLE_TASKS: Record<UseCase, string> = {
 }
 
 const TIPS = [
-  { icon: '☀', title: 'Start with Today view', desc: 'Every morning, open Today to see exactly what needs your attention.' },
-  { icon: '◉', title: 'Talk to Nex', desc: 'Click the orb at the bottom or press Space. Say "Add a task" or "Give me a briefing."' },
-  { icon: '👥', title: 'Invite your team', desc: 'Open Workspaces from your profile menu and invite teammates by email.' },
+  {
+    icon: '➕',
+    title: 'Creating tasks',
+    desc: 'Click "+ New Task" in the top bar, or click "+ ADD TASK" in any column. Fill in the title, pick a priority, set a due date — done.',
+  },
+  {
+    icon: '↔',
+    title: 'Moving tasks',
+    desc: 'Drag any task card between To Do → In Progress → In Review → Done. Or open a task and change the Status buttons directly.',
+  },
+  {
+    icon: '☀',
+    title: 'Your daily habit',
+    desc: 'Open the Today tab every morning. It shows overdue tasks first, then what\'s due today. Hit the circle ○ to mark a task done instantly.',
+  },
+  {
+    icon: '◉',
+    title: 'Ask Nex anything',
+    desc: 'Click the purple orb at the bottom or press Space. Say "Add buy groceries high priority" and it creates the task for you.',
+  },
 ]
 
 export default function OnboardingFlow({ userId, userName, onComplete }: Props) {
