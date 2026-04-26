@@ -183,10 +183,10 @@ function App() {
     const { data } = await query
     setTasks(data ?? [])
     if (data) {
-      const editorIds = data
-        .filter(t => t.last_edited_by)
-        .map(t => t.last_edited_by as string)
-      fetchProfiles(editorIds)
+      const editorIds = data.filter(t => t.last_edited_by).map(t => t.last_edited_by as string)
+      const creatorIds = data.map(t => t.user_id)
+      const assigneeIds = data.filter(t => t.assignee_id).map(t => t.assignee_id as string)
+      fetchProfiles([...editorIds, ...creatorIds, ...assigneeIds])
     }
   }
 
