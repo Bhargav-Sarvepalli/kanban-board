@@ -854,6 +854,7 @@ function App() {
             userId={userId}
             isPro={isPro}
             nexEnabled={nexEnabled}
+            onTaskCreated={refetchTasks}
           />
         </NexErrorBoundary>
       )}

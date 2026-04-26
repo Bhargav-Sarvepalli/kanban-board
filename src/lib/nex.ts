@@ -227,10 +227,7 @@ export async function executeNexTool(
     }
 
     case 'create_task': {
-      const { data: session } = await supabase.auth.getSession()
-      if (!session.session) return { result: 'Authentication required.' }
-
-      const rawDate   = input.due_date as string | undefined
+      const rawDate      = input.due_date as string | undefined
       const resolvedDate = rawDate ? resolveDate(rawDate) : null
       const rawPriority  = (input.priority as string | undefined) ?? 'normal'
       const priority     = rawPriority === 'medium' ? 'normal' : rawPriority
@@ -247,7 +244,10 @@ export async function executeNexTool(
         last_edited_at: new Date().toISOString(),
       }).select().single()
 
-      if (error) return { result: `Couldn't create that. ${error.message}` }
+      if (error) {
+        console.error('[Nex create_task error]', error)
+        return { result: `Couldn't create that. ${error.message}` }
+      }
       return {
         result: `Added: ${data.title}${resolvedDate ? `, due ${resolvedDate}` : ''}.`,
         action: { type: 'create_task', data: { task: data } },

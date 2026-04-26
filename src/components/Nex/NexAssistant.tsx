@@ -12,6 +12,7 @@ interface NexAssistantProps {
   userId: string | null
   isPro: boolean
   nexEnabled: boolean
+  onTaskCreated?: () => void
 }
 
 interface Message {
@@ -61,7 +62,7 @@ const TOOLTIP_KEY  = 'nex_tooltip_seen'
 const SILENCE_MS   = 1200  // fire after 1.2s pause in speech
 const ORB_SIZE     = 52
 
-export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled }: NexAssistantProps) {
+export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, onTaskCreated }: NexAssistantProps) {
   const [globeState, setGlobeState]     = useState<GlobeState>('idle')
   const [isActive, setIsActive]         = useState(false)
   const [expanded, setExpanded]         = useState(false)
@@ -159,8 +160,12 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled }:
   }, [])
 
   const handleAction = useCallback((action: NexActionResult) => {
-    if (action.type === 'create_task' || action.type === 'update_task_status') void loadContext()
-  }, [loadContext])
+    if (action.type === 'create_task') {
+      void loadContext()
+      onTaskCreated?.()
+    }
+    if (action.type === 'update_task_status') void loadContext()
+  }, [loadContext, onTaskCreated])
 
   // The core: fire Nex with the accumulated transcript
   const fireNex = useCallback(async (transcript: string) => {
