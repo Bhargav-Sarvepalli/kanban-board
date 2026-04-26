@@ -49,10 +49,6 @@ export default function NexGlobe({ state, onClick, onDismiss, showDismiss }: Nex
   const isSpeaking  = state === 'speaking'
   const isActive    = state !== 'idle'
 
-  const coreAnim = isThinking  ? `nexCoreThink  ${0.7}s ease-in-out infinite`
-    : isListening ? `nexCoreListen ${0.5}s ease-in-out infinite`
-    : isSpeaking  ? `nexCoreSpeak  ${0.6}s ease-in-out infinite`
-    : `nexCorePulse 2.8s ease-in-out infinite`
   const coreGradient = isThinking
     ? `radial-gradient(circle at 32% 28%,
         rgba(255,255,255,0.92) 0%, transparent 16%),
