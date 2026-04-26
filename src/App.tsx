@@ -744,7 +744,6 @@ function App() {
                 >
                   <Column
                     id={column.id}
-                    label={column.label}
                     tasks={tasks
                       .filter(t => t.status === column.id)
                       .filter(t => t.title.toLowerCase().includes(search.toLowerCase()))
