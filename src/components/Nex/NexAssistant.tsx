@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../supabase'
 import NexGlobe from './NexGlobe'
 import { askNex, buildGreeting } from '../../lib/nex'
-import type { TaskContext, NexActionResult } from '../../lib/nex'
+import type { TaskContext, NexActionResult, ConvMessage } from '../../lib/nex'
 
 type GlobeState = 'idle' | 'listening' | 'thinking' | 'speaking'
 
@@ -22,12 +22,8 @@ interface Message {
 }
 
 interface SpeechRecognition extends EventTarget {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  start(): void
-  stop(): void
-  abort(): void
+  continuous: boolean; interimResults: boolean; lang: string
+  start(): void; stop(): void; abort(): void
   onresult: ((event: SpeechRecognitionEvent) => void) | null
   onerror: ((event: Event) => void) | null
   onend: (() => void) | null
@@ -42,15 +38,11 @@ interface SpeechRecognitionResultList {
   [index: number]: SpeechRecognitionResult
 }
 interface SpeechRecognitionResult {
-  isFinal: boolean
-  length: number
+  isFinal: boolean; length: number
   item(index: number): SpeechRecognitionAlternative
   [index: number]: SpeechRecognitionAlternative
 }
-interface SpeechRecognitionAlternative {
-  transcript: string
-  confidence: number
-}
+interface SpeechRecognitionAlternative { transcript: string; confidence: number }
 declare global {
   interface Window {
     SpeechRecognition: new () => SpeechRecognition
@@ -58,45 +50,42 @@ declare global {
   }
 }
 
-const TOOLTIP_KEY  = 'nex_tooltip_seen'
-const SILENCE_MS   = 1200  // fire after 1.2s pause in speech
-const ORB_SIZE     = 52
+const TOOLTIP_KEY = 'nex_tooltip_seen'
+const SILENCE_MS  = 1200
+const ORB_SIZE    = 52
+const MAX_HISTORY = 20 // keep last 20 messages in history
 
 export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, onTaskCreated }: NexAssistantProps) {
-  const [globeState, setGlobeState]     = useState<GlobeState>('idle')
-  const [isActive, setIsActive]         = useState(false)
-  const [expanded, setExpanded]         = useState(false)
-  const [showTooltip, setShowTooltip]   = useState(false)
-  const [interimText, setInterimText]   = useState('')   // live speech-to-text
-  const [messages, setMessages]         = useState<Message[]>([])
-  const [taskCtx, setTaskCtx]           = useState<TaskContext>({
-    tasks: [], workspaceName: '', userName: '', isPersonal: true,
-  })
+  const [globeState, setGlobeState]   = useState<GlobeState>('idle')
+  const [expanded, setExpanded]       = useState(false)
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [interimText, setInterimText] = useState('')
+  const [messages, setMessages]       = useState<Message[]>([])
+  const [taskCtx, setTaskCtx]         = useState<TaskContext>({ tasks: [], workspaceName: '', userName: '', isPersonal: true })
 
+  // Conversation history for multi-turn memory
+  const historyRef      = useRef<ConvMessage[]>([])
   const recognitionRef  = useRef<SpeechRecognition | null>(null)
   const globeStateRef   = useRef<GlobeState>('idle')
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const finalTextRef    = useRef('')    // accumulates final transcript
+  const finalTextRef    = useRef('')
   const panelRef        = useRef<HTMLDivElement>(null)
+  const ttsWarmedRef    = useRef(false)
 
   useEffect(() => { globeStateRef.current = globeState }, [globeState])
 
-  // Scroll panel to bottom when messages change
   useEffect(() => {
     if (panelRef.current) panelRef.current.scrollTop = panelRef.current.scrollHeight
   }, [messages, interimText])
 
-  // Tooltip once
   useEffect(() => {
     if (!nexEnabled) return
-    if (!localStorage.getItem(TOOLTIP_KEY)) {
+    if (!localStorage.getItem(TOOLTIP_KEY))
       tooltipTimerRef.current = setTimeout(() => setShowTooltip(true), 3000)
-    }
     return () => { if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current) }
   }, [nexEnabled])
 
-  // CSS animations
   useEffect(() => {
     if (document.getElementById('nex-styles')) return
     const s = document.createElement('style')
@@ -116,8 +105,7 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
     if (workspaceId) q = q.eq('workspace_id', workspaceId)
     else q = q.is('workspace_id', null).eq('user_id', userId)
     const [{ data: tasks }, { data: profile }] = await Promise.all([
-      q,
-      supabase.from('profiles').select('full_name').eq('id', userId).single(),
+      q, supabase.from('profiles').select('full_name').eq('id', userId).single(),
     ])
     let workspaceName = 'Personal'
     if (workspaceId) {
@@ -132,45 +120,51 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
   useEffect(() => { void loadContext() }, [loadContext])
 
   const addMessage = useCallback((role: 'user' | 'nex', text: string) => {
-    setMessages(prev => [...prev.slice(-6), { id: Date.now().toString(), role, text }])
+    setMessages(prev => [...prev.slice(-12), { id: Date.now().toString(), role, text }])
+  }, [])
+
+  // Warm up TTS engine — fixes Chrome first-utterance cut-off bug
+  const warmupTTS = useCallback(() => {
+    if (ttsWarmedRef.current) return
+    ttsWarmedRef.current = true
+    const dummy = new SpeechSynthesisUtterance('')
+    dummy.volume = 0
+    window.speechSynthesis.speak(dummy)
   }, [])
 
   const speak = useCallback((text: string, onDone?: () => void) => {
+    warmupTTS()
     window.speechSynthesis.cancel()
-    const utter = new SpeechSynthesisUtterance(text)
-    const trySpeak = () => {
-      const voices = window.speechSynthesis.getVoices()
-      const preferred =
-        voices.find(v => v.name === 'Google UK English Female') ??
-        voices.find(v => v.name === 'Samantha') ??
-        voices.find(v => v.name === 'Karen') ??
-        voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('female')) ??
-        voices.find(v => v.lang.startsWith('en'))
-      if (preferred) utter.voice = preferred
-      utter.rate = 1.08; utter.pitch = 0.82; utter.volume = 1
-      utter.onstart = () => { setGlobeState('speaking') }
-      utter.onend   = () => {
-        setGlobeState('idle')
-        onDone?.()
+    // Small delay after cancel to avoid Chrome overlap bug
+    setTimeout(() => {
+      const utter = new SpeechSynthesisUtterance(text)
+      const trySpeak = () => {
+        const voices = window.speechSynthesis.getVoices()
+        const preferred =
+          voices.find(v => v.name === 'Google UK English Female') ??
+          voices.find(v => v.name === 'Samantha') ??
+          voices.find(v => v.name === 'Karen') ??
+          voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('female')) ??
+          voices.find(v => v.lang.startsWith('en'))
+        if (preferred) utter.voice = preferred
+        utter.rate = 1.05; utter.pitch = 0.82; utter.volume = 1
+        utter.onstart = () => setGlobeState('speaking')
+        utter.onend   = () => { setGlobeState('idle'); onDone?.() }
+        utter.onerror = () => { setGlobeState('idle'); onDone?.() }
+        window.speechSynthesis.speak(utter)
       }
-      window.speechSynthesis.speak(utter)
-    }
-    if (window.speechSynthesis.getVoices().length > 0) trySpeak()
-    else window.speechSynthesis.onvoiceschanged = trySpeak
-  }, [])
+      if (window.speechSynthesis.getVoices().length > 0) trySpeak()
+      else window.speechSynthesis.onvoiceschanged = trySpeak
+    }, 80)
+  }, [warmupTTS])
 
   const handleAction = useCallback((action: NexActionResult) => {
-    if (action.type === 'create_task') {
-      void loadContext()
+    void loadContext()
+    if (action.type === 'create_task' || action.type === 'delete_task' || action.type === 'update_task_status') {
       onTaskCreated?.()
-    }
-    if (action.type === 'delete_task' || action.type === 'update_task_status') {
-      void loadContext()
-      onTaskCreated?.() // reuse same callback to refresh board
     }
   }, [loadContext, onTaskCreated])
 
-  // The core: fire Nex with the accumulated transcript
   const fireNex = useCallback(async (transcript: string) => {
     if (!transcript.trim() || !userId) return
     setGlobeState('thinking')
@@ -179,14 +173,20 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
     finalTextRef.current = ''
 
     try {
-      const { speech, action } = await askNex(transcript, taskCtx, workspaceId, userId)
+      // Pass full conversation history for memory
+      const { speech, action, newHistory } = await askNex(
+        transcript, taskCtx, workspaceId, userId,
+        historyRef.current.slice(-MAX_HISTORY)
+      )
+      // Update history ref
+      historyRef.current = newHistory.slice(-MAX_HISTORY)
       if (action) handleAction(action)
       addMessage('nex', speech)
       speak(speech, () => {
-        // After speaking, auto-listen again for follow-up
+        // Auto-listen after response for natural back-and-forth
         setTimeout(() => {
           if (globeStateRef.current === 'idle') startListeningCycle()
-        }, 600)
+        }, 500)
       })
     } catch (err) {
       console.error('[Nex]', err)
@@ -201,78 +201,46 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
   const startListeningCycle = useCallback(() => {
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition
     if (!SR) { speak('Voice recognition unavailable. Please use Chrome.'); return }
-
-    // Abort any existing recognition
-    if (recognitionRef.current) {
-      try { recognitionRef.current.abort() } catch (e) { void e }
-    }
+    if (recognitionRef.current) { try { recognitionRef.current.abort() } catch (e) { void e } }
 
     const recognition = new SR()
-    recognition.continuous      = true   // keep listening
-    recognition.interimResults  = true   // show words as they come
-    recognition.lang            = 'en-US'
+    recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-US'
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let interimTranscript = ''
-      let finalTranscript   = ''
-
+      let interim = ''; let final = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i]
-        if (result.isFinal) {
-          finalTranscript += result[0].transcript
-        } else {
-          interimTranscript += result[0].transcript
-        }
+        if (event.results[i].isFinal) final += event.results[i][0].transcript
+        else interim += event.results[i][0].transcript
       }
-
-      // Show live interim text
-      setInterimText(interimTranscript)
-
-      // Accumulate finals
-      if (finalTranscript) {
-        finalTextRef.current += ' ' + finalTranscript.trim()
-        setInterimText('')
-      }
-
-      // Reset silence timer on every word
+      setInterimText(interim)
+      if (final) { finalTextRef.current += ' ' + final.trim(); setInterimText('') }
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
       silenceTimerRef.current = setTimeout(() => {
-        const full = (finalTextRef.current + ' ' + interimTranscript).trim()
-        if (full.length > 2) {
-          recognition.stop()
-          void fireNex(full)
-        }
+        const full = (finalTextRef.current + ' ' + interim).trim()
+        if (full.length > 2) { recognition.stop(); void fireNex(full) }
       }, SILENCE_MS)
     }
 
     recognition.onerror = (e: Event) => {
       const err = (e as Event & { error?: string }).error
-      if (err !== 'no-speech' && err !== 'aborted') {
-        console.error('[Nex recognition]', err)
-        setGlobeState('idle')
-      }
+      if (err !== 'no-speech' && err !== 'aborted') { console.error('[Nex]', err); setGlobeState('idle') }
     }
-
-    recognition.onend = () => {
-      // Only reset if not already thinking/speaking
-      if (globeStateRef.current === 'listening') setGlobeState('idle')
-    }
+    recognition.onend = () => { if (globeStateRef.current === 'listening') setGlobeState('idle') }
 
     recognitionRef.current = recognition
     recognition.start()
     setGlobeState('listening')
-    finalTextRef.current = ''
-    setInterimText('')
+    finalTextRef.current = ''; setInterimText('')
   }, [speak, fireNex])
 
   const stopListening = useCallback(() => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
     try { recognitionRef.current?.abort() } catch (e) { void e }
     window.speechSynthesis.cancel()
-    setGlobeState('idle')
-    setInterimText('')
+    setGlobeState('idle'); setInterimText('')
   }, [])
 
+  // Every click greets + listens — not just first time
   const handleActivate = useCallback(() => {
     if (showTooltip) { setShowTooltip(false); localStorage.setItem(TOOLTIP_KEY, '1') }
     if (!isPro) { speak('Nex is available on the Pro plan.'); return }
@@ -284,30 +252,21 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
     if (cur === 'thinking')  return
 
     setExpanded(true)
+    warmupTTS()
 
-    if (!isActive) {
-      setIsActive(true)
-      void loadContext().then(ctx => {
-        if (!ctx) { startListeningCycle(); return }
-        const greeting = buildGreeting(ctx)
-        addMessage('nex', greeting)
-        speak(greeting, () => setTimeout(startListeningCycle, 400))
-      })
-      return
-    }
+    void loadContext().then(ctx => {
+      const greeting = ctx ? buildGreeting(ctx) : 'What can I help you with?'
+      addMessage('nex', greeting)
+      speak(greeting, () => setTimeout(startListeningCycle, 400))
+    })
+  }, [showTooltip, isPro, userId, speak, stopListening, startListeningCycle, loadContext, addMessage, warmupTTS])
 
-    startListeningCycle()
-  }, [showTooltip, isPro, userId, isActive, speak, stopListening, startListeningCycle, loadContext, addMessage])
-
-  // Space shortcut
   useEffect(() => {
     if (!nexEnabled) return
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return
-      if (e.code === 'Space' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        e.preventDefault(); handleActivate()
-      }
+      if (e.code === 'Space' && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); handleActivate() }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -320,25 +279,13 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
   const isSpeaking  = globeState === 'speaking'
   const isIdle      = globeState === 'idle'
 
-  const accentColor =
-    isListening ? '#38bdf8' :
-    isThinking  ? '#f472b6' :
-    isSpeaking  ? '#34d399' : '#a78bfa'
-
-  const stateLabel =
-    isListening ? 'LISTENING' :
-    isThinking  ? 'THINKING'  :
-    isSpeaking  ? 'SPEAKING'  : 'IDLE'
+  const accentColor = isListening ? '#38bdf8' : isThinking ? '#f472b6' : isSpeaking ? '#34d399' : '#a78bfa'
+  const stateLabel  = isListening ? 'LISTENING' : isThinking ? 'THINKING' : isSpeaking ? 'SPEAKING' : 'IDLE'
 
   return (
-    <div style={{
-      position: 'fixed', bottom: '24px', right: '24px',
-      zIndex: 9999, display: 'flex', flexDirection: 'column',
-      alignItems: 'flex-end', gap: '10px',
-      pointerEvents: 'none', userSelect: 'none',
-    }}>
+    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px', pointerEvents: 'none', userSelect: 'none' }}>
 
-      {/* ── CONVERSATION PANEL ── */}
+      {/* Conversation panel */}
       <AnimatePresence>
         {expanded && (
           <motion.div
@@ -346,196 +293,70 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ type: 'spring', damping: 24, stiffness: 300 }}
-            style={{
-              pointerEvents: 'all', width: '300px',
-              background: 'rgba(8,4,18,0.97)',
-              border: '1px solid rgba(139,92,246,0.3)',
-              borderRadius: '18px', overflow: 'hidden',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(139,92,246,0.1), inset 0 1px 0 rgba(255,255,255,0.06)',
-              backdropFilter: 'blur(24px)',
-            }}
+            style={{ pointerEvents: 'all', width: '300px', background: 'rgba(8,4,18,0.97)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)', backdropFilter: 'blur(24px)' }}
           >
-            {/* Panel header */}
-            <div style={{
-              padding: '13px 16px',
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
-              display: 'flex', alignItems: 'center', gap: '10px',
-              background: 'rgba(139,92,246,0.06)',
-            }}>
-              {/* Brand */}
+            {/* Header */}
+            <div style={{ padding: '13px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(139,92,246,0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flex: 1 }}>
-                <div style={{
-                  width: '8px', height: '8px', borderRadius: '50%',
-                  background: accentColor,
-                  boxShadow: `0 0 10px ${accentColor}`,
-                  animation: isIdle ? 'nexPulse 3s ease-in-out infinite' : 'nexPulse 0.8s ease-in-out infinite',
-                  flexShrink: 0,
-                }} />
-                <span style={{
-                  fontFamily: 'Space Mono, monospace', fontSize: '11px',
-                  letterSpacing: '0.22em', color: accentColor,
-                  fontWeight: 600,
-                }}>
-                  NEX
-                </span>
-                <span style={{
-                  fontFamily: 'Space Mono, monospace', fontSize: '9px',
-                  letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)',
-                }}>
-                  · {stateLabel}
-                </span>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: accentColor, boxShadow: `0 0 10px ${accentColor}`, animation: isIdle ? 'nexPulse 3s ease-in-out infinite' : 'nexPulse 0.8s ease-in-out infinite', flexShrink: 0 }} />
+                <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '11px', letterSpacing: '0.22em', color: accentColor, fontWeight: 600 }}>NEX</span>
+                <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '9px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)' }}>· {stateLabel}</span>
               </div>
-
-              {/* Controls */}
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                 {!isIdle && (
-                  <button
-                    onClick={stopListening}
-                    style={{
-                      background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)',
-                      borderRadius: '6px', padding: '3px 8px',
-                      color: '#f87171', cursor: 'pointer', fontSize: '10px',
-                      fontFamily: 'Space Mono',
-                    }}
-                  >
-                    STOP
-                  </button>
+                  <button onClick={stopListening} style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '6px', padding: '3px 8px', color: '#f87171', cursor: 'pointer', fontSize: '10px', fontFamily: 'Space Mono' }}>STOP</button>
                 )}
-                <button
-                  onClick={() => { stopListening(); setExpanded(false); setMessages([]) }}
-                  style={{
-                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '6px', width: '24px', height: '24px',
-                    color: 'rgba(255,255,255,0.35)', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px',
-                  }}
-                >
+                <button onClick={() => { stopListening(); setExpanded(false); setMessages([]); historyRef.current = [] }}
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', width: '24px', height: '24px', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>
                   ✕
                 </button>
               </div>
             </div>
 
             {/* Messages */}
-            <div
-              ref={panelRef}
-              style={{
-                padding: '12px', maxHeight: '220px', overflowY: 'auto',
-                display: 'flex', flexDirection: 'column', gap: '8px',
-                scrollBehavior: 'smooth',
-              }}
-            >
-              {messages.length === 0 && isIdle && !isActive && (
+            <div ref={panelRef} style={{ padding: '12px', maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', scrollBehavior: 'smooth' }}>
+              {messages.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                  <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: 0 }}>
-                    Click the orb or press Space to talk
-                  </p>
+                  <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: 0 }}>Starting up…</p>
                 </div>
               )}
-
               {messages.map(msg => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  style={{
-                    display: 'flex',
-                    justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                  }}
-                >
-                  <div style={{
-                    maxWidth: '85%', padding: '8px 12px', borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                    background: msg.role === 'user'
-                      ? 'rgba(139,92,246,0.2)'
-                      : 'rgba(255,255,255,0.06)',
-                    border: msg.role === 'user'
-                      ? '1px solid rgba(139,92,246,0.35)'
-                      : '1px solid rgba(255,255,255,0.08)',
-                  }}>
-                    <p style={{
-                      color: msg.role === 'user' ? '#ddd6fe' : 'rgba(255,255,255,0.82)',
-                      fontSize: '12px', fontFamily: 'Space Grotesk',
-                      margin: 0, lineHeight: 1.55,
-                    }}>
-                      {msg.text}
-                    </p>
+                <motion.div key={msg.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                  <div style={{ maxWidth: '85%', padding: '8px 12px', borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px', background: msg.role === 'user' ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: msg.role === 'user' ? '1px solid rgba(139,92,246,0.35)' : '1px solid rgba(255,255,255,0.08)' }}>
+                    <p style={{ color: msg.role === 'user' ? '#ddd6fe' : 'rgba(255,255,255,0.82)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: 0, lineHeight: 1.55 }}>{msg.text}</p>
                   </div>
                 </motion.div>
               ))}
-
-              {/* Live interim transcript */}
               {interimText && (
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <div style={{
-                    maxWidth: '85%', padding: '8px 12px',
-                    borderRadius: '14px 14px 4px 14px',
-                    background: 'rgba(56,189,248,0.1)',
-                    border: '1px solid rgba(56,189,248,0.25)',
-                  }}>
-                    <p style={{
-                      color: '#7dd3fc', fontSize: '12px',
-                      fontFamily: 'Space Grotesk', margin: 0, lineHeight: 1.55,
-                      opacity: 0.8,
-                    }}>
-                      {interimText}
-                      <span style={{ animation: 'nexBlink 0.8s step-end infinite', marginLeft: '2px' }}>|</span>
+                  <div style={{ maxWidth: '85%', padding: '8px 12px', borderRadius: '14px 14px 4px 14px', background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.25)' }}>
+                    <p style={{ color: '#7dd3fc', fontSize: '12px', fontFamily: 'Space Grotesk', margin: 0, lineHeight: 1.55, opacity: 0.8 }}>
+                      {interimText}<span style={{ animation: 'nexBlink 0.8s step-end infinite', marginLeft: '2px' }}>|</span>
                     </p>
                   </div>
                 </div>
               )}
-
-              {/* Thinking dots */}
               {isThinking && (
                 <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                  <div style={{
-                    padding: '10px 14px', borderRadius: '14px 14px 14px 4px',
-                    background: 'rgba(244,114,182,0.08)',
-                    border: '1px solid rgba(244,114,182,0.2)',
-                    display: 'flex', gap: '4px', alignItems: 'center',
-                  }}>
-                    {[0, 1, 2].map(i => (
-                      <div key={i} style={{
-                        width: '5px', height: '5px', borderRadius: '50%',
-                        background: '#f472b6',
-                        animation: `nexDot 1.4s ease-in-out ${i * 0.2}s infinite`,
-                      }} />
-                    ))}
+                  <div style={{ padding: '10px 14px', borderRadius: '14px 14px 14px 4px', background: 'rgba(244,114,182,0.08)', border: '1px solid rgba(244,114,182,0.2)', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    {[0, 1, 2].map(i => <div key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#f472b6', animation: `nexDot 1.4s ease-in-out ${i * 0.2}s infinite` }} />)}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Quick prompts — only when idle and active */}
-            {isIdle && isActive && (
-              <div style={{
-                padding: '10px 12px',
-                borderTop: '1px solid rgba(255,255,255,0.05)',
-                display: 'flex', flexWrap: 'wrap', gap: '5px',
-              }}>
+            {/* Quick commands */}
+            {isIdle && messages.length > 0 && (
+              <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                 {[
                   { label: 'Briefing',     cmd: 'Give me a daily briefing' },
                   { label: "What's next?", cmd: 'What should I work on next?' },
-                  { label: 'Add a task',   cmd: null },  // null = open mic
+                  { label: 'Add a task',   cmd: null },
                   { label: 'Mark done',    cmd: null },
                 ].map(({ label, cmd }) => (
-                  <button
-                    key={label}
-                    onClick={() => {
-                      if (cmd) {
-                        // Fire directly without mic
-                        void fireNex(cmd)
-                      } else {
-                        // Open mic for user to speak
-                        speak('Go ahead.', () => setTimeout(startListeningCycle, 200))
-                      }
-                    }}
-                    style={{
-                      background: 'rgba(139,92,246,0.08)',
-                      border: '1px solid rgba(139,92,246,0.18)',
-                      borderRadius: '20px', padding: '4px 10px',
-                      color: 'rgba(167,139,250,0.65)', fontSize: '11px',
-                      fontFamily: 'Space Grotesk', cursor: 'pointer',
-                      transition: 'all 0.15s',
-                    }}
+                  <button key={label}
+                    onClick={() => { if (cmd) { void fireNex(cmd) } else { speak('Go ahead.', () => setTimeout(startListeningCycle, 200)) } }}
+                    style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.18)', borderRadius: '20px', padding: '4px 10px', color: 'rgba(167,139,250,0.65)', fontSize: '11px', fontFamily: 'Space Grotesk', cursor: 'pointer', transition: 'all 0.15s' }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.16)'; e.currentTarget.style.color = '#c084fc' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.08)'; e.currentTarget.style.color = 'rgba(167,139,250,0.65)' }}
                   >
@@ -548,92 +369,36 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
         )}
       </AnimatePresence>
 
-      {/* ── ORB CONTAINER — the always-visible anchor ── */}
-      <div style={{ pointerEvents: 'all', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}>
-
-        {/* First-visit tooltip */}
+      {/* Orb pill */}
+      <div style={{ pointerEvents: 'all', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <AnimatePresence>
           {showTooltip && (
-            <motion.div
-              initial={{ opacity: 0, y: 6, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              style={{
-                background: 'rgba(8,4,18,0.97)',
-                border: '1px solid rgba(139,92,246,0.35)',
-                borderRadius: '12px', padding: '12px 16px',
-                marginBottom: '10px', maxWidth: '220px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
-                backdropFilter: 'blur(20px)',
-              }}
-            >
-              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', fontFamily: 'Space Grotesk', margin: '0 0 4px', fontWeight: 600 }}>
-                Meet Nex
-              </p>
-              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: '0 0 10px', lineHeight: 1.5 }}>
-                Your AI assistant. Say "Add a task" or ask for a briefing.
-              </p>
+            <motion.div initial={{ opacity: 0, y: 6, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              style={{ background: 'rgba(8,4,18,0.97)', border: '1px solid rgba(139,92,246,0.35)', borderRadius: '12px', padding: '12px 16px', marginBottom: '10px', maxWidth: '220px', boxShadow: '0 8px 24px rgba(0,0,0,0.6)', backdropFilter: 'blur(20px)' }}>
+              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', fontFamily: 'Space Grotesk', margin: '0 0 4px', fontWeight: 600 }}>Meet Nex</p>
+              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: '0 0 10px', lineHeight: 1.5 }}>Your AI assistant. Click to start talking.</p>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px', fontFamily: 'Space Grotesk' }}>
                   Press <kbd style={{ background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '4px', padding: '1px 6px', color: '#c084fc', fontFamily: 'Space Mono', fontSize: '10px' }}>Space</kbd>
                 </span>
-                <button
-                  onClick={() => { setShowTooltip(false); localStorage.setItem(TOOLTIP_KEY, '1') }}
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: '11px', cursor: 'pointer', fontFamily: 'Space Grotesk', padding: 0 }}
-                >
-                  got it
-                </button>
+                <button onClick={() => { setShowTooltip(false); localStorage.setItem(TOOLTIP_KEY, '1') }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: '11px', cursor: 'pointer', fontFamily: 'Space Grotesk', padding: 0 }}>got it</button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Pill container — the brand anchor */}
-        <div style={{
-          background: 'rgba(8,4,18,0.95)',
-          border: `1px solid ${isIdle ? 'rgba(139,92,246,0.3)' : accentColor + '60'}`,
-          borderRadius: '32px',
-          padding: '6px 14px 6px 6px',
-          display: 'flex', alignItems: 'center', gap: '10px',
-          boxShadow: isIdle
-            ? '0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(139,92,246,0.1)'
-            : `0 4px 20px rgba(0,0,0,0.5), 0 0 20px ${accentColor}30`,
-          backdropFilter: 'blur(20px)',
-          transition: 'all 0.3s ease',
-          cursor: 'pointer',
-        }}
+        <div
           onClick={handleActivate}
+          style={{ background: 'rgba(8,4,18,0.95)', border: `1px solid ${isIdle ? 'rgba(139,92,246,0.3)' : accentColor + '60'}`, borderRadius: '32px', padding: '6px 14px 6px 6px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: isIdle ? '0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(139,92,246,0.1)' : `0 4px 20px rgba(0,0,0,0.5), 0 0 20px ${accentColor}30`, backdropFilter: 'blur(20px)', transition: 'all 0.3s ease', cursor: 'pointer' }}
         >
           <NexGlobe state={globeState} size={ORB_SIZE} onClick={handleActivate} />
-
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span style={{
-                fontFamily: 'Space Mono, monospace', fontSize: '12px',
-                letterSpacing: '0.22em', fontWeight: 700,
-                color: isIdle ? 'rgba(167,139,250,0.9)' : accentColor,
-                transition: 'color 0.3s ease',
-              }}>
-                NEX
-              </span>
-              {!isIdle && (
-                <span style={{
-                  width: '5px', height: '5px', borderRadius: '50%',
-                  background: accentColor, flexShrink: 0,
-                  animation: 'nexPulse 0.8s ease-in-out infinite',
-                }} />
-              )}
+              <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '12px', letterSpacing: '0.22em', fontWeight: 700, color: isIdle ? 'rgba(167,139,250,0.9)' : accentColor, transition: 'color 0.3s ease' }}>NEX</span>
+              {!isIdle && <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: accentColor, flexShrink: 0, animation: 'nexPulse 0.8s ease-in-out infinite' }} />}
             </div>
-            <p style={{
-              fontFamily: 'Space Mono, monospace', fontSize: '8px',
-              letterSpacing: '0.15em', margin: 0,
-              color: isIdle ? 'rgba(255,255,255,0.2)' : accentColor + 'aa',
-              transition: 'color 0.3s ease',
-            }}>
-              {isIdle && !isActive ? 'PRESS SPACE' :
-               isListening         ? 'LISTENING…' :
-               isThinking          ? 'THINKING…'  :
-               isSpeaking          ? 'SPEAKING…'  : 'READY'}
+            <p style={{ fontFamily: 'Space Mono, monospace', fontSize: '8px', letterSpacing: '0.15em', margin: 0, color: isIdle ? 'rgba(255,255,255,0.2)' : accentColor + 'aa', transition: 'color 0.3s ease' }}>
+              {isListening ? 'LISTENING…' : isThinking ? 'THINKING…' : isSpeaking ? 'SPEAKING…' : 'CLICK TO TALK'}
             </p>
           </div>
         </div>
