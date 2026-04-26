@@ -49,8 +49,10 @@ export default function NexGlobe({ state, size = 48, onClick }: Props) {
                   : r + 3 + Math.sin(f * 0.06) * 2.5
 
       const glowGrad = c2d.createRadialGradient(cx, cy, r - 2, cx, cy, glowR + 8)
-      glowGrad.addColorStop(0,   c.glow.replace(')', ',0.3)').replace('rgba', 'rgba'))
-      glowGrad.addColorStop(0.5, c.glow.replace(')', ',0.15)').replace('rgba', 'rgba'))
+      // Extract rgb values from glow color and build proper rgba strings
+      const glowBase = c.glow.replace(/rgba?\(([^)]+)\).*/, '$1').split(',').slice(0, 3).join(',')
+      glowGrad.addColorStop(0,   `rgba(${glowBase},0.3)`)
+      glowGrad.addColorStop(0.5, `rgba(${glowBase},0.12)`)
       glowGrad.addColorStop(1,   'rgba(0,0,0,0)')
       c2d.beginPath()
       c2d.arc(cx, cy, glowR + 8, 0, Math.PI * 2)
@@ -77,7 +79,7 @@ export default function NexGlobe({ state, size = 48, onClick }: Props) {
         const wy    = cy + Math.sin(angle) * wR * 0.5
         const wSize = r * (0.18 + 0.08 * Math.sin(f * 0.04 + i * 1.3))
         const wGrad = c2d.createRadialGradient(wx, wy, 0, wx, wy, wSize)
-        wGrad.addColorStop(0, c.core + 'cc')
+        wGrad.addColorStop(0, c.mid + 'aa')
         wGrad.addColorStop(1, 'rgba(0,0,0,0)')
         c2d.beginPath()
         c2d.arc(wx, wy, wSize, 0, Math.PI * 2)
