@@ -15,141 +15,232 @@ interface Props {
 type InviteRole = 'admin' | 'member' | 'viewer'
 
 const ROLE_META: Record<string, { label: string; color: string; bg: string; border: string; desc: string }> = {
-  admin:  { label: 'Admin',  color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.3)', desc: 'Full access — create, edit, delete, manage members' },
-  member: { label: 'Member', color: '#34d399', bg: 'rgba(52,211,153,0.12)',  border: 'rgba(52,211,153,0.3)',  desc: 'Create tasks, edit own work, comment on anything' },
-  viewer: { label: 'Viewer', color: '#fb923c', bg: 'rgba(251,146,60,0.12)',  border: 'rgba(251,146,60,0.3)',  desc: 'Read-only + comments. Good for clients or stakeholders' },
+  admin:  { label: 'Admin',  color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.3)', desc: 'Create, edit, delete, manage members' },
+  member: { label: 'Member', color: '#34d399', bg: 'rgba(52,211,153,0.12)',  border: 'rgba(52,211,153,0.3)',  desc: 'Create tasks, edit own work, comment' },
+  viewer: { label: 'Viewer', color: '#fb923c', bg: 'rgba(251,146,60,0.12)',  border: 'rgba(251,146,60,0.3)',  desc: 'Read-only + comments. Good for clients' },
 }
 
-function RoleBadge({ role }: { role: string }) {
-  const meta = ROLE_META[role] ?? ROLE_META.member
+const PRESET_COLORS = ['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f59e0b', '#ef4444']
+const PRESET_ICONS  = ['🚀', '💼', '🎯', '⚡', '🔥', '💡', '🛠', '📊', '🌟', '🤖', '🎮', '📱']
+
+function WorkspaceEditModal({
+  workspace, onSave, onClose,
+}: {
+  workspace: Workspace
+  onSave: (updated: Workspace) => void
+  onClose: () => void
+}) {
+  const [name, setName]           = useState(workspace.name)
+  const [color, setColor]         = useState(workspace.color ?? '#8b5cf6')
+  const [icon, setIcon]           = useState<string | null>(workspace.icon ?? null)
+  const [description, setDesc]    = useState(workspace.description ?? '')
+  const [saving, setSaving]       = useState(false)
+
+  const handleSave = async () => {
+    if (!name.trim()) { toast.error('Name required'); return }
+    setSaving(true)
+    const { data, error } = await supabase
+      .from('workspaces')
+      .update({ name: name.trim(), color, icon: icon ?? null, description: description.trim() || null })
+      .eq('id', workspace.id)
+      .select().single()
+    if (error) { toast.error('Failed to save'); setSaving(false); return }
+    toast.success('Workspace updated!')
+    onSave(data)
+    setSaving(false)
+  }
+
   return (
-    <span style={{
-      fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em',
-      padding: '2px 8px', borderRadius: '5px',
-      color: meta.color, background: meta.bg, border: `1px solid ${meta.border}`,
-      fontFamily: 'Space Mono',
-    }}>
-      {meta.label.toUpperCase()}
-    </span>
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+    >
+      <motion.div
+        initial={{ scale: 0.95, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 16 }}
+        onClick={e => e.stopPropagation()}
+        style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', width: '100%', maxWidth: '440px', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.9)' }}
+      >
+        <div style={{ height: '2px', background: `linear-gradient(90deg, ${color}, #ec4899)` }} />
+        <div style={{ padding: '28px' }}>
+          {/* Preview */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
+            <div style={{
+              width: '52px', height: '52px', borderRadius: '14px',
+              background: `${color}20`, border: `2px solid ${color}60`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: icon ? '24px' : '20px', fontWeight: 700,
+              color, fontFamily: 'Space Grotesk',
+            }}>
+              {icon ?? name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <p style={{ color: 'white', fontSize: '16px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0 }}>{name || 'Workspace name'}</p>
+              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>{description || 'No description'}</p>
+            </div>
+          </div>
+
+          {/* Name */}
+          <div style={{ marginBottom: '18px' }}>
+            <label style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.15em', display: 'block', marginBottom: '8px' }}>NAME</label>
+            <input
+              value={name} onChange={e => setName(e.target.value)} autoFocus
+              style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 14px', color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', outline: 'none', boxSizing: 'border-box' }}
+              onFocus={e => e.target.style.borderColor = `${color}80`}
+              onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+            />
+          </div>
+
+          {/* Description */}
+          <div style={{ marginBottom: '18px' }}>
+            <label style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.15em', display: 'block', marginBottom: '8px' }}>DESCRIPTION <span style={{ color: 'rgba(255,255,255,0.2)' }}>(optional)</span></label>
+            <input
+              value={description} onChange={e => setDesc(e.target.value)}
+              placeholder="What is this workspace for?"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 14px', color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          {/* Color */}
+          <div style={{ marginBottom: '18px' }}>
+            <label style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.15em', display: 'block', marginBottom: '8px' }}>COLOR</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {PRESET_COLORS.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setColor(c)}
+                  style={{
+                    width: '28px', height: '28px', borderRadius: '50%',
+                    background: c, border: `3px solid ${color === c ? 'white' : 'transparent'}`,
+                    cursor: 'pointer', transition: 'all 0.15s',
+                    boxShadow: color === c ? `0 0 10px ${c}` : 'none',
+                    outline: 'none',
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Icon */}
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.15em', display: 'block', marginBottom: '8px' }}>ICON <span style={{ color: 'rgba(255,255,255,0.2)' }}>(optional)</span></label>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {/* None option */}
+              <button
+                onClick={() => setIcon(null)}
+                style={{
+                  width: '36px', height: '36px', borderRadius: '8px',
+                  background: icon === null ? `${color}20` : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${icon === null ? color + '60' : 'rgba(255,255,255,0.1)'}`,
+                  cursor: 'pointer', fontSize: '11px', color: 'rgba(255,255,255,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                A
+              </button>
+              {PRESET_ICONS.map(em => (
+                <button
+                  key={em}
+                  onClick={() => setIcon(em)}
+                  style={{
+                    width: '36px', height: '36px', borderRadius: '8px',
+                    background: icon === em ? `${color}20` : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${icon === em ? color + '60' : 'rgba(255,255,255,0.08)'}`,
+                    cursor: 'pointer', fontSize: '18px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {em}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '11px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk' }}>
+              Cancel
+            </button>
+            <motion.button
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={handleSave} disabled={saving}
+              style={{ flex: 2, padding: '11px', borderRadius: '10px', background: saving ? 'rgba(139,92,246,0.3)' : `linear-gradient(135deg, ${color}, #ec4899)`, border: 'none', color: 'white', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700 }}
+            >
+              {saving ? '⟳ Saving...' : 'Save Changes →'}
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   )
 }
 
 export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceChange, onClose }: Props) {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
-  const [members, setMembers] = useState<WorkspaceMember[]>([])
-  const [newWorkspaceName, setNewWorkspaceName] = useState('')
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteRole, setInviteRole] = useState<InviteRole>('member')
-  const [creating, setCreating] = useState(false)
-  const [inviting, setInviting] = useState(false)
-  const [tab, setTab] = useState<'workspaces' | 'members'>('workspaces')
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editingName, setEditingName] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [workspaces, setWorkspaces]       = useState<Workspace[]>([])
+  const [members, setMembers]             = useState<WorkspaceMember[]>([])
+  const [inviteEmail, setInviteEmail]     = useState('')
+  const [inviteRole, setInviteRole]       = useState<InviteRole>('member')
+  const [newWsName, setNewWsName]         = useState('')
+  const [creating, setCreating]           = useState(false)
+  const [inviting, setInviting]           = useState(false)
+  const [tab, setTab]                     = useState<'workspaces' | 'members'>('workspaces')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [deleting, setDeleting]           = useState(false)
+  const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null)
   const [changingRoleId, setChangingRoleId] = useState<string | null>(null)
-
-  // Current user's role in the active workspace
-  const [myRole, setMyRole] = useState<string>('member')
+  const [myRole, setMyRole]               = useState<string>('member')
+  const [pendingInvites, setPendingInvites] = useState<{ id: string; email: string; role: string }[]>([])
 
   const fetchWorkspaces = useCallback(async () => {
-    const { data } = await supabase
-      .from('workspaces')
-      .select('*')
-      .order('created_at', { ascending: true })
+    const { data } = await supabase.from('workspaces').select('*').order('created_at', { ascending: true })
     setWorkspaces(data ?? [])
   }, [])
 
   const fetchMembers = useCallback(async () => {
     if (!currentWorkspace) return
-    const { data } = await supabase
-      .from('workspace_members')
-      .select('*')
-      .eq('workspace_id', currentWorkspace.id)
+    const { data } = await supabase.from('workspace_members').select('*').eq('workspace_id', currentWorkspace.id)
     setMembers(data ?? [])
   }, [currentWorkspace])
 
   const fetchMyRole = useCallback(async () => {
     if (!currentWorkspace) return
     if (currentWorkspace.owner_id === userId) { setMyRole('admin'); return }
-    const { data } = await supabase
-      .from('workspace_members')
-      .select('role')
-      .eq('workspace_id', currentWorkspace.id)
-      .eq('user_id', userId)
-      .single()
+    const { data } = await supabase.from('workspace_members').select('role').eq('workspace_id', currentWorkspace.id).eq('user_id', userId).single()
     setMyRole(data?.role ?? 'member')
   }, [currentWorkspace, userId])
 
-  useEffect(() => { fetchWorkspaces() }, [fetchWorkspaces])
-  useEffect(() => { if (currentWorkspace) { fetchMembers(); fetchMyRole() } }, [currentWorkspace, fetchMembers, fetchMyRole])
+  const fetchPendingInvites = useCallback(async () => {
+    if (!currentWorkspace) return
+    const { data } = await supabase.from('workspace_invites').select('id, email, role').eq('workspace_id', currentWorkspace.id).eq('status', 'pending')
+    setPendingInvites(data ?? [])
+  }, [currentWorkspace])
+
+  useEffect(() => { void fetchWorkspaces() }, [fetchWorkspaces])
+  useEffect(() => {
+    if (currentWorkspace) { void fetchMembers(); void fetchMyRole(); void fetchPendingInvites() }
+  }, [currentWorkspace, fetchMembers, fetchMyRole, fetchPendingInvites])
 
   const isAdmin = myRole === 'admin' || currentWorkspace?.owner_id === userId
 
   const createWorkspace = async () => {
-    if (!newWorkspaceName.trim()) return
+    if (!newWsName.trim()) return
     setCreating(true)
-    const { data, error } = await supabase
-      .from('workspaces')
-      .insert({ name: newWorkspaceName.trim(), owner_id: userId })
-      .select().single()
+    const { data, error } = await supabase.from('workspaces').insert({ name: newWsName.trim(), owner_id: userId, color: '#8b5cf6' }).select().single()
     if (error) toast.error('Failed to create workspace')
-    else {
-      toast.success('Workspace created!')
-      setNewWorkspaceName('')
-      fetchWorkspaces()
-      onWorkspaceChange(data)
-    }
+    else { toast.success('Workspace created!'); setNewWsName(''); void fetchWorkspaces(); onWorkspaceChange(data) }
     setCreating(false)
-  }
-
-  const startEditing = (ws: Workspace, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setConfirmDeleteId(null)
-    setEditingId(ws.id)
-    setEditingName(ws.name)
-  }
-
-  const cancelEditing = (e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    setEditingId(null)
-    setEditingName('')
-  }
-
-  const saveEdit = async (wsId: string, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    if (!editingName.trim()) return
-    setSaving(true)
-    const { data, error } = await supabase
-      .from('workspaces')
-      .update({ name: editingName.trim() })
-      .eq('id', wsId)
-      .select().single()
-    if (error) toast.error('Failed to rename workspace')
-    else {
-      toast.success('Workspace renamed!')
-      setEditingId(null)
-      setEditingName('')
-      fetchWorkspaces()
-      if (currentWorkspace?.id === wsId) onWorkspaceChange(data)
-    }
-    setSaving(false)
   }
 
   const deleteWorkspace = async (wsId: string, e?: React.MouseEvent) => {
     e?.stopPropagation()
     setDeleting(true)
     await supabase.from('workspace_members').delete().eq('workspace_id', wsId)
+    await supabase.from('workspace_invites').delete().eq('workspace_id', wsId)
     await supabase.from('tasks').delete().eq('workspace_id', wsId)
     const { error } = await supabase.from('workspaces').delete().eq('id', wsId)
     if (error) toast.error('Failed to delete workspace')
-    else {
-      toast.success('Workspace deleted')
-      setConfirmDeleteId(null)
-      if (currentWorkspace?.id === wsId) onWorkspaceChange(null)
-      fetchWorkspaces()
-    }
+    else { toast.success('Workspace deleted'); setConfirmDeleteId(null); if (currentWorkspace?.id === wsId) onWorkspaceChange(null); void fetchWorkspaces() }
     setDeleting(false)
   }
 
@@ -157,520 +248,351 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
     if (!inviteEmail.trim() || !currentWorkspace) return
     setInviting(true)
 
-    const existing = await supabase
-      .from('workspace_members')
-      .select('*')
-      .eq('workspace_id', currentWorkspace.id)
-      .eq('email', inviteEmail.trim())
+    // Check not already a member
+    const { data: existing } = await supabase.from('workspace_members').select('id').eq('workspace_id', currentWorkspace.id).eq('email', inviteEmail.trim())
+    if (existing && existing.length > 0) { toast.error('Already a member'); setInviting(false); return }
 
-    if (existing.data && existing.data.length > 0) {
-      toast.error('User already invited!')
-      setInviting(false)
-      return
-    }
+    // Check no pending invite
+    const { data: existingInvite } = await supabase.from('workspace_invites').select('id').eq('workspace_id', currentWorkspace.id).eq('email', inviteEmail.trim()).eq('status', 'pending')
+    if (existingInvite && existingInvite.length > 0) { toast.error('Invite already pending'); setInviting(false); return }
 
-    const { data: foundUserId } = await supabase.rpc('get_user_id_by_email', {
-      email_input: inviteEmail.trim()
+    const { error } = await supabase.from('workspace_invites').insert({
+      workspace_id: currentWorkspace.id,
+      invited_by: userId,
+      email: inviteEmail.trim(),
+      role: inviteRole,
     })
 
-    const memberId = foundUserId ?? userId
-
-    const { error: insertError } = await supabase
-      .from('workspace_members')
-      .insert({
-        workspace_id: currentWorkspace.id,
-        user_id: memberId,
-        email: inviteEmail.trim(),
-        role: inviteRole,
-      })
-
-    if (insertError) toast.error('Failed to invite member')
-    else {
-      toast.success(`${inviteRole === 'viewer' ? 'Viewer' : inviteRole === 'admin' ? 'Admin' : 'Member'} invited!`)
-      setInviteEmail('')
-      setInviteRole('member')
-      fetchMembers()
-    }
+    if (error) toast.error('Failed to send invite')
+    else { toast.success(`Invite sent to ${inviteEmail.trim()}!`); setInviteEmail(''); setInviteRole('member'); void fetchPendingInvites() }
     setInviting(false)
   }
 
   const removeMember = async (memberId: string) => {
-    const { error } = await supabase
-      .from('workspace_members')
-      .delete()
-      .eq('id', memberId)
+    const { error } = await supabase.from('workspace_members').delete().eq('id', memberId)
     if (error) toast.error('Failed to remove member')
-    else { toast.success('Member removed'); fetchMembers() }
+    else { toast.success('Member removed'); void fetchMembers() }
+  }
+
+  const cancelInvite = async (inviteId: string) => {
+    await supabase.from('workspace_invites').delete().eq('id', inviteId)
+    toast.success('Invite cancelled')
+    void fetchPendingInvites()
   }
 
   const changeRole = async (memberId: string, newRole: string) => {
     setChangingRoleId(memberId)
-    const { error } = await supabase
-      .from('workspace_members')
-      .update({ role: newRole })
-      .eq('id', memberId)
-    if (error) toast.error('Failed to change role')
-    else { toast.success(`Role updated to ${newRole}`); fetchMembers() }
+    await supabase.from('workspace_members').update({ role: newRole }).eq('id', memberId)
+    toast.success(`Role updated to ${newRole}`)
+    void fetchMembers()
     setChangingRoleId(null)
   }
 
+  const handleWorkspaceSaved = (updated: Workspace) => {
+    setWorkspaces(prev => prev.map(w => w.id === updated.id ? updated : w))
+    if (currentWorkspace?.id === updated.id) onWorkspaceChange(updated)
+    setEditingWorkspace(null)
+  }
+
+  const inputStyle = {
+    flex: 1, padding: '10px 14px',
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '10px', color: 'white' as const,
+    fontSize: '13px', fontFamily: 'Space Grotesk', outline: 'none',
+  }
+
+  const labelStyle = {
+    color: 'rgba(255,255,255,0.3)', fontSize: '10px',
+    fontFamily: 'Space Mono', letterSpacing: '0.15em',
+    display: 'block', marginBottom: '8px',
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.7)',
-        backdropFilter: 'blur(8px)',
-        zIndex: 50,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}
-    >
+    <>
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: '#080808',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: '20px',
-          width: '100%', maxWidth: '520px',
-          overflow: 'hidden',
-          boxShadow: '0 30px 80px rgba(0,0,0,0.8)',
-        }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       >
-        <div style={{ height: '2px', background: 'linear-gradient(90deg, #8b5cf6, #ec4899, #06b6d4)' }} />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          onClick={e => e.stopPropagation()}
+          style={{ background: '#080808', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', width: '100%', maxWidth: '520px', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.8)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        >
+          <div style={{ height: '2px', background: 'linear-gradient(90deg, #8b5cf6, #ec4899, #06b6d4)' }} />
 
-        <div style={{ padding: '28px' }}>
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-            <div>
-              <h2 style={{ color: 'white', fontSize: '18px', fontWeight: 700, fontFamily: 'Space Grotesk', margin: 0 }}>
-                Workspaces
-              </h2>
-              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: '4px 0 0' }}>
-                Collaborate with your team
-              </p>
+          <div style={{ padding: '28px 28px 0' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+              <div>
+                <h2 style={{ color: 'white', fontSize: '18px', fontWeight: 700, fontFamily: 'Space Grotesk', margin: 0 }}>Workspaces</h2>
+                <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: '4px 0 0' }}>Collaborate with your team</p>
+              </div>
+              <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✕</button>
             </div>
-            <button
-              onClick={onClose}
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '8px', color: 'rgba(255,255,255,0.3)',
-                cursor: 'pointer', width: '28px', height: '28px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '12px',
-              }}
-            >✕</button>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '4px', marginBottom: '20px' }}>
+              {(['workspaces', 'members'] as const).map(t => (
+                <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '8px', borderRadius: '7px', border: 'none', background: tab === t ? 'rgba(139,92,246,0.2)' : 'transparent', color: tab === t ? '#8b5cf6' : 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: tab === t ? 600 : 400, transition: 'all 0.15s', textTransform: 'capitalize' }}>
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Tabs */}
-          <div style={{
-            display: 'flex', gap: '4px',
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: '10px', padding: '4px',
-            marginBottom: '24px',
-          }}>
-            {(['workspaces', 'members'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                style={{
-                  flex: 1, padding: '8px',
-                  borderRadius: '7px', border: 'none',
-                  background: tab === t ? 'rgba(139,92,246,0.2)' : 'transparent',
-                  color: tab === t ? '#8b5cf6' : 'rgba(255,255,255,0.3)',
-                  cursor: 'pointer', fontSize: '12px',
-                  fontFamily: 'Space Grotesk', fontWeight: tab === t ? 600 : 400,
-                  transition: 'all 0.15s', textTransform: 'capitalize',
-                }}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-
-          <AnimatePresence mode="wait">
-            {tab === 'workspaces' ? (
-              <motion.div key="workspaces" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
-
-                {/* Create workspace */}
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.15em', display: 'block', marginBottom: '8px' }}>
-                    CREATE NEW WORKSPACE
-                  </label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      value={newWorkspaceName}
-                      onChange={e => setNewWorkspaceName(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && createWorkspace()}
-                      placeholder="Workspace name..."
-                      style={{
-                        flex: 1, padding: '10px 14px',
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: '10px', color: 'white',
-                        fontSize: '13px', fontFamily: 'Space Grotesk', outline: 'none',
-                      }}
-                    />
-                    <motion.button
-                      whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-                      onClick={createWorkspace} disabled={creating}
-                      style={{
-                        background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                        border: 'none', borderRadius: '10px',
-                        padding: '10px 16px', color: 'white',
-                        cursor: 'pointer', fontSize: '13px',
-                        fontFamily: 'Space Grotesk', fontWeight: 700, whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {creating ? '...' : 'Create'}
-                    </motion.button>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0 28px 28px' }}>
+            <AnimatePresence mode="wait">
+              {/* ── WORKSPACES TAB ── */}
+              {tab === 'workspaces' && (
+                <motion.div key="workspaces" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
+                  {/* Create */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={labelStyle}>CREATE NEW WORKSPACE</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input value={newWsName} onChange={e => setNewWsName(e.target.value)} onKeyDown={e => e.key === 'Enter' && createWorkspace()} placeholder="Workspace name..." style={inputStyle} />
+                      <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={createWorkspace} disabled={creating} style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '10px', padding: '10px 16px', color: 'white', cursor: 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                        {creating ? '...' : 'Create'}
+                      </motion.button>
+                    </div>
                   </div>
-                </div>
 
-                {/* Personal board */}
-                <motion.div
-                  whileHover={{ scale: 1.01 }}
-                  onClick={() => { onWorkspaceChange(null); onClose() }}
-                  style={{
-                    padding: '12px 16px', borderRadius: '12px',
-                    border: `1px solid ${currentWorkspace === null ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.06)'}`,
-                    background: currentWorkspace === null ? 'rgba(139,92,246,0.08)' : 'rgba(255,255,255,0.02)',
-                    cursor: 'pointer', marginBottom: '8px',
-                    display: 'flex', alignItems: 'center', gap: '12px',
-                  }}
-                >
-                  <div style={{
-                    width: '32px', height: '32px', borderRadius: '8px',
-                    background: 'rgba(139,92,246,0.2)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px',
-                  }}>👤</div>
-                  <div>
-                    <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0 }}>Personal Board</p>
-                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>Private tasks only you can see</p>
-                  </div>
-                  {currentWorkspace === null && <div style={{ marginLeft: 'auto', color: '#8b5cf6', fontSize: '12px' }}>✓ Active</div>}
-                </motion.div>
+                  {/* Personal board */}
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    onClick={() => { onWorkspaceChange(null); onClose() }}
+                    style={{ padding: '12px 16px', borderRadius: '12px', border: `1px solid ${currentWorkspace === null ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.06)'}`, background: currentWorkspace === null ? 'rgba(139,92,246,0.08)' : 'rgba(255,255,255,0.02)', cursor: 'pointer', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}
+                  >
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>👤</div>
+                    <div>
+                      <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0 }}>Personal Board</p>
+                      <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>Private tasks only you can see</p>
+                    </div>
+                    {currentWorkspace === null && <div style={{ marginLeft: 'auto', color: '#8b5cf6', fontSize: '12px' }}>✓ Active</div>}
+                  </motion.div>
 
-                {/* Workspace list */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto' }}>
-                  {workspaces.map(ws => (
-                    <div key={ws.id}>
-                      <motion.div
-                        whileHover={{ scale: editingId === ws.id ? 1 : 1.01 }}
-                        onClick={() => {
-                          if (editingId === ws.id || confirmDeleteId === ws.id) return
-                          onWorkspaceChange(ws); onClose()
-                        }}
-                        style={{
-                          padding: '12px 16px',
-                          borderRadius: confirmDeleteId === ws.id ? '12px 12px 0 0' : '12px',
-                          border: `1px solid ${confirmDeleteId === ws.id ? 'rgba(239,68,68,0.3)' : currentWorkspace?.id === ws.id ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.06)'}`,
-                          borderBottom: confirmDeleteId === ws.id ? 'none' : undefined,
-                          background: confirmDeleteId === ws.id ? 'rgba(239,68,68,0.05)' : currentWorkspace?.id === ws.id ? 'rgba(139,92,246,0.08)' : 'rgba(255,255,255,0.02)',
-                          cursor: editingId === ws.id || confirmDeleteId === ws.id ? 'default' : 'pointer',
-                          display: 'flex', alignItems: 'center', gap: '12px',
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        <div style={{
-                          width: '32px', height: '32px', borderRadius: '8px',
-                          background: confirmDeleteId === ws.id ? 'rgba(239,68,68,0.2)' : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: confirmDeleteId === ws.id ? '#ef4444' : 'white',
-                          fontSize: confirmDeleteId === ws.id ? '16px' : '13px',
-                          fontWeight: 700, fontFamily: 'Space Grotesk', flexShrink: 0, transition: 'all 0.15s',
-                        }}>
-                          {confirmDeleteId === ws.id ? '⚠' : ws.name.charAt(0).toUpperCase()}
-                        </div>
+                  {/* Workspace list */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {workspaces.map(ws => {
+                      const wsColor = ws.color ?? '#8b5cf6'
+                      const isActive = currentWorkspace?.id === ws.id
+                      const isOwner = ws.owner_id === userId
+                      const isDeleting = confirmDeleteId === ws.id
 
-                        {editingId === ws.id ? (
-                          <input
-                            autoFocus value={editingName}
-                            onChange={e => setEditingName(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') saveEdit(ws.id); if (e.key === 'Escape') cancelEditing() }}
-                            onClick={e => e.stopPropagation()}
+                      return (
+                        <div key={ws.id}>
+                          <motion.div
+                            whileHover={{ scale: isDeleting ? 1 : 1.01 }}
+                            onClick={() => { if (isDeleting) return; onWorkspaceChange(ws); onClose() }}
                             style={{
-                              flex: 1, padding: '4px 10px',
-                              background: 'rgba(255,255,255,0.07)',
-                              border: '1px solid rgba(139,92,246,0.5)',
-                              borderRadius: '7px', color: 'white',
-                              fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 600, outline: 'none',
+                              padding: '12px 16px',
+                              borderRadius: isDeleting ? '12px 12px 0 0' : '12px',
+                              border: `1px solid ${isDeleting ? 'rgba(239,68,68,0.3)' : isActive ? wsColor + '60' : 'rgba(255,255,255,0.06)'}`,
+                              borderBottom: isDeleting ? 'none' : undefined,
+                              background: isDeleting ? 'rgba(239,68,68,0.05)' : isActive ? wsColor + '12' : 'rgba(255,255,255,0.02)',
+                              cursor: isDeleting ? 'default' : 'pointer',
+                              display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.15s',
                             }}
-                          />
-                        ) : (
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{
-                              color: confirmDeleteId === ws.id ? '#ef4444' : 'white',
-                              fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0,
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'color 0.15s',
+                          >
+                            {/* Workspace icon */}
+                            <div style={{
+                              width: '32px', height: '32px', borderRadius: '8px',
+                              background: isDeleting ? 'rgba(239,68,68,0.2)' : `${wsColor}25`,
+                              border: `1px solid ${isDeleting ? 'rgba(239,68,68,0.4)' : wsColor + '50'}`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: ws.icon ? '16px' : '13px', fontWeight: 700,
+                              color: isDeleting ? '#ef4444' : wsColor,
+                              fontFamily: 'Space Grotesk', flexShrink: 0,
                             }}>
-                              {ws.name}
-                            </p>
-                            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>
-                              {ws.owner_id === userId ? 'Owner' : 'Member'}
-                            </p>
-                          </div>
-                        )}
+                              {isDeleting ? '⚠' : ws.icon ?? ws.name.charAt(0).toUpperCase()}
+                            </div>
 
-                        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                          {editingId === ws.id ? (
-                            <>
-                              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={e => saveEdit(ws.id, e)} disabled={saving}
-                                style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '6px', padding: '4px 10px', color: '#10b981', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>
-                                {saving ? '...' : 'Save'}
-                              </motion.button>
-                              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={cancelEditing}
-                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '4px 10px', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk' }}>
-                                Cancel
-                              </motion.button>
-                            </>
-                          ) : confirmDeleteId === ws.id ? (
-                            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={e => { e.stopPropagation(); setConfirmDeleteId(null) }}
-                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '4px 10px', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk' }}>
-                              Cancel
-                            </motion.button>
-                          ) : (
-                            <>
-                              {currentWorkspace?.id === ws.id && <div style={{ color: '#8b5cf6', fontSize: '12px' }}>✓ Active</div>}
-                              {ws.owner_id === userId && (
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ color: isDeleting ? '#ef4444' : 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {ws.name}
+                              </p>
+                              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>
+                                {ws.description ?? (isOwner ? 'Owner' : 'Member')}
+                              </p>
+                            </div>
+
+                            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                              {isActive && !isDeleting && <div style={{ color: wsColor, fontSize: '12px' }}>✓ Active</div>}
+                              {isDeleting ? (
+                                <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={e => { e.stopPropagation(); setConfirmDeleteId(null) }}
+                                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '4px 10px', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk' }}>
+                                  Cancel
+                                </motion.button>
+                              ) : isOwner ? (
                                 <>
-                                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={e => startEditing(ws, e)}
-                                    style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '6px', padding: '4px 8px', color: '#8b5cf6', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk' }}>
+                                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={e => { e.stopPropagation(); setEditingWorkspace(ws) }}
+                                    style={{ background: `${wsColor}18`, border: `1px solid ${wsColor}35`, borderRadius: '6px', padding: '4px 8px', color: wsColor, cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk' }}>
                                     ✎ Edit
                                   </motion.button>
-                                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={e => { e.stopPropagation(); setEditingId(null); setConfirmDeleteId(ws.id) }}
+                                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={e => { e.stopPropagation(); setConfirmDeleteId(ws.id) }}
                                     style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', padding: '4px 8px', color: '#ef4444', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk' }}>
                                     🗑
                                   </motion.button>
                                 </>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </motion.div>
-
-                      <AnimatePresence>
-                        {confirmDeleteId === ws.id && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                            style={{
-                              overflow: 'hidden', background: 'rgba(239,68,68,0.08)',
-                              border: '1px solid rgba(239,68,68,0.3)', borderTop: 'none',
-                              borderRadius: '0 0 12px 12px', padding: '10px 16px',
-                              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
-                            }}
-                          >
-                            <p style={{ color: '#fca5a5', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>
-                              This will delete all tasks in this workspace.
-                            </p>
-                            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={e => deleteWorkspace(ws.id, e)} disabled={deleting}
-                              style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '6px', padding: '5px 12px', color: '#ef4444', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                              {deleting ? '...' : 'Yes, Delete'}
-                            </motion.button>
+                              ) : null}
+                            </div>
                           </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  ))}
-                  {workspaces.length === 0 && (
-                    <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', fontFamily: 'Space Mono', textAlign: 'center', padding: '20px 0' }}>NO WORKSPACES YET</p>
-                  )}
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div key="members" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
-                {!currentWorkspace ? (
-                  <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px', fontFamily: 'Space Grotesk', textAlign: 'center', padding: '20px 0' }}>
-                    Select a workspace first to manage members
-                  </p>
-                ) : (
-                  <>
-                    {/* Role legend */}
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                      {Object.entries(ROLE_META).map(([key, meta]) => (
-                        <div key={key} style={{
-                          display: 'flex', alignItems: 'center', gap: '5px',
-                          padding: '4px 10px', borderRadius: '6px',
-                          background: meta.bg, border: `1px solid ${meta.border}`,
-                        }}>
-                          <span style={{ fontSize: '10px', fontWeight: 700, color: meta.color, fontFamily: 'Space Mono', letterSpacing: '0.08em' }}>{meta.label.toUpperCase()}</span>
-                          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', fontFamily: 'Space Grotesk' }}>— {meta.desc}</span>
-                        </div>
-                      ))}
-                    </div>
 
-                    {/* Invite — admin only */}
-                    {isAdmin && (
-                      <div style={{ marginBottom: '20px' }}>
-                        <label style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.15em', display: 'block', marginBottom: '8px' }}>
-                          INVITE MEMBER
-                        </label>
-                        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                          <input
-                            value={inviteEmail}
-                            onChange={e => setInviteEmail(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && inviteMember()}
-                            placeholder="colleague@email.com"
-                            type="email"
-                            style={{
-                              flex: 1, padding: '10px 14px',
-                              background: 'rgba(255,255,255,0.04)',
-                              border: '1px solid rgba(255,255,255,0.08)',
-                              borderRadius: '10px', color: 'white',
-                              fontSize: '13px', fontFamily: 'Space Grotesk', outline: 'none',
-                            }}
-                          />
-                          <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={inviteMember} disabled={inviting}
-                            style={{
-                              background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                              border: 'none', borderRadius: '10px', padding: '10px 16px',
-                              color: 'white', cursor: 'pointer', fontSize: '13px',
-                              fontFamily: 'Space Grotesk', fontWeight: 700,
-                            }}>
-                            {inviting ? '...' : 'Invite'}
-                          </motion.button>
+                          {/* Delete confirm */}
+                          <AnimatePresence>
+                            {isDeleting && (
+                              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                                style={{ overflow: 'hidden', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderTop: 'none', borderRadius: '0 0 12px 12px', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                <p style={{ color: '#fca5a5', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>Deletes all tasks in this workspace.</p>
+                                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={e => deleteWorkspace(ws.id, e)} disabled={deleting}
+                                  style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '6px', padding: '5px 12px', color: '#ef4444', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                  {deleting ? '...' : 'Yes, Delete'}
+                                </motion.button>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
+                      )
+                    })}
 
-                        {/* Role selector for invite */}
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          {(['admin', 'member', 'viewer'] as InviteRole[]).map(r => {
-                            const meta = ROLE_META[r]
-                            return (
-                              <button
-                                key={r}
-                                onClick={() => setInviteRole(r)}
-                                style={{
-                                  flex: 1, padding: '7px 4px',
-                                  borderRadius: '8px', border: `1px solid ${inviteRole === r ? meta.border : 'rgba(255,255,255,0.08)'}`,
-                                  background: inviteRole === r ? meta.bg : 'rgba(255,255,255,0.02)',
-                                  color: inviteRole === r ? meta.color : 'rgba(255,255,255,0.35)',
-                                  cursor: 'pointer', fontSize: '11px',
-                                  fontFamily: 'Space Grotesk', fontWeight: inviteRole === r ? 600 : 400,
-                                  transition: 'all 0.15s',
-                                }}
-                              >
-                                {meta.label}
-                              </button>
-                            )
-                          })}
-                        </div>
-                        <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '6px 0 0' }}>
-                          {ROLE_META[inviteRole].desc}
-                        </p>
-                      </div>
+                    {workspaces.length === 0 && (
+                      <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', fontFamily: 'Space Mono', textAlign: 'center', padding: '20px 0' }}>NO WORKSPACES YET</p>
                     )}
+                  </div>
+                </motion.div>
+              )}
 
-                    {/* Member list */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '280px', overflowY: 'auto' }}>
-
-                      {/* Owner row */}
-                      <div style={{
-                        padding: '12px 16px', borderRadius: '12px',
-                        border: '1px solid rgba(255,255,255,0.06)',
-                        background: 'rgba(255,255,255,0.02)',
-                        display: 'flex', alignItems: 'center', gap: '12px',
-                      }}>
-                        <div style={{
-                          width: '32px', height: '32px', borderRadius: '50%',
-                          background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: 'white', fontSize: '12px', fontWeight: 700,
-                        }}>
-                          {currentWorkspace.owner_id === userId ? 'Y' : '?'}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0 }}>
-                            {currentWorkspace.owner_id === userId ? 'You' : 'Owner'}
-                          </p>
-                          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>Workspace creator</p>
-                        </div>
-                        <RoleBadge role="admin" />
+              {/* ── MEMBERS TAB ── */}
+              {tab === 'members' && (
+                <motion.div key="members" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+                  {!currentWorkspace ? (
+                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px', fontFamily: 'Space Grotesk', textAlign: 'center', padding: '20px 0' }}>Select a workspace first</p>
+                  ) : (
+                    <>
+                      {/* Role legend */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px' }}>
+                        {Object.entries(ROLE_META).map(([key, meta]) => (
+                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '7px', background: meta.bg, border: `1px solid ${meta.border}` }}>
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: meta.color, fontFamily: 'Space Mono', letterSpacing: '0.08em', minWidth: '44px' }}>{meta.label.toUpperCase()}</span>
+                            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', fontFamily: 'Space Grotesk' }}>— {meta.desc}</span>
+                          </div>
+                        ))}
                       </div>
 
-                      {/* Member rows */}
-                      {members.map(member => (
-                        <div key={member.id} style={{
-                          padding: '12px 16px', borderRadius: '12px',
-                          border: '1px solid rgba(255,255,255,0.06)',
-                          background: 'rgba(255,255,255,0.02)',
-                          display: 'flex', alignItems: 'center', gap: '12px',
-                        }}>
-                          <div style={{
-                            width: '32px', height: '32px', borderRadius: '50%',
-                            background: 'rgba(255,255,255,0.08)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: 'white', fontSize: '12px', fontWeight: 700,
-                          }}>
-                            {member.email.charAt(0).toUpperCase()}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {member.email}
-                            </p>
-                          </div>
-
-                          {/* Role badge + change (admin only) */}
-                          {isAdmin ? (
-                            <select
-                              value={member.role ?? 'member'}
-                              disabled={changingRoleId === member.id}
-                              onChange={e => changeRole(member.id, e.target.value)}
-                              onClick={e => e.stopPropagation()}
-                              style={{
-                                background: 'rgba(255,255,255,0.06)',
-                                border: '1px solid rgba(255,255,255,0.12)',
-                                borderRadius: '6px', padding: '3px 8px',
-                                color: 'rgba(255,255,255,0.7)',
-                                fontSize: '11px', fontFamily: 'Space Grotesk',
-                                cursor: 'pointer', outline: 'none',
-                              }}
-                            >
-                              <option value="admin">Admin</option>
-                              <option value="member">Member</option>
-                              <option value="viewer">Viewer</option>
-                            </select>
-                          ) : (
-                            <RoleBadge role={member.role ?? 'member'} />
-                          )}
-
-                          {isAdmin && (
-                            <motion.button
-                              whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                              onClick={() => removeMember(member.id)}
-                              style={{
-                                background: 'rgba(239,68,68,0.1)',
-                                border: '1px solid rgba(239,68,68,0.2)',
-                                borderRadius: '6px', padding: '4px 8px',
-                                color: '#ef4444', cursor: 'pointer',
-                                fontSize: '11px', fontFamily: 'Space Grotesk',
-                              }}
-                            >
-                              Remove
+                      {/* Invite form — admin only */}
+                      {isAdmin && (
+                        <div style={{ marginBottom: '20px' }}>
+                          <label style={labelStyle}>INVITE BY EMAIL</label>
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                            <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && inviteMember()} placeholder="colleague@email.com" type="email" style={inputStyle} />
+                            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={inviteMember} disabled={inviting}
+                              style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '10px', padding: '10px 16px', color: 'white', cursor: 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700 }}>
+                              {inviting ? '...' : 'Invite'}
                             </motion.button>
-                          )}
+                          </div>
+                          {/* Role picker */}
+                          <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                            {(['admin', 'member', 'viewer'] as InviteRole[]).map(r => {
+                              const meta = ROLE_META[r]
+                              return (
+                                <button key={r} onClick={() => setInviteRole(r)} style={{ flex: 1, padding: '7px 4px', borderRadius: '8px', border: `1px solid ${inviteRole === r ? meta.border : 'rgba(255,255,255,0.08)'}`, background: inviteRole === r ? meta.bg : 'rgba(255,255,255,0.02)', color: inviteRole === r ? meta.color : 'rgba(255,255,255,0.35)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: inviteRole === r ? 600 : 400, transition: 'all 0.15s' }}>
+                                  {meta.label}
+                                </button>
+                              )
+                            })}
+                          </div>
+                          <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>{ROLE_META[inviteRole].desc}</p>
                         </div>
-                      ))}
-
-                      {members.length === 0 && (
-                        <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', fontFamily: 'Space Mono', textAlign: 'center', padding: '20px 0' }}>
-                          NO MEMBERS YET — INVITE SOMEONE
-                        </p>
                       )}
-                    </div>
-                  </>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+
+                      {/* Pending invites */}
+                      {pendingInvites.length > 0 && (
+                        <div style={{ marginBottom: '16px' }}>
+                          <label style={{ ...labelStyle, color: 'rgba(251,146,60,0.6)' }}>PENDING INVITES ({pendingInvites.length})</label>
+                          {pendingInvites.map(inv => (
+                            <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(251,146,60,0.06)', border: '1px solid rgba(251,146,60,0.18)', marginBottom: '6px' }}>
+                              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: 700 }}>
+                                {inv.email.charAt(0).toUpperCase()}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.email}</p>
+                              </div>
+                              <span style={{ fontSize: '9px', fontWeight: 700, color: ROLE_META[inv.role]?.color ?? '#fff', background: ROLE_META[inv.role]?.bg ?? 'transparent', border: `1px solid ${ROLE_META[inv.role]?.border ?? 'transparent'}`, padding: '2px 7px', borderRadius: '5px', fontFamily: 'Space Mono' }}>
+                                {inv.role.toUpperCase()}
+                              </span>
+                              <span style={{ fontSize: '9px', padding: '2px 7px', borderRadius: '5px', background: 'rgba(251,146,60,0.1)', color: '#fb923c', fontFamily: 'Space Mono', fontWeight: 600 }}>PENDING</span>
+                              {isAdmin && (
+                                <button onClick={() => cancelInvite(inv.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: '12px', padding: '2px 4px' }} title="Cancel invite">✕</button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Member list */}
+                      <label style={labelStyle}>MEMBERS ({members.length + 1})</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {/* Owner */}
+                        <div style={{ padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: 700 }}>
+                            {currentWorkspace.owner_id === userId ? 'Y' : '?'}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0 }}>{currentWorkspace.owner_id === userId ? 'You' : 'Owner'}</p>
+                            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>Workspace creator</p>
+                          </div>
+                          <span style={{ fontSize: '9px', fontWeight: 700, color: '#a78bfa', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: '5px', padding: '2px 8px', fontFamily: 'Space Mono' }}>ADMIN</span>
+                        </div>
+
+                        {members.map(member => (
+                          <div key={member.id} style={{ padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: 700 }}>
+                              {member.email.charAt(0).toUpperCase()}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.email}</p>
+                            </div>
+                            {isAdmin ? (
+                              <select value={member.role ?? 'member'} disabled={changingRoleId === member.id} onChange={e => changeRole(member.id, e.target.value)} onClick={e => e.stopPropagation()}
+                                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '6px', padding: '3px 8px', color: 'rgba(255,255,255,0.7)', fontSize: '11px', fontFamily: 'Space Grotesk', cursor: 'pointer', outline: 'none' }}>
+                                <option value="admin">Admin</option>
+                                <option value="member">Member</option>
+                                <option value="viewer">Viewer</option>
+                              </select>
+                            ) : (
+                              <span style={{ fontSize: '9px', fontWeight: 700, color: ROLE_META[member.role ?? 'member']?.color ?? '#fff', background: ROLE_META[member.role ?? 'member']?.bg, border: `1px solid ${ROLE_META[member.role ?? 'member']?.border}`, borderRadius: '5px', padding: '2px 8px', fontFamily: 'Space Mono' }}>
+                                {(member.role ?? 'MEMBER').toUpperCase()}
+                              </span>
+                            )}
+                            {isAdmin && (
+                              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => removeMember(member.id)}
+                                style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', padding: '4px 8px', color: '#ef4444', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk' }}>
+                                Remove
+                              </motion.button>
+                            )}
+                          </div>
+                        ))}
+
+                        {members.length === 0 && (
+                          <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', fontFamily: 'Space Mono', textAlign: 'center', padding: '16px 0' }}>NO MEMBERS YET — INVITE SOMEONE</p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
       </motion.div>
-    </motion.div>
+
+      {/* Workspace edit modal */}
+      <AnimatePresence>
+        {editingWorkspace && (
+          <WorkspaceEditModal workspace={editingWorkspace} onSave={handleWorkspaceSaved} onClose={() => setEditingWorkspace(null)} />
+        )}
+      </AnimatePresence>
+    </>
   )
 }

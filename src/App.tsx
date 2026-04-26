@@ -16,6 +16,7 @@ import NexAssistant from './components/Nex/NexAssistant'
 import NexErrorBoundary from './components/Nex/NexErrorBoundary'
 import SettingsModal from './components/SettingsModal'
 import OnboardingFlow from './components/OnboardingFlow'
+import InviteNotifications from './components/InviteNotifications'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 
@@ -420,6 +421,18 @@ function App() {
                   }}
                 />
               </div>
+            )}
+
+            {/* Invite notifications bell */}
+            {userId && profile?.email && (
+              <InviteNotifications
+                userId={userId}
+                userEmail={profile.email}
+                onInviteAccepted={() => {
+                  // Trigger workspace panel refresh if open, or just refetch
+                  void refetchTasks()
+                }}
+              />
             )}
 
             {/* New Task */}
