@@ -747,6 +747,8 @@ function App() {
             tasks={tasks}
             onOpen={setSelectedTask}
             onAddTask={() => handleAddTask('todo')}
+            userId={userId}
+            onTaskUpdated={refetchTasks}
           />
         ) : view === 'board' ? (
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
