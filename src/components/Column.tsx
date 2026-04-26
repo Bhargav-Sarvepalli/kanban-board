@@ -11,6 +11,7 @@ interface Props {
   onOpen: (task: Task) => void
   onAddTask: (status: Status) => void
   profiles?: Record<string, Profile>
+  userId?: string | null
 }
 
 const columnConfig: Record<Status, {
@@ -55,7 +56,7 @@ const columnConfig: Record<Status, {
   },
 }
 
-function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles = {} }: Props) {
+function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id })
   const config = columnConfig[id]
 
@@ -156,6 +157,7 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles = {} }: Prop
                 onDeleted={onDeleted}
                 onOpen={() => onOpen(task)}
                 profiles={profiles}
+                userId={userId}
               />
             ))}
             {/* Add task button at bottom */}
