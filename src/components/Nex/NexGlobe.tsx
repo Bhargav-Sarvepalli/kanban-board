@@ -1,157 +1,153 @@
-import { useEffect } from 'react'
-import type { CSSProperties } from 'react'
+import { useEffect, useRef } from 'react'
 
 type GlobeState = 'idle' | 'listening' | 'thinking' | 'speaking'
 
-interface NexGlobeProps {
+interface Props {
   state: GlobeState
+  size?: number
   onClick: () => void
-  onDismiss?: () => void
-  showDismiss?: boolean
 }
 
-export default function NexGlobe({ state, onClick, onDismiss, showDismiss }: NexGlobeProps) {
+export default function NexGlobe({ state, size = 48, onClick }: Props) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const animRef   = useRef<number>(0)
+  const frameRef  = useRef(0)
+
   useEffect(() => {
-    if (document.getElementById('nex-globe-styles')) return
-    const s = document.createElement('style')
-    s.id = 'nex-globe-styles'
-    s.textContent = `
-      @keyframes nexCorePulse {
-        0%,100% { transform: scale(1); }
-        50%      { transform: scale(1.07); }
-      }
-      @keyframes nexCoreThink {
-        0%,100% { transform: scale(1); opacity: 1; }
-        50%      { transform: scale(1.14); opacity: 0.85; }
-      }
-      @keyframes nexCoreListen {
-        0%,100% { transform: scale(1); }
-        25%      { transform: scale(1.1); }
-        75%      { transform: scale(0.96); }
-      }
-      @keyframes nexCoreSpeak {
-        0%,100% { transform: scale(1); }
-        20%      { transform: scale(1.13); }
-        40%      { transform: scale(0.97); }
-        60%      { transform: scale(1.09); }
-        80%      { transform: scale(1.01); }
-      }
-      @keyframes nexFadeIn {
-        from { opacity: 0; transform: translateY(4px); }
-        to   { opacity: 1; transform: translateY(0); }
-      }
-    `
-    document.head.appendChild(s)
-  }, [])
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const c2d: CanvasRenderingContext2D = ctx
 
-  const isListening = state === 'listening'
-  const isThinking  = state === 'thinking'
-  const isSpeaking  = state === 'speaking'
-  const isActive    = state !== 'idle'
+    const dpr = window.devicePixelRatio || 1
+    canvas.width  = size * dpr
+    canvas.height = size * dpr
+    c2d.scale(dpr, dpr)
 
-  const coreGradient = isThinking
-    ? `radial-gradient(circle at 32% 28%,
-        rgba(255,255,255,0.92) 0%, transparent 16%),
-       radial-gradient(circle at 65% 68%, rgba(244,114,182,0.55) 0%, transparent 35%),
-       radial-gradient(circle at 35% 35%, #fda4af 0%, #ec4899 22%, #9d174d 52%, #1a0015 80%, #000 100%)`
-    : isListening
-    ? `radial-gradient(circle at 32% 28%,
-        rgba(255,255,255,0.95) 0%, transparent 17%),
-       radial-gradient(circle at 65% 68%, rgba(103,232,249,0.4) 0%, transparent 35%),
-       radial-gradient(circle at 35% 35%, #e0f2fe 0%, #67e8f9 18%, #7c3aed 45%, #1e1b4b 75%, #000 100%)`
-    : `radial-gradient(circle at 32% 28%,
-        rgba(255,255,255,0.92) 0%, transparent 17%),
-       radial-gradient(circle at 65% 68%, rgba(236,72,153,0.45) 0%, transparent 35%),
-       radial-gradient(circle at 35% 35%, #ede9fe 0%, #c084fc 20%, #7c3aed 48%, #1e1b4b 78%, #000 100%)`
+    const cx = size / 2
+    const cy = size / 2
+    const r  = size / 2 - 4
 
-  // Core glow per state
-  const coreGlow = isThinking
-    ? '0 0 18px rgba(236,72,153,0.9), 0 0 40px rgba(236,72,153,0.4), 0 0 70px rgba(236,72,153,0.15)'
-    : isListening
-    ? '0 0 18px rgba(103,232,249,0.8), 0 0 40px rgba(139,92,246,0.5), 0 0 70px rgba(139,92,246,0.2)'
-    : isSpeaking
-    ? '0 0 18px rgba(192,132,252,0.9), 0 0 40px rgba(139,92,246,0.45), 0 0 70px rgba(139,92,246,0.18)'
-    : '0 0 14px rgba(168,85,247,0.7), 0 0 30px rgba(139,92,246,0.35), 0 0 55px rgba(139,92,246,0.12)'
+    const stateColors: Record<GlobeState, { core: string; mid: string; outer: string; glow: string }> = {
+      idle:      { core: '#e9d5ff', mid: '#8b5cf6', outer: '#4c1d95', glow: 'rgba(139,92,246,0.5)' },
+      listening: { core: '#e0f2fe', mid: '#38bdf8', outer: '#0c4a6e', glow: 'rgba(56,189,248,0.7)' },
+      thinking:  { core: '#fce7f3', mid: '#f472b6', outer: '#831843', glow: 'rgba(244,114,182,0.7)' },
+      speaking:  { core: '#d1fae5', mid: '#34d399', outer: '#064e3b', glow: 'rgba(52,211,153,0.7)' },
+    }
 
-  const coreAnim = isThinking  ? `nexCoreThink  ${0.7}s ease-in-out infinite`
-    : isListening ? `nexCoreListen ${0.5}s ease-in-out infinite`
-    : isSpeaking  ? `nexCoreSpeak  ${0.6}s ease-in-out infinite`
-    : `nexCorePulse 2.8s ease-in-out infinite`
+    function draw() {
+      frameRef.current++
+      const f = frameRef.current
+      const c = stateColors[state]
+      c2d.clearRect(0, 0, size, size)
 
-  const wrap: CSSProperties = {
-    position: 'relative',
-    width: '68px', height: '68px',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    cursor: 'pointer',
-    background: 'none', border: 'none', padding: 0, outline: 'none',
-    WebkitTapHighlightColor: 'transparent',
-  }
+      // Outer glow ring
+      const glowR = state === 'idle' ? r + 2 + Math.sin(f * 0.03) * 1.5
+                  : state === 'listening' ? r + 3 + Math.sin(f * 0.08) * 3
+                  : state === 'thinking'  ? r + 2 + Math.sin(f * 0.12) * 2
+                  : r + 3 + Math.sin(f * 0.06) * 2.5
+
+      const glowGrad = c2d.createRadialGradient(cx, cy, r - 2, cx, cy, glowR + 8)
+      glowGrad.addColorStop(0,   c.glow.replace(')', ',0.3)').replace('rgba', 'rgba'))
+      glowGrad.addColorStop(0.5, c.glow.replace(')', ',0.15)').replace('rgba', 'rgba'))
+      glowGrad.addColorStop(1,   'rgba(0,0,0,0)')
+      c2d.beginPath()
+      c2d.arc(cx, cy, glowR + 8, 0, Math.PI * 2)
+      c2d.fillStyle = glowGrad
+      c2d.fill()
+
+      // Main sphere gradient
+      const sphereGrad = c2d.createRadialGradient(cx - r * 0.3, cy - r * 0.35, 0, cx, cy, r)
+      sphereGrad.addColorStop(0,   c.core)
+      sphereGrad.addColorStop(0.4, c.mid)
+      sphereGrad.addColorStop(1,   c.outer)
+      c2d.beginPath()
+      c2d.arc(cx, cy, r, 0, Math.PI * 2)
+      c2d.fillStyle = sphereGrad
+      c2d.fill()
+
+      // Animated plasma wisps
+      const numWisps = state === 'idle' ? 2 : state === 'listening' ? 4 : 3
+      for (let i = 0; i < numWisps; i++) {
+        const speed = state === 'idle' ? 0.008 : state === 'listening' ? 0.025 : 0.015
+        const angle = (f * speed) + (i * Math.PI * 2 / numWisps)
+        const wR    = r * (0.45 + 0.2 * Math.sin(f * 0.02 + i))
+        const wx    = cx + Math.cos(angle) * wR * 0.6
+        const wy    = cy + Math.sin(angle) * wR * 0.5
+        const wSize = r * (0.18 + 0.08 * Math.sin(f * 0.04 + i * 1.3))
+        const wGrad = c2d.createRadialGradient(wx, wy, 0, wx, wy, wSize)
+        wGrad.addColorStop(0, c.core + 'cc')
+        wGrad.addColorStop(1, 'rgba(0,0,0,0)')
+        c2d.beginPath()
+        c2d.arc(wx, wy, wSize, 0, Math.PI * 2)
+        c2d.fillStyle = wGrad
+        c2d.fill()
+      }
+
+      // Specular highlight
+      const hlGrad = c2d.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx - r * 0.2, cy - r * 0.2, r * 0.55)
+      hlGrad.addColorStop(0, 'rgba(255,255,255,0.45)')
+      hlGrad.addColorStop(1, 'rgba(255,255,255,0)')
+      c2d.beginPath()
+      c2d.arc(cx, cy, r, 0, Math.PI * 2)
+      c2d.fillStyle = hlGrad
+      c2d.fill()
+
+      // Listening equalizer bars
+      if (state === 'listening') {
+        c2d.save()
+        c2d.globalAlpha = 0.7
+        const bars = 5
+        const bw   = r * 0.12
+        const gap  = bw * 0.6
+        const totalW = bars * bw + (bars - 1) * gap
+        const startX = cx - totalW / 2
+        for (let i = 0; i < bars; i++) {
+          const bh = r * (0.3 + 0.5 * Math.abs(Math.sin(f * 0.15 + i * 0.8)))
+          const bx = startX + i * (bw + gap)
+          const by = cy - bh / 2
+          c2d.fillStyle = '#e0f2fe'
+          c2d.beginPath()
+          c2d.roundRect(bx, by, bw, bh, 2)
+          c2d.fill()
+        }
+        c2d.restore()
+      }
+
+      // Thinking spinner
+      if (state === 'thinking') {
+        c2d.save()
+        c2d.globalAlpha = 0.8
+        const arcR = r * 0.55
+        c2d.strokeStyle = '#fce7f3'
+        c2d.lineWidth   = 2.5
+        c2d.lineCap     = 'round'
+        c2d.beginPath()
+        const start = (f * 0.08) % (Math.PI * 2)
+        c2d.arc(cx, cy, arcR, start, start + Math.PI * 1.2)
+        c2d.stroke()
+        c2d.restore()
+      }
+
+      animRef.current = requestAnimationFrame(draw)
+    }
+
+    draw()
+    return () => cancelAnimationFrame(animRef.current)
+  }, [state, size])
 
   return (
-    <button onClick={onClick} title="Talk to Nex" style={wrap}>
-
-      {/* Soft ambient glow — minimal, no rings */}
-      <span style={{
-        position: 'absolute',
-        inset: '-8px',
+    <canvas
+      ref={canvasRef}
+      width={size}
+      height={size}
+      onClick={onClick}
+      style={{
+        width: `${size}px`, height: `${size}px`,
+        cursor: 'pointer', display: 'block',
         borderRadius: '50%',
-        background: isThinking
-          ? 'radial-gradient(circle, rgba(236,72,153,0.14) 0%, transparent 70%)'
-          : isListening
-          ? 'radial-gradient(circle, rgba(103,232,249,0.12) 0%, transparent 70%)'
-          : 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)',
-        transition: 'background 0.6s ease',
-        pointerEvents: 'none',
-      }} />
-
-      {/* ── PLASMA CORE ONLY ── */}
-      <span style={{
-        position: 'relative',
-        zIndex: 2,
-        width: '52px', height: '52px',
-        borderRadius: '50%',
-        background: coreGradient,
-        boxShadow: coreGlow,
-        animation: coreAnim,
-        transition: 'background 0.5s ease, box-shadow 0.5s ease',
-        flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {/* Mic icon — idle only */}
-        {!isActive && (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.5 }}>
-            <rect x="9" y="2" width="6" height="12" rx="3" fill="white"/>
-            <path d="M5 10a7 7 0 0 0 14 0" stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
-            <line x1="12" y1="17" x2="12" y2="21" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-            <line x1="9" y1="21" x2="15" y2="21" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-        )}
-      </span>
-
-      {/* Dismiss × button */}
-      {showDismiss && onDismiss && (
-        <button
-          onClick={e => { e.stopPropagation(); onDismiss() }}
-          title="Hide Nex"
-          style={{
-            position: 'absolute',
-            top: '-2px', right: '-2px',
-            width: '18px', height: '18px',
-            borderRadius: '50%',
-            background: 'rgba(30,10,60,0.9)',
-            border: '1px solid rgba(139,92,246,0.4)',
-            color: 'rgba(255,255,255,0.7)',
-            fontSize: '10px',
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 10,
-            lineHeight: 1,
-            animation: 'nexFadeIn 0.15s ease',
-          }}
-        >
-          ×
-        </button>
-      )}
-    </button>
+      }}
+    />
   )
 }
