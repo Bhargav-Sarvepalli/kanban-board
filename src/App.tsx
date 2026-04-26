@@ -9,6 +9,7 @@ import CreateTaskModal from './components/CreateTaskModal'
 import TaskCard from './components/TaskCard'
 import TaskDetailPanel from './components/TaskDetailPanel'
 import CalendarView from './components/CalendarView'
+import TodayView from './components/TodayView'
 import WorkspacePanel from './components/WorkspacePanel'
 import Avatar from './components/Avatar'
 import NexAssistant from './components/Nex/NexAssistant'
@@ -29,7 +30,7 @@ function App() {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<Status>('todo')
-  const [view, setView] = useState<'board' | 'calendar'>('board')
+  const [view, setView] = useState<'today' | 'board' | 'calendar'>('today')
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const navigate = useNavigate()
@@ -654,12 +655,13 @@ function App() {
             borderRadius: '10px', padding: '4px',
           }}>
             {[
+              { id: 'today', label: '☀ Today' },
               { id: 'board', label: '⊞ Board' },
               { id: 'calendar', label: '⊟ Calendar' },
             ].map(v => (
               <button
                 key={v.id}
-                onClick={() => setView(v.id as 'board' | 'calendar')}
+                onClick={() => setView(v.id as 'today' | 'board' | 'calendar')}
                 style={{
                   padding: '6px 14px', borderRadius: '7px', border: 'none',
                   background: view === v.id ? 'rgba(139,92,246,0.25)' : 'transparent',
@@ -728,7 +730,7 @@ function App() {
           )}
         </div>
 
-        {/* Board or Calendar */}
+        {/* Board, Today, or Calendar */}
         {loading ? (
           <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '16px' }}>
             {[1, 2, 3, 4].map(i => (
@@ -740,6 +742,12 @@ function App() {
               }} />
             ))}
           </div>
+        ) : view === 'today' ? (
+          <TodayView
+            tasks={tasks}
+            onOpen={setSelectedTask}
+            onAddTask={() => handleAddTask('todo')}
+          />
         ) : view === 'board' ? (
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div style={{
