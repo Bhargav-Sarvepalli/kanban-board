@@ -164,7 +164,10 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
       void loadContext()
       onTaskCreated?.()
     }
-    if (action.type === 'update_task_status') void loadContext()
+    if (action.type === 'delete_task' || action.type === 'update_task_status') {
+      void loadContext()
+      onTaskCreated?.() // reuse same callback to refresh board
+    }
   }, [loadContext, onTaskCreated])
 
   // The core: fire Nex with the accumulated transcript
@@ -508,10 +511,23 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
                 borderTop: '1px solid rgba(255,255,255,0.05)',
                 display: 'flex', flexWrap: 'wrap', gap: '5px',
               }}>
-                {['Briefing', "What's next?", 'Add a task', 'Mark done'].map(cmd => (
+                {[
+                  { label: 'Briefing',     cmd: 'Give me a daily briefing' },
+                  { label: "What's next?", cmd: 'What should I work on next?' },
+                  { label: 'Add a task',   cmd: null },  // null = open mic
+                  { label: 'Mark done',    cmd: null },
+                ].map(({ label, cmd }) => (
                   <button
-                    key={cmd}
-                    onClick={() => { startListeningCycle() }}
+                    key={label}
+                    onClick={() => {
+                      if (cmd) {
+                        // Fire directly without mic
+                        void fireNex(cmd)
+                      } else {
+                        // Open mic for user to speak
+                        speak('Go ahead.', () => setTimeout(startListeningCycle, 200))
+                      }
+                    }}
                     style={{
                       background: 'rgba(139,92,246,0.08)',
                       border: '1px solid rgba(139,92,246,0.18)',
@@ -523,7 +539,7 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.16)'; e.currentTarget.style.color = '#c084fc' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.08)'; e.currentTarget.style.color = 'rgba(167,139,250,0.65)' }}
                   >
-                    {cmd}
+                    {label}
                   </button>
                 ))}
               </div>

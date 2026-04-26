@@ -4,6 +4,7 @@ export type NexTool =
   | 'get_task_summary'
   | 'create_task'
   | 'update_task_status'
+  | 'delete_task'
   | 'start_focus_session'
   | 'get_daily_briefing'
   | 'suggest_next_task'
@@ -119,6 +120,18 @@ const NEX_TOOLS = [
         task_title_hint: { type: 'string', description: 'Partial title for fuzzy matching if ID unknown.' },
       },
       required: ['new_status'],
+    },
+  },
+  {
+    name: 'delete_task',
+    description: 'Permanently delete a task. Triggered by: "delete", "remove", "trash". Use task_title_hint to fuzzy match.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        task_id:         { type: 'string', description: 'Exact task ID from context.' },
+        task_title_hint: { type: 'string', description: 'Partial title for fuzzy matching if ID unknown.' },
+      },
+      required: [],
     },
   },
   {
@@ -271,6 +284,23 @@ export async function executeNexTool(
       return {
         result: `Done. ${task?.title ?? 'Task'} is now ${newStatus.replace(/_/g, ' ')}.`,
         action: { type: 'update_task_status', data: { taskId, newStatus } },
+      }
+    }
+
+    case 'delete_task': {
+      let taskId = input.task_id as string | undefined
+      if (!taskId && input.task_title_hint) {
+        const hint  = (input.task_title_hint as string).toLowerCase()
+        const match = ctx.tasks.find(t => t.title.toLowerCase().includes(hint))
+        if (match) taskId = match.id
+      }
+      if (!taskId) return { result: "Couldn't identify that task. Be more specific." }
+      const task = ctx.tasks.find(t => t.id === taskId)
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+      if (error) return { result: `Delete failed. ${error.message}` }
+      return {
+        result: `Deleted: ${task?.title ?? 'task'}.`,
+        action: { type: 'delete_task', data: { taskId } },
       }
     }
 
