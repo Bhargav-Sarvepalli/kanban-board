@@ -45,6 +45,7 @@ export interface Profile {
   email: string
   full_name: string
   avatar_url: string | null
+  onboarding_completed?: boolean
 }
 
 export const COLUMNS: { id: Status; label: string }[] = [

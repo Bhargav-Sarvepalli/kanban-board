@@ -15,6 +15,7 @@ import Avatar from './components/Avatar'
 import NexAssistant from './components/Nex/NexAssistant'
 import NexErrorBoundary from './components/Nex/NexErrorBoundary'
 import SettingsModal from './components/SettingsModal'
+import OnboardingFlow from './components/OnboardingFlow'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 
@@ -39,6 +40,7 @@ function App() {
     return 'today'
   })
   const [showSettings, setShowSettings] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const navigate = useNavigate()
@@ -70,7 +72,13 @@ function App() {
       .select('*')
       .eq('id', uid)
       .single()
-    if (data) setProfile(data)
+    if (data) {
+      setProfile(data)
+      // Show onboarding for new users who haven't completed it
+      if (!data.onboarding_completed) {
+        setShowOnboarding(true)
+      }
+    }
   }
 
   const fetchProfiles = async (userIds: string[]) => {
@@ -793,6 +801,19 @@ function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* Onboarding — shown once for new users */}
+      {showOnboarding && userId && (
+        <OnboardingFlow
+          userId={userId}
+          userName={profile?.full_name ?? profile?.email ?? ''}
+          onComplete={() => {
+            setShowOnboarding(false)
+            setProfile(prev => prev ? { ...prev, onboarding_completed: true } : prev)
+            refetchTasks()
+          }}
+        />
+      )}
 
       {/* Settings Modal */}
       <AnimatePresence>
