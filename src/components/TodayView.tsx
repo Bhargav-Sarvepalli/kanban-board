@@ -46,6 +46,20 @@ const statusLabel: Record<string, string> = {
   done:        'Done',
 }
 
+const statusColor: Record<string, string> = {
+  todo:        'rgba(255,255,255,0.45)',
+  in_progress: '#a78bfa',
+  in_review:   '#fb923c',
+  done:        '#34d399',
+}
+
+const statusBg: Record<string, string> = {
+  todo:        'rgba(255,255,255,0.05)',
+  in_progress: 'rgba(167,139,250,0.1)',
+  in_review:   'rgba(251,146,60,0.1)',
+  done:        'rgba(52,211,153,0.1)',
+}
+
 interface TaskRowProps {
   task: Task
   onOpen: (task: Task) => void
@@ -110,7 +124,7 @@ function TaskRow({ task, onOpen, showBadge, userId, onTaskUpdated }: TaskRowProp
         onClick={markDone}
         title={done ? 'Done' : 'Mark as done'}
         style={{
-          width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
+          width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0,
           border: done
             ? '2px solid #34d399'
             : showBadge === 'overdue'
@@ -157,8 +171,9 @@ function TaskRow({ task, onOpen, showBadge, userId, onTaskUpdated }: TaskRowProp
           )}
           <span style={{
             fontSize: '10px', padding: '2px 7px', borderRadius: '5px',
-            background: 'rgba(255,255,255,0.05)',
-            color: 'rgba(255,255,255,0.38)', fontFamily: 'Space Mono',
+            background: statusBg[task.status] ?? 'rgba(255,255,255,0.05)',
+            color: statusColor[task.status] ?? 'rgba(255,255,255,0.38)',
+            fontFamily: 'Space Mono',
           }}>
             {statusLabel[task.status] ?? task.status}
           </span>
