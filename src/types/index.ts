@@ -29,6 +29,9 @@ export interface Workspace {
   name: string
   owner_id: string
   created_at: string
+  color?: string | null
+  icon?: string | null
+  description?: string | null
 }
 
 export interface WorkspaceMember {
