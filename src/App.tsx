@@ -14,6 +14,7 @@ import WorkspacePanel from './components/WorkspacePanel'
 import Avatar from './components/Avatar'
 import NexAssistant from './components/Nex/NexAssistant'
 import NexErrorBoundary from './components/Nex/NexErrorBoundary'
+import SettingsModal from './components/SettingsModal'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 
@@ -30,7 +31,14 @@ function App() {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<Status>('todo')
-  const [view, setView] = useState<'today' | 'board' | 'calendar'>('today')
+  const [view, setView] = useState<'today' | 'board' | 'calendar'>(() => {
+    try {
+      const saved = localStorage.getItem('nex_default_view')
+      if (saved === 'board' || saved === 'calendar' || saved === 'today') return saved
+    } catch (e) { void e }
+    return 'today'
+  })
+  const [showSettings, setShowSettings] = useState(false)
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const navigate = useNavigate()
@@ -505,6 +513,7 @@ function App() {
                     </div>
 
                     {[
+                      { icon: '⚙', label: 'Settings', action: () => { setShowSettings(true); setShowProfileMenu(false) } },
                       { icon: '⊞', label: 'My Board', action: () => { setCurrentWorkspace(null); setShowProfileMenu(false) } },
                       { icon: '👥', label: 'Workspaces', action: () => { setShowWorkspacePanel(true); setShowProfileMenu(false) } },
                     ].map(item => (
@@ -838,6 +847,25 @@ function App() {
             currentWorkspace={currentWorkspace}
             onWorkspaceChange={setCurrentWorkspace}
             onClose={() => setShowWorkspacePanel(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {showSettings && userId && (
+          <SettingsModal
+            userId={userId}
+            profile={profile}
+            onClose={() => setShowSettings(false)}
+            onProfileUpdated={setProfile}
+            nexEnabled={nexEnabled}
+            onToggleNex={toggleNex}
+            defaultView={view}
+            onDefaultViewChange={(v) => {
+              setView(v)
+              try { localStorage.setItem('nex_default_view', v) } catch (e) { void e }
+            }}
           />
         )}
       </AnimatePresence>
