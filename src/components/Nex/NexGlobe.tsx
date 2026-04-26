@@ -108,9 +108,7 @@ export default function NexGlobe({ state, size = 48, onClick }: Props) {
           const bx = startX + i * (bw + gap)
           const by = cy - bh / 2
           c2d.fillStyle = '#e0f2fe'
-          c2d.beginPath()
-          c2d.roundRect(bx, by, bw, bh, 2)
-          c2d.fill()
+          c2d.fillRect(bx, by, bw, bh)
         }
         c2d.restore()
       }
