@@ -777,6 +777,7 @@ function App() {
                     onOpen={setSelectedTask}
                     onAddTask={handleAddTask}
                     profiles={profiles}
+                    userId={userId}
                   />
                 </motion.div>
               ))}
@@ -789,6 +790,7 @@ function App() {
                     onDeleted={() => {}}
                     onOpen={() => {}}
                     profiles={profiles}
+                    userId={userId}
                   />
                 </div>
               )}
