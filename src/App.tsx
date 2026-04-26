@@ -131,7 +131,10 @@ function App() {
           .filter(t => t.last_edited_by)
           .map(t => t.last_edited_by as string)
         const creatorIds = (data ?? []).map(t => t.user_id)
-        fetchProfiles([...editorIds, ...creatorIds])
+        const assigneeIds = (data ?? [])
+          .filter(t => t.assignee_id)
+          .map(t => t.assignee_id as string)
+        fetchProfiles([...editorIds, ...creatorIds, ...assigneeIds])
       }
       setLoading(false)
     }

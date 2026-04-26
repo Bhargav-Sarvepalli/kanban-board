@@ -172,23 +172,38 @@ function TaskCard({ task, onDeleted, onOpen, profiles = {}, userId = null }: Pro
           )}
         </div>
 
-        {/* Last edited by */}
-        {task.last_edited_by && profiles[task.last_edited_by] && (
+        {/* Bottom meta row: edited by (left) + assignee (right) */}
+        {(task.last_edited_by && profiles[task.last_edited_by]) || (task.assignee_id && profiles[task.assignee_id]) ? (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: '5px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             marginLeft: '20px', marginTop: '6px', paddingTop: '6px',
             borderTop: '1px solid rgba(255,255,255,0.07)',
           }}>
-            <Avatar
-              name={profiles[task.last_edited_by].full_name ?? profiles[task.last_edited_by].email}
-              avatarUrl={profiles[task.last_edited_by].avatar_url}
-              size={14}
-            />
-            <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '9px', fontFamily: 'Space Mono' }}>
-              edited by {profiles[task.last_edited_by].full_name?.split(' ')[0] ?? profiles[task.last_edited_by].email?.split('@')[0]}
-            </span>
+            {task.last_edited_by && profiles[task.last_edited_by] ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Avatar
+                  name={profiles[task.last_edited_by].full_name ?? profiles[task.last_edited_by].email}
+                  avatarUrl={profiles[task.last_edited_by].avatar_url}
+                  size={14}
+                />
+                <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '9px', fontFamily: 'Space Mono' }}>
+                  edited by {profiles[task.last_edited_by].full_name?.split(' ')[0] ?? profiles[task.last_edited_by].email?.split('@')[0]}
+                </span>
+              </div>
+            ) : <span />}
+
+            {task.assignee_id && profiles[task.assignee_id] && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ color: 'rgba(255,255,255,0.22)', fontSize: '9px', fontFamily: 'Space Mono' }}>→</span>
+                <Avatar
+                  name={profiles[task.assignee_id].full_name ?? profiles[task.assignee_id].email}
+                  avatarUrl={profiles[task.assignee_id].avatar_url}
+                  size={18}
+                />
+              </div>
+            )}
           </div>
-        )}
+        ) : null}
       </motion.div>
 
       {showConfirm && (

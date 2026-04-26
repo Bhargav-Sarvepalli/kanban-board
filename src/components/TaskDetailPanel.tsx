@@ -34,7 +34,7 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
   const isPersonal = !task.workspace_id
   const canEdit = isPersonal
     ? task.user_id === userId
-    : canEditTask(role, task.user_id, (task as Task & { assignee_id?: string | null }).assignee_id, userId)
+    : canEditTask(role, task.user_id, task.assignee_id, userId)
 
   useEffect(() => {
     fetchComments()
@@ -318,6 +318,28 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
                 }}
               />
             </div>
+
+            {/* Assignee — workspace tasks only */}
+            {task.workspace_id && task.assignee_id && profiles?.[task.assignee_id] && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '10px 12px', background: 'rgba(139,92,246,0.05)',
+                border: '1px solid rgba(139,92,246,0.15)', borderRadius: '10px', marginBottom: '12px',
+              }}>
+                <Avatar
+                  name={profiles[task.assignee_id].full_name ?? profiles[task.assignee_id].email}
+                  avatarUrl={profiles[task.assignee_id].avatar_url}
+                  size={24}
+                />
+                <div>
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>
+                    Assigned to <span style={{ color: '#c084fc', fontWeight: 600 }}>
+                      {profiles[task.assignee_id].full_name ?? profiles[task.assignee_id].email}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Last edited by */}
             {task.last_edited_by && profiles?.[task.last_edited_by] && (

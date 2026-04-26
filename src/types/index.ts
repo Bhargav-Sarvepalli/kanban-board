@@ -6,12 +6,13 @@ export interface Task {
   description?: string
   status: Status
   priority: 'low' | 'normal' | 'high'
-  due_date?: string
+  due_date?: string | null
   recurring?: 'weekly' | 'monthly' | null
   user_id: string
-  workspace_id?: string
-  last_edited_by?: string
-  last_edited_at?: string
+  workspace_id?: string | null
+  assignee_id?: string | null        // who is responsible for this task
+  last_edited_by?: string | null
+  last_edited_at?: string | null
   created_at: string
 }
 
@@ -34,7 +35,7 @@ export interface WorkspaceMember {
   id: string
   workspace_id: string
   user_id: string
-  role: 'owner' | 'member'
+  role: 'admin' | 'member' | 'viewer'   // expanded from owner|member
   email: string
   created_at: string
 }
@@ -47,8 +48,8 @@ export interface Profile {
 }
 
 export const COLUMNS: { id: Status; label: string }[] = [
-  { id: 'todo', label: 'TO DO' },
+  { id: 'todo',        label: 'TO DO' },
   { id: 'in_progress', label: 'IN PROGRESS' },
-  { id: 'in_review', label: 'IN REVIEW' },
-  { id: 'done', label: 'DONE' },
+  { id: 'in_review',   label: 'IN REVIEW' },
+  { id: 'done',        label: 'DONE' },
 ]
