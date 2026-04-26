@@ -112,11 +112,6 @@ export default function SettingsModal({
     setSavingProfile(false)
   }
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/auth'
-  }
-
   const labelStyle = {
     display: 'block' as const,
     color: 'rgba(255,255,255,0.3)',
@@ -494,26 +489,6 @@ export default function SettingsModal({
                         </div>
                       ))}
                     </div>
-                  </div>
-
-                  {/* Sign out */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={labelStyle}>SESSION</label>
-                    <motion.button
-                      whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                      onClick={handleSignOut}
-                      style={{
-                        width: '100%', padding: '12px', borderRadius: '10px',
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        color: 'rgba(255,255,255,0.6)',
-                        cursor: 'pointer', fontSize: '13px',
-                        fontFamily: 'Space Grotesk', fontWeight: 600,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                      }}
-                    >
-                      <span>↩</span> Sign out
-                    </motion.button>
                   </div>
 
                   {/* Danger zone */}
