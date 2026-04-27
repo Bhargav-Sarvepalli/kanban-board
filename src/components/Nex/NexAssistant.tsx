@@ -285,7 +285,9 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
 
   return (
     <motion.div
-      animate={{ right: panelOpen ? 504 : 24 }}
+      animate={{ 
+        x: panelOpen ? 'calc(-100vw + 220px)' : 0,
+      }}
       transition={{ type: 'spring', damping: 28, stiffness: 300 }}
       style={{ position: 'fixed', bottom: '24px', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px', pointerEvents: 'none', userSelect: 'none' }}
     >
