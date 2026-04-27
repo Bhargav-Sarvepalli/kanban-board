@@ -12,8 +12,8 @@ interface Props {
   onProfileUpdated: (profile: Profile) => void
   nexEnabled: boolean
   onToggleNex: () => void
-  defaultView: 'today' | 'board' | 'calendar'
-  onDefaultViewChange: (view: 'today' | 'board' | 'calendar') => void
+  defaultView: 'today' | 'board' | 'calendar' | 'flow'
+  onDefaultViewChange: (view: 'today' | 'board' | 'calendar' | 'flow') => void
 }
 
 type Tab = 'profile' | 'preferences' | 'account'
