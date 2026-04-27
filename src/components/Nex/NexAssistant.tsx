@@ -277,16 +277,12 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
   const stateLabel  = isListening ? 'LISTENING' : isThinking ? 'THINKING' : isSpeaking ? 'SPEAKING' : 'IDLE'
 
   return (
-    <motion.div
-      initial={false}
-      animate={panelOpen
-        ? { left: 24, right: 'auto' }
-        : { left: 'auto', right: 24 }
-      }
-      transition={{ type: 'tween', duration: 0.38, ease: [0.4, 0, 0.2, 1] }}
+    // Plain div with CSS transition — no Framer Motion physics, no bounce
+    <div
       style={{
         position: 'fixed',
         bottom: '24px',
+        right: '24px',
         zIndex: 9999,
         display: 'flex',
         flexDirection: 'column',
@@ -294,6 +290,8 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
         gap: '10px',
         pointerEvents: 'none',
         userSelect: 'none',
+        transform: panelOpen ? 'translateX(calc(-100vw + 228px))' : 'translateX(0)',
+        transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
 
@@ -415,6 +413,6 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
