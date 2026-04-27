@@ -279,7 +279,8 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
   return (
     <motion.div
       animate={{
-        right: panelOpen ? '340px' : '24px',
+        left: panelOpen ? '24px' : 'auto',
+        right: panelOpen ? 'auto' : '24px',
       }}
       transition={{ type: 'spring', damping: 28, stiffness: 300 }}
       style={{
