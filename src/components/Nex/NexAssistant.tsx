@@ -54,7 +54,7 @@ declare global {
 const TOOLTIP_KEY = 'nex_tooltip_seen'
 const SILENCE_MS  = 1200
 const ORB_SIZE    = 52
-const MAX_HISTORY = 20 // keep last 20 messages in history
+const MAX_HISTORY = 20
 
 export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, onTaskCreated, panelOpen = false }: NexAssistantProps) {
   const [globeState, setGlobeState]   = useState<GlobeState>('idle')
@@ -64,7 +64,6 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
   const [messages, setMessages]       = useState<Message[]>([])
   const [taskCtx, setTaskCtx]         = useState<TaskContext>({ tasks: [], workspaceName: '', userName: '', isPersonal: true })
 
-  // Conversation history for multi-turn memory
   const historyRef      = useRef<ConvMessage[]>([])
   const recognitionRef  = useRef<SpeechRecognition | null>(null)
   const globeStateRef   = useRef<GlobeState>('idle')
@@ -124,7 +123,6 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
     setMessages(prev => [...prev.slice(-12), { id: Date.now().toString(), role, text }])
   }, [])
 
-  // Warm up TTS engine — fixes Chrome first-utterance cut-off bug
   const warmupTTS = useCallback(() => {
     if (ttsWarmedRef.current) return
     ttsWarmedRef.current = true
@@ -136,7 +134,6 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
   const speak = useCallback((text: string, onDone?: () => void) => {
     warmupTTS()
     window.speechSynthesis.cancel()
-    // Small delay after cancel to avoid Chrome overlap bug
     setTimeout(() => {
       const utter = new SpeechSynthesisUtterance(text)
       const trySpeak = () => {
@@ -174,17 +171,14 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
     finalTextRef.current = ''
 
     try {
-      // Pass full conversation history for memory
       const { speech, action, newHistory } = await askNex(
         transcript, taskCtx, workspaceId, userId,
         historyRef.current.slice(-MAX_HISTORY)
       )
-      // Update history ref
       historyRef.current = newHistory.slice(-MAX_HISTORY)
       if (action) handleAction(action)
       addMessage('nex', speech)
       speak(speech, () => {
-        // Auto-listen after response for natural back-and-forth
         setTimeout(() => {
           if (globeStateRef.current === 'idle') startListeningCycle()
         }, 500)
@@ -241,7 +235,6 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
     setGlobeState('idle'); setInterimText('')
   }, [])
 
-  // Every click greets + listens — not just first time
   const handleActivate = useCallback(() => {
     if (showTooltip) { setShowTooltip(false); localStorage.setItem(TOOLTIP_KEY, '1') }
     if (!isPro) { speak('Nex is available on the Pro plan.'); return }
@@ -285,11 +278,22 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
 
   return (
     <motion.div
-      animate={{ 
-        x: panelOpen ? 'calc(-100vw + 220px)' : 0,
+      animate={{
+        right: panelOpen ? '340px' : '24px',
       }}
       transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-      style={{ position: 'fixed', bottom: '24px', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px', pointerEvents: 'none', userSelect: 'none' }}
+      style={{
+        position: 'fixed',
+        bottom: '24px',
+        right: '24px',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: '10px',
+        pointerEvents: 'none',
+        userSelect: 'none',
+      }}
     >
 
       {/* Conversation panel */}
