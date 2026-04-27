@@ -289,7 +289,7 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
         zIndex: 9999,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'flex-end',
+        alignItems: panelOpen ? 'flex-start' : 'flex-end',
         gap: '10px',
         pointerEvents: 'none',
         userSelect: 'none',
