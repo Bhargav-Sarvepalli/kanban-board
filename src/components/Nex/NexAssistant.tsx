@@ -282,7 +282,7 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
         left: panelOpen ? '24px' : 'auto',
         right: panelOpen ? 'auto' : '24px',
       }}
-      transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+      transition={{ type: 'tween', duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
       style={{
         position: 'fixed',
         bottom: '24px',
