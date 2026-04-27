@@ -278,14 +278,15 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
 
   return (
     <motion.div
-      animate={{
-        x: panelOpen ? 'calc(-100vw + 228px)' : 0,
-      }}
+      initial={false}
+      animate={panelOpen
+        ? { left: 24, right: 'auto' }
+        : { left: 'auto', right: 24 }
+      }
       transition={{ type: 'tween', duration: 0.38, ease: [0.4, 0, 0.2, 1] }}
       style={{
         position: 'fixed',
         bottom: '24px',
-        right: '24px',   // always right, never touch left
         zIndex: 9999,
         display: 'flex',
         flexDirection: 'column',
