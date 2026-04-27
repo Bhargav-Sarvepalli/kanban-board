@@ -33,10 +33,10 @@ function App() {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<Status>('todo')
-  const [view, setView] = useState<'today' | 'board' | 'calendar'>(() => {
+  const [view, setView] = useState<'today' | 'board' | 'calendar' | 'flow'>(() => {
     try {
       const saved = localStorage.getItem('nex_default_view')
-      if (saved === 'board' || saved === 'calendar' || saved === 'today') return saved
+      if (saved === 'board' || saved === 'calendar' || saved === 'today' || saved === 'flow') return saved
     } catch (e) { void e }
     return 'today'
   })
@@ -631,13 +631,13 @@ function App() {
             borderRadius: '10px', padding: '4px',
           }}>
             {[
-              { id: 'today', label: '☀ Today' },
-              { id: 'board', label: '⊞ Board' },
+              { id: 'today',    label: '☀ Today' },
+              { id: 'board',    label: '⊞ Board' },
               { id: 'calendar', label: '⊟ Calendar' },
             ].map(v => (
               <button
                 key={v.id}
-                onClick={() => setView(v.id as 'today' | 'board' | 'calendar')}
+                onClick={() => setView(v.id as 'today' | 'board' | 'calendar' | 'flow')}
                 style={{
                   padding: '6px 14px', borderRadius: '7px', border: 'none',
                   background: view === v.id ? 'rgba(139,92,246,0.25)' : 'transparent',
@@ -771,6 +771,7 @@ function App() {
               )}
             </DragOverlay>
           </DndContext>
+
         ) : (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -855,6 +856,7 @@ function App() {
             isPro={isPro}
             nexEnabled={nexEnabled}
             onTaskCreated={refetchTasks}
+            panelOpen={showSettings}
           />
         </NexErrorBoundary>
       )}

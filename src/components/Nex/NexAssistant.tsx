@@ -13,6 +13,7 @@ interface NexAssistantProps {
   isPro: boolean
   nexEnabled: boolean
   onTaskCreated?: () => void
+  panelOpen?: boolean
 }
 
 interface Message {
@@ -55,7 +56,7 @@ const SILENCE_MS  = 1200
 const ORB_SIZE    = 52
 const MAX_HISTORY = 20 // keep last 20 messages in history
 
-export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, onTaskCreated }: NexAssistantProps) {
+export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, onTaskCreated, panelOpen = false }: NexAssistantProps) {
   const [globeState, setGlobeState]   = useState<GlobeState>('idle')
   const [expanded, setExpanded]       = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
@@ -283,7 +284,11 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
   const stateLabel  = isListening ? 'LISTENING' : isThinking ? 'THINKING' : isSpeaking ? 'SPEAKING' : 'IDLE'
 
   return (
-    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px', pointerEvents: 'none', userSelect: 'none' }}>
+    <motion.div
+      animate={{ right: panelOpen ? 504 : 24 }}
+      transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+      style={{ position: 'fixed', bottom: '24px', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px', pointerEvents: 'none', userSelect: 'none' }}
+    >
 
       {/* Conversation panel */}
       <AnimatePresence>
@@ -403,6 +408,6 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
