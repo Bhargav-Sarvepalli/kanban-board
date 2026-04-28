@@ -8,13 +8,13 @@ interface ExecutionMapProps {
   onTaskClick?: (task: FlowTask, branch: FlowBranch) => void
 }
 
-const TRUNK_Y       = 160
+const TRUNK_Y       = 80
 const TRUNK_X_START = 120
 const BRANCH_X_GAP  = 280
 const NODE_GAP      = 72
-const BRANCH_LENGTH = 260
+const BRANCH_LENGTH = 160
 const NODE_R        = 14
-const SVG_HEIGHT    = 580
+const SVG_HEIGHT    = 480
 
 function statusColor(status: string): string {
   switch (status) {
