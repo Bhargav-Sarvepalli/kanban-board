@@ -62,37 +62,6 @@ function deadlineHealth(branches: FlowBranch[]): { label: string; color: string 
   return { label: 'BEHIND', color: '#ef4444' }
 }
 
-// Small avatar component for SVG foreignObject
-function AvatarChip({ branch, isHov }: { branch: FlowBranch; isHov: boolean }) {
-  return (
-    <div style={{
-      display: 'inline-flex', alignItems: 'center', gap: '6px',
-      background: `${branch.color}22`,
-      border: `1.5px solid ${branch.color}${isHov ? 'cc' : '66'}`,
-      borderRadius: '14px', padding: '3px 8px 3px 3px',
-      backdropFilter: 'blur(12px)',
-      transition: 'all 0.2s',
-    }}>
-      {/* Avatar */}
-      <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `1.5px solid ${branch.color}`, overflow: 'hidden', flexShrink: 0 }}>
-        {branch.avatar_url
-          ? <img src={branch.avatar_url} alt={branch.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <div style={{ width: '100%', height: '100%', background: `linear-gradient(135deg, ${branch.color}, ${branch.color}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 800, color: 'white' }}>
-              {branch.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-            </div>
-        }
-      </div>
-      {/* Name — first name only */}
-      <span style={{ color: 'white', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 700, whiteSpace: 'nowrap', maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {branch.name.split(' ')[0]}
-      </span>
-      {/* Progress */}
-      <span style={{ color: branch.color, fontSize: '10px', fontFamily: 'Space Mono', fontWeight: 700 }}>
-        {branch.progress}%
-      </span>
-    </div>
-  )
-}
 
 export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps) {
   const { branches, totalTasks, totalDone, overallProgress, loading, error } = useFlowData(workspaceId)
@@ -187,12 +156,12 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
             <div style={{ position: 'relative', width: '44px', height: '44px' }}>
               <svg width="44" height="44" style={{ transform: 'rotate(-90deg)' }}>
                 <defs>
-                  <linearGradient id="cpg" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <linearGradient id="circularProgress" x1="0%" y1="0%" x2="100%" y2="0%">
                     <stop offset="0%" stopColor="#8b5cf6" /><stop offset="100%" stopColor="#22c55e" />
                   </linearGradient>
                 </defs>
                 <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
-                <circle cx="22" cy="22" r="18" fill="none" stroke="url(#cpg)" strokeWidth="3"
+                <circle cx="22" cy="22" r="18" fill="none" stroke="url(#circularProgress)" strokeWidth="3"
                   strokeDasharray={`${(overallProgress / 100) * 113.1} 113.1`}
                   strokeLinecap="round" style={{ transition: 'stroke-dasharray 1s ease' }} />
               </svg>
@@ -424,14 +393,30 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
                   />
 
                   {/* ── COMPACT BRANCH LABEL ── no foreignObject overlap with nodes */}
-                  <foreignObject
-                    x={originX - 10}
-                    y={above ? branchY - 46 : branchY + 12}
-                    width={160} height={32}
-                    style={{ overflow: 'visible', pointerEvents: 'none' }}
-                  >
-                    <AvatarChip branch={branch} isHov={isHov} />
-                  </foreignObject>
+                  {/* Avatar circle */}
+                  <circle cx={originX} cy={above ? branchY - 32 : branchY + 32}
+                    r={10} fill={branch.color}
+                    stroke="rgba(0,0,0,0.3)" strokeWidth={1.5}
+                  />
+                  <text x={originX} y={above ? branchY - 28 : branchY + 36}
+                    textAnchor="middle"
+                    fill="white" fontSize={7} fontFamily="Space Grotesk" fontWeight={800}>
+                    {branch.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                  </text>
+
+                  {/* Branch name */}
+                  <text x={originX + 14} y={above ? branchY - 28 : branchY + 36}
+                    fill="white" fontSize={11} fontFamily="Space Grotesk" fontWeight={700}
+                    textAnchor="start">
+                    {branch.name.split(' ')[0].length > 10 ? branch.name.split(' ')[0].slice(0, 9) + '…' : branch.name.split(' ')[0]}
+                  </text>
+
+                  {/* Progress % */}
+                  <text x={originX + 14} y={above ? branchY - 16 : branchY + 50}
+                    fill={branch.color} fontSize={10} fontFamily="Space Mono" fontWeight={700}
+                    textAnchor="start">
+                    {branch.progress}%
+                  </text>
 
                   {/* ── TASK NODES ── */}
                   {nodes.map(({ task, x, y }, ni) => {
