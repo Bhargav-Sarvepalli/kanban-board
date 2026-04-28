@@ -9,14 +9,14 @@ interface FlowGraphProps {
 }
 
 // ── Layout constants ──────────────────────────────────────────────
-const TRUNK_Y         = 320   // vertical center of the SVG
-const NODE_R          = 22    // task node radius
-const TRUNK_NODE_R    = 28    // milestone node radius
-const BRANCH_OFFSET   = 180   // how far above/below trunk branches run
-const NODE_SPACING    = 140   // horizontal space between task nodes
+const TRUNK_Y         = 480   // vertical center of the SVG
+const NODE_R          = 18    // task node radius
+const TRUNK_NODE_R    = 22    // milestone node radius
+const BRANCH_OFFSET   = 200   // how far above/below trunk branches run
+const NODE_SPACING    = 120   // horizontal space between task nodes
 const BRANCH_START_X  = 220   // where first branch origin starts
 const BRANCH_GAP      = 360   // horizontal gap between branches
-const SVG_HEIGHT      = 720
+const SVG_HEIGHT      = 900
 
 function statusFill(status: string): string {
   switch (status) {

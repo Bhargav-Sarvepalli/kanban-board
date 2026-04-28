@@ -427,8 +427,12 @@ function App() {
               </button>
             </div>
           ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
-              style={{ height: 'calc(100vh - 130px)' }}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              style={{ height: 'calc(100vh - 110px)', overflow: 'hidden' }}
+            >
               <FlowGraph
                 workspaceId={currentWorkspace.id}
                 userId={userId}
