@@ -9,11 +9,11 @@ interface FlowGraphProps {
 }
 
 const NODE_R         = 16
-const TRUNK_NODE_R   = 22
-const BRANCH_OFFSET  = 160
+const TRUNK_NODE_R   = 20
+const BRANCH_OFFSET  = 130
 const NODE_SPACING   = 130
-const BRANCH_START_X = 220
-const BRANCH_GAP     = 340
+const BRANCH_START_X = 200
+const BRANCH_GAP     = 320
 
 function statusFill(status: string): string {
   switch (status) {
@@ -71,25 +71,24 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
   const [viewBy, setViewBy]               = useState<'person' | 'feature'>('person')
   const [isDragging, setIsDragging]       = useState(false)
   const [dragStart, setDragStart]         = useState({ x: 0, scroll: 0 })
-  const [containerH, setContainerH]       = useState(500)
-  const scrollRef    = useRef<HTMLDivElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  // svgH = measured height of ONLY the SVG scroll area
+  const [svgH, setSvgH] = useState(400)
+  const svgWrapRef = useRef<HTMLDivElement>(null)
+  const scrollRef  = useRef<HTMLDivElement>(null)
 
-  // Measure actual container height so trunk is always centered
+  // Measure ONLY the SVG wrapper — not the full component
   useEffect(() => {
-    const el = containerRef.current
+    const el = svgWrapRef.current
     if (!el) return
-    const ro = new ResizeObserver(entries => {
-      for (const e of entries) setContainerH(e.contentRect.height)
-    })
+    const measure = () => setSvgH(el.clientHeight || 400)
+    measure()
+    const ro = new ResizeObserver(measure)
     ro.observe(el)
-    setContainerH(el.clientHeight)
     return () => ro.disconnect()
   }, [])
 
-  // TRUNK_Y = center of the measured container, with a slight upward bias
-  const TRUNK_Y  = Math.max(180, containerH * 0.45)
-  const SVG_H    = containerH
+  // Trunk at exactly 50% of the SVG area
+  const TRUNK_Y = Math.round(svgH * 0.5)
 
   const layout = useMemo<{ branches: BranchLayout[]; svgWidth: number; nowX: number } | null>(() => {
     if (!branches.length) return null
@@ -114,9 +113,8 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
   // Auto-scroll to NOW
   useEffect(() => {
     if (!layout || !scrollRef.current) return
-    const el  = scrollRef.current
-    const scrollTo = layout.nowX - el.clientWidth / 2
-    el.scrollLeft = Math.max(0, scrollTo)
+    const scrollTo = layout.nowX - scrollRef.current.clientWidth / 2
+    scrollRef.current.scrollLeft = Math.max(0, scrollTo)
   }, [layout])
 
   const health = deadlineHealth(branches)
@@ -128,6 +126,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
         <div style={{ width: '40px', height: '40px', margin: '0 auto 12px', border: '2px solid rgba(139,92,246,0.15)', borderTop: '2px solid #8b5cf6', borderRadius: '50%', animation: 'fgSpin 0.8s linear infinite' }} />
         <p style={{ color: 'rgba(255,255,255,0.2)', fontFamily: 'Space Mono', fontSize: '10px', letterSpacing: '0.2em' }}>LOADING FLOW…</p>
       </div>
+      <style>{`@keyframes fgSpin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 
@@ -149,24 +148,22 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
   const pastX    = nowX * 0.45
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* ── TOP BAR ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', flexShrink: 0, flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          {/* Circular progress */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ position: 'relative', width: '44px', height: '44px' }}>
-              <svg width="44" height="44" style={{ transform: 'rotate(-90deg)' }}>
+            <div style={{ position: 'relative', width: '42px', height: '42px' }}>
+              <svg width="42" height="42" style={{ transform: 'rotate(-90deg)' }}>
                 <defs>
                   <linearGradient id="cpg" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#8b5cf6" />
-                    <stop offset="100%" stopColor="#22c55e" />
+                    <stop offset="0%" stopColor="#8b5cf6" /><stop offset="100%" stopColor="#22c55e" />
                   </linearGradient>
                 </defs>
-                <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
-                <circle cx="22" cy="22" r="18" fill="none" stroke="url(#cpg)" strokeWidth="3"
-                  strokeDasharray={`${(overallProgress / 100) * 113.1} 113.1`}
+                <circle cx="21" cy="21" r="17" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
+                <circle cx="21" cy="21" r="17" fill="none" stroke="url(#cpg)" strokeWidth="3"
+                  strokeDasharray={`${(overallProgress / 100) * 106.8} 106.8`}
                   strokeLinecap="round" style={{ transition: 'stroke-dasharray 1s ease' }} />
               </svg>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -179,15 +176,13 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
             </div>
           </div>
 
-          <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.07)' }} />
+          <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.07)' }} />
 
-          {/* Health */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: `${health.color}14`, border: `1px solid ${health.color}40`, borderRadius: '8px', padding: '5px 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', background: `${health.color}14`, border: `1px solid ${health.color}40`, borderRadius: '8px', padding: '5px 12px' }}>
             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: health.color, boxShadow: `0 0 8px ${health.color}` }} />
             <span style={{ color: health.color, fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 700, letterSpacing: '0.1em' }}>{health.label}</span>
           </div>
 
-          {/* Stats */}
           <div style={{ display: 'flex', gap: '16px' }}>
             {[
               { label: 'BRANCHES', value: branches.length, color: '#a78bfa' },
@@ -203,7 +198,6 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
           </div>
         </div>
 
-        {/* Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '3px' }}>
             {(['person', 'feature'] as const).map(v => (
@@ -215,7 +209,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
           </div>
           <button onClick={() => setStandupMode(s => !s)}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: standupMode ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${standupMode ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', color: standupMode ? '#f87171' : 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.08em', transition: 'all 0.2s' }}>
-            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: standupMode ? '#ef4444' : 'rgba(255,255,255,0.3)', animation: standupMode ? 'fgRing 1s ease-in-out infinite' : 'none' }} />
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: standupMode ? '#ef4444' : 'rgba(255,255,255,0.3)' }} />
             {standupMode ? 'STANDUP LIVE' : 'STANDUP'}
           </button>
         </div>
@@ -253,8 +247,8 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
         </div>
       </div>
 
-      {/* ── SVG CANVAS ── */}
-      <div ref={containerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+      {/* ── SVG AREA — this ref is what we measure ── */}
+      <div ref={svgWrapRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
         <div
           ref={scrollRef}
           onMouseDown={(e) => { setIsDragging(true); setDragStart({ x: e.clientX, scroll: scrollRef.current?.scrollLeft ?? 0 }) }}
@@ -263,7 +257,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
           onMouseLeave={() => { setIsDragging(false); setTooltip(null) }}
           style={{ width: '100%', height: '100%', overflowX: 'auto', overflowY: 'hidden', cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }}
         >
-          <svg width={layout.svgWidth} height={SVG_H} style={{ display: 'block' }}>
+          <svg width={layout.svgWidth} height={svgH} style={{ display: 'block' }}>
             <defs>
               <linearGradient id="trunkGrad" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%"   stopColor="#22c55e" stopOpacity="0.5" />
@@ -278,29 +272,27 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
                 </linearGradient>
               ))}
               <filter id="tg" x="-10%" y="-200%" width="120%" height="500%">
-                <feGaussianBlur stdDeviation="4" result="b" />
-                <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+                <feGaussianBlur stdDeviation="4" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
               {layout.branches.map(({ branch }) => (
                 <filter key={branch.id} id={`gf-${branch.id}`} x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur stdDeviation="4" result="b" />
-                  <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  <feGaussianBlur stdDeviation="4" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
               ))}
             </defs>
 
             {/* Zone tints */}
-            <rect x={0}     y={0} width={pastX}              height={SVG_H} fill="rgba(34,197,94,0.012)" />
-            <rect x={pastX} y={0} width={nowX - pastX}       height={SVG_H} fill="rgba(139,92,246,0.018)" />
-            <rect x={nowX}  y={0} width={layout.svgWidth - nowX} height={SVG_H} fill="rgba(255,255,255,0.005)" />
+            <rect x={0}     y={0} width={pastX}                  height={svgH} fill="rgba(34,197,94,0.012)" />
+            <rect x={pastX} y={0} width={nowX - pastX}           height={svgH} fill="rgba(139,92,246,0.018)" />
+            <rect x={nowX}  y={0} width={layout.svgWidth - nowX} height={svgH} fill="rgba(255,255,255,0.005)" />
 
             {/* Zone dividers */}
-            <line x1={pastX} y1={30} x2={pastX} y2={SVG_H - 30} stroke="rgba(255,255,255,0.07)" strokeWidth={1} strokeDasharray="4 4" />
-            <text x={pastX + 8} y={48} fill="rgba(255,255,255,0.15)" fontSize={9} fontFamily="Space Mono" letterSpacing="2">PAST</text>
-            <line x1={nowX}  y1={30} x2={nowX}  y2={SVG_H - 30} stroke="rgba(139,92,246,0.25)" strokeWidth={1} strokeDasharray="4 4" />
-            <text x={nowX  + 8} y={48} fill="rgba(139,92,246,0.5)"  fontSize={9} fontFamily="Space Mono" letterSpacing="2">NOW</text>
+            <line x1={pastX} y1={20} x2={pastX} y2={svgH - 20} stroke="rgba(255,255,255,0.07)" strokeWidth={1} strokeDasharray="4 4" />
+            <text x={pastX + 8} y={36} fill="rgba(255,255,255,0.15)" fontSize={9} fontFamily="Space Mono" letterSpacing="2">PAST</text>
+            <line x1={nowX}  y1={20} x2={nowX}  y2={svgH - 20} stroke="rgba(139,92,246,0.25)" strokeWidth={1} strokeDasharray="4 4" />
+            <text x={nowX  + 8} y={36} fill="rgba(139,92,246,0.5)"  fontSize={9} fontFamily="Space Mono" letterSpacing="2">NOW</text>
 
-            {/* Trunk glow + line */}
+            {/* Trunk */}
             <line x1={60} y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y} stroke="rgba(139,92,246,0.1)" strokeWidth={14} strokeLinecap="round" filter="url(#tg)" />
             <line x1={60} y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y} stroke="url(#trunkGrad)" strokeWidth={2.5} strokeLinecap="round" />
             <polygon points={`${trunkEnd + 14},${TRUNK_Y} ${trunkEnd},${TRUNK_Y - 7} ${trunkEnd},${TRUNK_Y + 7}`} fill="rgba(255,255,255,0.12)" />
@@ -314,17 +306,16 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
             ].map(({ label, x }) => {
               const isPast = x < pastX
               const isNow  = x >= pastX && x < nowX
-              const fill   = isPast ? '#22c55e' : isNow ? '#8b5cf6' : 'transparent'
-              const stroke = isPast ? '#22c55e' : isNow ? '#8b5cf6' : 'rgba(255,255,255,0.15)'
+              const col    = isPast ? '#22c55e' : isNow ? '#8b5cf6' : 'rgba(255,255,255,0.15)'
               return (
                 <g key={label[0]}>
-                  <circle cx={x} cy={TRUNK_Y} r={TRUNK_NODE_R + 5} fill="none" stroke={stroke} strokeWidth={1} strokeOpacity={0.2} />
-                  <circle cx={x} cy={TRUNK_Y} r={TRUNK_NODE_R} fill={isPast || isNow ? fill : 'rgba(8,4,18,0.9)'} stroke={stroke} strokeWidth={2} filter={isPast || isNow ? 'url(#tg)' : undefined} />
-                  <text x={x} y={TRUNK_Y + 5} textAnchor="middle" fill={isPast ? 'rgba(0,0,0,0.85)' : isNow ? 'white' : 'rgba(255,255,255,0.2)'} fontSize={12} fontFamily="Space Mono">
+                  <circle cx={x} cy={TRUNK_Y} r={TRUNK_NODE_R + 5} fill="none" stroke={col} strokeWidth={1} strokeOpacity={0.2} />
+                  <circle cx={x} cy={TRUNK_Y} r={TRUNK_NODE_R} fill={isPast || isNow ? col : 'rgba(8,4,18,0.9)'} stroke={col} strokeWidth={2} filter={isPast || isNow ? 'url(#tg)' : undefined} />
+                  <text x={x} y={TRUNK_Y + 4.5} textAnchor="middle" fill={isPast ? 'rgba(0,0,0,0.85)' : isNow ? 'white' : 'rgba(255,255,255,0.2)'} fontSize={11} fontFamily="Space Mono">
                     {isPast ? '✓' : isNow ? '⚡' : '○'}
                   </text>
                   {label.map((line, li) => (
-                    <text key={li} x={x} y={TRUNK_Y + TRUNK_NODE_R + 16 + li * 13} textAnchor="middle"
+                    <text key={li} x={x} y={TRUNK_Y + TRUNK_NODE_R + 15 + li * 13} textAnchor="middle"
                       fill={isPast ? '#22c55e' : isNow ? '#a78bfa' : 'rgba(255,255,255,0.2)'}
                       fontSize={10} fontFamily="Space Grotesk" fontWeight={600}>{line}</text>
                   ))}
@@ -396,10 +387,10 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
                       >
                         {ni > 0 && <line x1={nodes[ni - 1].x + nR} y1={y} x2={x - nR} y2={y} stroke={branch.color} strokeWidth={1} strokeOpacity={0.2} />}
 
-                        {/* Pulse ring — opacity only, no transform */}
+                        {/* Soft pulse ring — stroke-opacity only, no flashing */}
                         {(overdue || isReview || isActive) && (
                           <circle cx={x} cy={y} r={nR + 7} fill="none" stroke={border} strokeWidth={1.5}
-                            style={{ animation: 'fgRing 2.5s ease-in-out infinite' }} />
+                            style={{ animation: 'fgRing 3s ease-in-out infinite' }} />
                         )}
 
                         {isNH && <circle cx={x} cy={y} r={nR + 11} fill="none" stroke={border} strokeWidth={1} strokeOpacity={0.15} />}
@@ -417,7 +408,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
                         </text>
                         {task.due_date && (
                           <text x={x} y={above ? y - nR - 22 : y + nR + 27} textAnchor="middle"
-                            fill={overdue ? '#ef444466' : 'rgba(255,255,255,0.18)'} fontSize={8} fontFamily="Space Mono">
+                            fill={overdue ? '#ef444488' : 'rgba(255,255,255,0.18)'} fontSize={8} fontFamily="Space Mono">
                             {task.due_date.slice(5)}
                           </text>
                         )}
@@ -432,7 +423,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
 
         {/* Tooltip */}
         {tooltip && (
-          <div style={{ position: 'fixed', left: tooltip.x + 16, top: tooltip.y - 60, background: 'rgba(6,3,15,0.98)', border: `1px solid ${tooltip.branch.color}40`, borderRadius: '12px', padding: '10px 14px', pointerEvents: 'none', zIndex: 9999, width: '220px', boxShadow: `0 16px 48px rgba(0,0,0,0.8)`, backdropFilter: 'blur(20px)' }}>
+          <div style={{ position: 'fixed', left: tooltip.x + 16, top: tooltip.y - 60, background: 'rgba(6,3,15,0.98)', border: `1px solid ${tooltip.branch.color}40`, borderRadius: '12px', padding: '10px 14px', pointerEvents: 'none', zIndex: 9999, width: '220px', boxShadow: '0 16px 48px rgba(0,0,0,0.8)', backdropFilter: 'blur(20px)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '6px' }}>
               <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: isOverdue(tooltip.task) ? '#ef4444' : statusBorder(tooltip.task.status), flexShrink: 0 }} />
               <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 600, margin: 0 }}>{tooltip.task.title}</p>
@@ -454,7 +445,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
       </div>
 
       {/* Scroll hint */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', padding: '7px', borderTop: '1px solid rgba(255,255,255,0.04)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', padding: '6px', borderTop: '1px solid rgba(255,255,255,0.04)', flexShrink: 0 }}>
         <span style={{ color: 'rgba(255,255,255,0.1)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.1em' }}>← DRAG TO EXPLORE →</span>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {[{ label: 'PAST', color: '#22c55e' }, { label: 'NOW', color: '#8b5cf6' }, { label: 'UPCOMING', color: 'rgba(255,255,255,0.15)' }].map(s => (
@@ -468,7 +459,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
 
       <style>{`
         @keyframes fgSpin { to { transform: rotate(360deg); } }
-        @keyframes fgRing { 0%,100% { stroke-opacity: 0.08; } 50% { stroke-opacity: 0.45; } }
+        @keyframes fgRing { 0%,100% { stroke-opacity: 0.06; } 50% { stroke-opacity: 0.4; } }
       `}</style>
     </div>
   )
