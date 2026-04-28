@@ -8,86 +8,65 @@ interface FlowGraphProps {
   onBranchClick: (branch: FlowBranch) => void
 }
 
-const NODE_R         = 18
-const TRUNK_NODE_R   = 22
-const BRANCH_OFFSET  = 140
-const NODE_SPACING   = 140
-const BRANCH_START_X = 200
-const BRANCH_GAP     = 340
-// Branch horizontal line starts 50px after originX
-const FORK_OFFSET    = 50
+const NODE_R          = 20    // task node radius
+const TRUNK_NODE_R    = 24    // milestone node radius
+const BRANCH_OFFSET   = 180  // vertical distance trunk → branch line
+const NODE_SPACING    = 160  // horizontal space between task nodes
+const BRANCH_START_X  = 260  // first branch starts here
+const BRANCH_GAP      = 380  // minimum gap between branches
+const FORK_OFFSET     = 60   // branch line starts this far right of originX
+const LABEL_CLEARANCE = 58   // chip sits this far from branch line
 
-function statusFill(status: string): string {
-  switch (status) {
-    case 'done':        return '#22c55e'
-    case 'in_progress': return '#3b82f6'
-    case 'review':      return '#f59e0b'
-    default:            return 'transparent'
-  }
+function statusFill(s: string) {
+  return s === 'done' ? '#22c55e' : s === 'in_progress' ? '#3b82f6' : s === 'review' ? '#f59e0b' : 'transparent'
 }
-function statusBorder(status: string): string {
-  switch (status) {
-    case 'done':        return '#22c55e'
-    case 'in_progress': return '#60a5fa'
-    case 'review':      return '#fbbf24'
-    default:            return 'rgba(255,255,255,0.35)'
-  }
+function statusBorder(s: string) {
+  return s === 'done' ? '#22c55e' : s === 'in_progress' ? '#60a5fa' : s === 'review' ? '#fbbf24' : 'rgba(255,255,255,0.3)'
 }
-function statusIcon(status: string): string {
-  switch (status) {
-    case 'done':        return '✓'
-    case 'in_progress': return '⚡'
-    case 'review':      return '👁'
-    default:            return '○'
-  }
+function statusIcon(s: string) {
+  return s === 'done' ? '✓' : s === 'in_progress' ? '⚡' : s === 'review' ? '👁' : '○'
 }
-function isOverdue(task: FlowTask): boolean {
-  if (!task.due_date || task.status === 'done') return false
-  return new Date(task.due_date) < new Date()
+function isOverdue(t: FlowTask) {
+  return !!t.due_date && t.status !== 'done' && new Date(t.due_date) < new Date()
 }
 
 interface NodeLayout { task: FlowTask; x: number; y: number }
 interface BranchLayout {
-  branch: FlowBranch
-  above: boolean
-  originX: number
-  branchY: number
-  nodes: NodeLayout[]
-  endX: number
+  branch: FlowBranch; above: boolean
+  originX: number; branchY: number
+  nodes: NodeLayout[]; endX: number
 }
 
-function deadlineHealth(branches: FlowBranch[]): { label: string; color: string } {
+function health(branches: FlowBranch[]) {
   if (!branches.length) return { label: 'NO DATA', color: '#6b7280' }
   const avg = branches.reduce((s, b) => s + b.progress, 0) / branches.length
-  if (avg >= 70) return { label: 'ON TRACK', color: '#22c55e' }
-  if (avg >= 40) return { label: 'AT RISK',  color: '#f59e0b' }
-  return { label: 'BEHIND', color: '#ef4444' }
+  return avg >= 70 ? { label: 'ON TRACK', color: '#22c55e' }
+       : avg >= 40 ? { label: 'AT RISK',  color: '#f59e0b' }
+       :             { label: 'BEHIND',   color: '#ef4444' }
 }
 
 export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps) {
   const { branches, totalTasks, totalDone, overallProgress, loading, error } = useFlowData(workspaceId)
-  const [hoveredBranch, setHoveredBranch] = useState<string | null>(null)
-  const [hoveredNode, setHoveredNode]     = useState<string | null>(null)
-  const [tooltip, setTooltip]             = useState<{ x: number; y: number; task: FlowTask; branch: FlowBranch } | null>(null)
-  const [standupMode, setStandupMode]     = useState(false)
-  const [viewBy, setViewBy]               = useState<'person' | 'feature'>('person')
-  const [isDragging, setIsDragging]       = useState(false)
-  const [dragStart, setDragStart]         = useState({ x: 0, scroll: 0 })
-  const [svgH, setSvgH]                   = useState(400)
-  const svgWrapRef = useRef<HTMLDivElement>(null)
-  const scrollRef  = useRef<HTMLDivElement>(null)
+  const [hovBranch, setHovBranch] = useState<string | null>(null)
+  const [hovNode,   setHovNode]   = useState<string | null>(null)
+  const [tooltip,   setTooltip]   = useState<{ x: number; y: number; task: FlowTask; branch: FlowBranch } | null>(null)
+  const [standup,   setStandup]   = useState(false)
+  const [viewBy,    setViewBy]    = useState<'person' | 'feature'>('person')
+  const [dragging,  setDragging]  = useState(false)
+  const [drag0,     setDrag0]     = useState({ x: 0, scroll: 0 })
+  const [svgH,      setSvgH]      = useState(500)
+  const wrapRef   = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const el = svgWrapRef.current
-    if (!el) return
-    const measure = () => setSvgH(el.clientHeight || 400)
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
+    const el = wrapRef.current; if (!el) return
+    const m = () => setSvgH(el.clientHeight || 500)
+    m(); const ro = new ResizeObserver(m); ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
-  const TRUNK_Y = Math.round(svgH * 0.5)
+  // Trunk sits at 48% from top — slightly above center so below-branches have room
+  const TRUNK_Y = Math.round(svgH * 0.46)
 
   const layout = useMemo<{ branches: BranchLayout[]; svgWidth: number; nowX: number } | null>(() => {
     if (!branches.length) return null
@@ -96,30 +75,27 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
     branches.forEach((branch, idx) => {
       const above   = idx % 2 === 0
       const branchY = above ? TRUNK_Y - BRANCH_OFFSET : TRUNK_Y + BRANCH_OFFSET
-      const originX = x + 60
-      // First node starts at originX + FORK_OFFSET
+      const originX = x + 80
+      const lineX   = originX + FORK_OFFSET
       const nodes: NodeLayout[] = branch.tasks.map((task, i) => ({
-        task,
-        x: originX + FORK_OFFSET + i * NODE_SPACING,
-        y: branchY,
+        task, x: lineX + i * NODE_SPACING, y: branchY,
       }))
-      const endX = nodes.length > 0 ? nodes[nodes.length - 1].x : originX + FORK_OFFSET
+      const endX = nodes.length > 0 ? nodes[nodes.length - 1].x : lineX
       result.push({ branch, above, originX, branchY, nodes, endX })
-      x += Math.max(branch.tasks.length * NODE_SPACING + 160, BRANCH_GAP)
+      x += Math.max(branch.tasks.length * NODE_SPACING + 200, BRANCH_GAP)
     })
-    const svgWidth = x + 200
-    const nowX     = svgWidth * 0.45
+    const svgWidth = x + 240
+    const nowX     = svgWidth * 0.44
     return { branches: result, svgWidth, nowX }
   }, [branches, TRUNK_Y])
 
   useEffect(() => {
     if (!layout || !scrollRef.current) return
-    const scrollTo = layout.nowX - scrollRef.current.clientWidth / 2
-    scrollRef.current.scrollLeft = Math.max(0, scrollTo)
+    scrollRef.current.scrollLeft = Math.max(0, layout.nowX - scrollRef.current.clientWidth / 2)
   }, [layout])
 
-  const health = deadlineHealth(branches)
-  const nR     = standupMode ? NODE_R + 8 : NODE_R
+  const h  = health(branches)
+  const nR = standup ? NODE_R + 8 : NODE_R
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
@@ -130,13 +106,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
       <style>{`@keyframes fgSpin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
-
-  if (error) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-      <p style={{ color: '#f87171', fontFamily: 'Space Grotesk' }}>{error}</p>
-    </div>
-  )
-
+  if (error) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}><p style={{ color: '#f87171', fontFamily: 'Space Grotesk' }}>{error}</p></div>
   if (!layout) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '12px' }}>
       <p style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'Space Mono', fontSize: '11px', letterSpacing: '0.2em' }}>NO BRANCHES YET</p>
@@ -146,7 +116,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
 
   const trunkEnd = layout.svgWidth - 60
   const nowX     = layout.nowX
-  const pastX    = nowX * 0.45
+  const pastX    = nowX * 0.44
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -154,20 +124,18 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
       {/* ── TOP BAR ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0, flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ position: 'relative', width: '44px', height: '44px' }}>
               <svg width="44" height="44" style={{ transform: 'rotate(-90deg)' }}>
                 <defs>
                   <linearGradient id="fg-circle-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#8b5cf6" />
-                    <stop offset="100%" stopColor="#22c55e" />
+                    <stop offset="0%" stopColor="#8b5cf6" /><stop offset="100%" stopColor="#22c55e" />
                   </linearGradient>
                 </defs>
                 <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
                 <circle cx="22" cy="22" r="18" fill="none" stroke="url(#fg-circle-grad)" strokeWidth="3"
-                  strokeDasharray={`${(overallProgress / 100) * 113.1} 113.1`}
-                  strokeLinecap="round" style={{ transition: 'stroke-dasharray 1s ease' }} />
+                  strokeDasharray={`${(overallProgress / 100) * 113.1} 113.1`} strokeLinecap="round"
+                  style={{ transition: 'stroke-dasharray 1s ease' }} />
               </svg>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ color: 'white', fontSize: '9px', fontFamily: 'Space Mono', fontWeight: 700 }}>{overallProgress}%</span>
@@ -181,15 +149,15 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
 
           <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.1)' }} />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', background: `${health.color}20`, border: `1px solid ${health.color}60`, borderRadius: '8px', padding: '5px 14px' }}>
-            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: health.color, boxShadow: `0 0 10px ${health.color}` }} />
-            <span style={{ color: health.color, fontSize: '12px', fontFamily: 'Space Mono', fontWeight: 700, letterSpacing: '0.1em' }}>{health.label}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', background: `${h.color}20`, border: `1px solid ${h.color}60`, borderRadius: '8px', padding: '5px 14px' }}>
+            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: h.color, boxShadow: `0 0 10px ${h.color}` }} />
+            <span style={{ color: h.color, fontSize: '12px', fontFamily: 'Space Mono', fontWeight: 700, letterSpacing: '0.1em' }}>{h.label}</span>
           </div>
 
           <div style={{ display: 'flex', gap: '20px' }}>
             {[
               { label: 'BRANCHES', value: branches.length, color: '#c4b5fd' },
-              { label: 'DONE',     value: totalDone,       color: '#4ade80' },
+              { label: 'DONE',     value: totalDone, color: '#4ade80' },
               { label: 'ACTIVE',   value: branches.reduce((s, b) => s + b.tasks.filter(t => t.status === 'in_progress').length, 0), color: '#60a5fa' },
               { label: 'OVERDUE',  value: branches.reduce((s, b) => s + b.tasks.filter(t => isOverdue(t)).length, 0), color: '#f87171' },
             ].map(s => (
@@ -210,10 +178,10 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
               </button>
             ))}
           </div>
-          <button onClick={() => setStandupMode(s => !s)}
-            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: standupMode ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.07)', border: `1px solid ${standupMode ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: standupMode ? '#fca5a5' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, letterSpacing: '0.08em', transition: 'all 0.2s' }}>
-            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: standupMode ? '#ef4444' : 'rgba(255,255,255,0.4)' }} />
-            {standupMode ? 'STANDUP LIVE' : 'STANDUP'}
+          <button onClick={() => setStandup(s => !s)}
+            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: standup ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.07)', border: `1px solid ${standup ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: standup ? '#fca5a5' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
+            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: standup ? '#ef4444' : 'rgba(255,255,255,0.4)' }} />
+            {standup ? 'STANDUP LIVE' : 'STANDUP'}
           </button>
         </div>
       </div>
@@ -222,9 +190,8 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
       <div style={{ display: 'flex', gap: '8px', padding: '8px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto', flexShrink: 0, alignItems: 'center' }}>
         {branches.map(b => (
           <div key={b.id} onClick={() => onBranchClick(b)}
-            onMouseEnter={() => setHoveredBranch(b.id)}
-            onMouseLeave={() => setHoveredBranch(null)}
-            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '4px 10px 4px 5px', background: hoveredBranch === b.id ? `${b.color}25` : 'rgba(255,255,255,0.05)', border: `1px solid ${hoveredBranch === b.id ? b.color + '80' : 'rgba(255,255,255,0.12)'}`, borderRadius: '20px', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}>
+            onMouseEnter={() => setHovBranch(b.id)} onMouseLeave={() => setHovBranch(null)}
+            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '4px 10px 4px 5px', background: hovBranch === b.id ? `${b.color}25` : 'rgba(255,255,255,0.05)', border: `1px solid ${hovBranch === b.id ? b.color + '80' : 'rgba(255,255,255,0.12)'}`, borderRadius: '20px', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}>
             <div style={{ width: '22px', height: '22px', borderRadius: '50%', border: `2px solid ${b.color}88`, overflow: 'hidden', flexShrink: 0 }}>
               {b.avatar_url
                 ? <img src={b.avatar_url} alt={b.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -241,34 +208,33 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
           </div>
         ))}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '14px', alignItems: 'center', flexShrink: 0 }}>
-          {[{ label: 'Done', color: '#4ade80' }, { label: 'Active', color: '#60a5fa' }, { label: 'Review', color: '#fbbf24' }, { label: 'Overdue', color: '#f87171' }, { label: 'Planned', color: 'rgba(255,255,255,0.35)' }].map(s => (
-            <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: s.color }} />
-              <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', fontFamily: 'Space Mono' }}>{s.label}</span>
+          {[{ l: 'Done', c: '#4ade80' }, { l: 'Active', c: '#60a5fa' }, { l: 'Review', c: '#fbbf24' }, { l: 'Overdue', c: '#f87171' }, { l: 'Planned', c: 'rgba(255,255,255,0.35)' }].map(s => (
+            <div key={s.l} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: s.c }} />
+              <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', fontFamily: 'Space Mono' }}>{s.l}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* ── SVG AREA ── */}
-      <div ref={svgWrapRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
-        <div
-          ref={scrollRef}
-          onMouseDown={(e) => { setIsDragging(true); setDragStart({ x: e.clientX, scroll: scrollRef.current?.scrollLeft ?? 0 }) }}
-          onMouseMove={(e) => { if (!isDragging) return; e.preventDefault(); if (scrollRef.current) scrollRef.current.scrollLeft = dragStart.scroll - (e.clientX - dragStart.x) }}
-          onMouseUp={() => setIsDragging(false)}
-          onMouseLeave={() => { setIsDragging(false); setTooltip(null) }}
-          style={{ width: '100%', height: '100%', overflowX: 'auto', overflowY: 'hidden', cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }}
+      <div ref={wrapRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
+        <div ref={scrollRef}
+          onMouseDown={e => { setDragging(true); setDrag0({ x: e.clientX, scroll: scrollRef.current?.scrollLeft ?? 0 }) }}
+          onMouseMove={e => { if (!dragging) return; e.preventDefault(); if (scrollRef.current) scrollRef.current.scrollLeft = drag0.scroll - (e.clientX - drag0.x) }}
+          onMouseUp={() => setDragging(false)}
+          onMouseLeave={() => { setDragging(false); setTooltip(null) }}
+          style={{ width: '100%', height: '100%', overflowX: 'auto', overflowY: 'hidden', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}
         >
           <svg width={layout.svgWidth} height={svgH} style={{ display: 'block' }}>
             <defs>
               {layout.branches.map(({ branch }) => (
                 <linearGradient key={branch.id} id={`fg-bg-${branch.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
                   <stop offset="0%"   stopColor={branch.color} stopOpacity="1" />
-                  <stop offset="100%" stopColor={branch.color} stopOpacity="0.15" />
+                  <stop offset="100%" stopColor={branch.color} stopOpacity="0.1" />
                 </linearGradient>
               ))}
-              <filter id="fg-tg" x="-20%" y="-200%" width="140%" height="500%">
+              <filter id="fg-ms" x="-30%" y="-30%" width="160%" height="160%">
                 <feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
               {layout.branches.map(({ branch }) => (
@@ -279,32 +245,34 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
             </defs>
 
             {/* Zone tints */}
-            <rect x={0}     y={0} width={pastX}                  height={svgH} fill="rgba(34,197,94,0.04)" />
-            <rect x={pastX} y={0} width={nowX - pastX}           height={svgH} fill="rgba(139,92,246,0.05)" />
+            <rect x={0}     y={0} width={pastX}                  height={svgH} fill="rgba(34,197,94,0.03)" />
+            <rect x={pastX} y={0} width={nowX - pastX}           height={svgH} fill="rgba(139,92,246,0.04)" />
             <rect x={nowX}  y={0} width={layout.svgWidth - nowX} height={svgH} fill="rgba(255,255,255,0.01)" />
 
             {/* Zone dividers */}
-            <line x1={pastX} y1={20} x2={pastX} y2={svgH - 20} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="5 4" />
-            <text x={pastX + 10} y={42} fill="rgba(255,255,255,0.7)" fontSize={10} fontFamily="Space Mono" fontWeight="bold" letterSpacing="2">PAST</text>
-            <line x1={nowX}  y1={20} x2={nowX}  y2={svgH - 20} stroke="rgba(167,139,250,0.6)" strokeWidth={1} strokeDasharray="5 4" />
-            <text x={nowX + 10} y={42} fill="rgba(167,139,250,1)" fontSize={10} fontFamily="Space Mono" fontWeight="bold" letterSpacing="2">NOW</text>
-            <text x={nowX + 10} y={svgH - 28} fill="rgba(167,139,250,0.5)" fontSize={9} fontFamily="Space Mono" letterSpacing="2">UPCOMING →</text>
+            <line x1={pastX} y1={0} x2={pastX} y2={svgH} stroke="rgba(255,255,255,0.12)" strokeWidth={1} strokeDasharray="6 5" />
+            <line x1={nowX}  y1={0} x2={nowX}  y2={svgH} stroke="rgba(167,139,250,0.4)"  strokeWidth={1} strokeDasharray="6 5" />
 
-            {/* ── TRUNK — 3 solid segments, no url() gradient ── */}
-            {/* Glow */}
-            <line x1={60} y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y} stroke="#7c3aed" strokeWidth={28} strokeLinecap="round" opacity={0.1} />
-            {/* Past — bright green */}
+            {/* Zone labels — top of SVG */}
+            <text x={pastX - 60} y={22} fill="rgba(255,255,255,0.5)" fontSize={10} fontFamily="Space Mono" fontWeight="bold" letterSpacing="2" textAnchor="middle">PAST</text>
+            <text x={(pastX + nowX) / 2} y={22} fill="rgba(167,139,250,0.8)" fontSize={10} fontFamily="Space Mono" fontWeight="bold" letterSpacing="2" textAnchor="middle">NOW</text>
+            <text x={nowX + 80} y={22} fill="rgba(167,139,250,0.4)" fontSize={10} fontFamily="Space Mono" letterSpacing="2">UPCOMING →</text>
+
+            {/* ── TRUNK — 3 segments, no gradient url() ── */}
+            {/* Ambient glow */}
+            <line x1={60} y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y} stroke="#7c3aed" strokeWidth={32} strokeLinecap="round" opacity={0.08} />
+            {/* Past */}
             <line x1={60} y1={TRUNK_Y} x2={pastX} y2={TRUNK_Y} stroke="#4ade80" strokeWidth={4} strokeLinecap="round" />
-            {/* Now — bright purple */}
+            {/* Now */}
             <line x1={pastX} y1={TRUNK_Y} x2={nowX} y2={TRUNK_Y} stroke="#a78bfa" strokeWidth={4} strokeLinecap="round" />
-            {/* Upcoming — faint */}
-            <line x1={nowX} y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y} stroke="rgba(255,255,255,0.25)" strokeWidth={4} strokeLinecap="round" />
+            {/* Upcoming */}
+            <line x1={nowX} y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y} stroke="rgba(255,255,255,0.18)" strokeWidth={4} strokeLinecap="round" />
             {/* Arrow */}
-            <polygon points={`${trunkEnd + 16},${TRUNK_Y} ${trunkEnd},${TRUNK_Y - 9} ${trunkEnd},${TRUNK_Y + 9}`} fill="rgba(255,255,255,0.5)" />
+            <polygon points={`${trunkEnd + 16},${TRUNK_Y} ${trunkEnd},${TRUNK_Y - 9} ${trunkEnd},${TRUNK_Y + 9}`} fill="rgba(255,255,255,0.4)" />
             {/* Start dot */}
             <circle cx={60} cy={TRUNK_Y} r={6} fill="#4ade80" />
 
-            {/* ── MILESTONES ── */}
+            {/* ── MILESTONES — labels always BELOW trunk ── */}
             {[
               { label: ['Project', 'start'], x: 80 },
               { label: ['MVP', 'shipped'],   x: pastX },
@@ -313,23 +281,24 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
             ].map(({ label, x }) => {
               const isPast  = x <= pastX
               const isNow   = x > pastX && x <= nowX
-              const col     = isPast ? '#4ade80' : isNow ? '#a78bfa' : 'rgba(255,255,255,0.25)'
-              const textCol = isPast ? '#4ade80' : isNow ? '#c4b5fd' : 'rgba(255,255,255,0.55)'
+              const col     = isPast ? '#4ade80' : isNow ? '#a78bfa' : 'rgba(255,255,255,0.2)'
+              const textCol = isPast ? '#4ade80' : isNow ? '#c4b5fd' : 'rgba(255,255,255,0.45)'
               return (
                 <g key={label[0]}>
-                  <circle cx={x} cy={TRUNK_Y} r={TRUNK_NODE_R + 7} fill="none" stroke={col} strokeWidth={1.5} strokeOpacity={0.2} />
+                  <circle cx={x} cy={TRUNK_Y} r={TRUNK_NODE_R + 8} fill="none" stroke={col} strokeWidth={1} strokeOpacity={0.15} />
                   <circle cx={x} cy={TRUNK_Y} r={TRUNK_NODE_R}
-                    fill={isPast || isNow ? col : 'rgba(12,8,24,0.95)'}
+                    fill={isPast || isNow ? col : 'rgba(10,6,20,0.95)'}
                     stroke={col} strokeWidth={2.5}
-                    filter={isPast || isNow ? 'url(#fg-tg)' : undefined}
+                    filter={isPast || isNow ? 'url(#fg-ms)' : undefined}
                   />
-                  <text x={x} y={TRUNK_Y + 5} textAnchor="middle"
-                    fill={isPast ? 'rgba(0,0,0,0.9)' : isNow ? 'white' : 'rgba(255,255,255,0.45)'}
-                    fontSize={13} fontFamily="Space Mono" fontWeight="bold">
+                  <text x={x} y={TRUNK_Y + 5.5} textAnchor="middle"
+                    fill={isPast ? 'rgba(0,0,0,0.9)' : isNow ? 'white' : 'rgba(255,255,255,0.4)'}
+                    fontSize={14} fontFamily="Space Mono" fontWeight="bold">
                     {isPast ? '✓' : isNow ? '⚡' : '○'}
                   </text>
+                  {/* Milestone labels ALWAYS below trunk — never compete with above-branches */}
                   {label.map((line, li) => (
-                    <text key={li} x={x} y={TRUNK_Y + TRUNK_NODE_R + 18 + li * 14}
+                    <text key={li} x={x} y={TRUNK_Y + TRUNK_NODE_R + 20 + li * 15}
                       textAnchor="middle" fill={textCol}
                       fontSize={11} fontFamily="Space Grotesk" fontWeight={700}>{line}</text>
                   ))}
@@ -339,78 +308,88 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
 
             {/* ── BRANCHES ── */}
             {layout.branches.map(({ branch, above, originX, branchY, nodes, endX }) => {
-              const isHov    = hoveredBranch === branch.id
-              const isDimmed = standupMode && hoveredBranch !== null && hoveredBranch !== branch.id
-              // Branch line starts at originX + FORK_OFFSET
-              const lineStartX = originX + FORK_OFFSET
-              // Label position: above branch = above branch line; below = below branch line
-              // Placed at lineStartX, clear of nodes (nodes start at lineStartX too)
-              // So label goes to the LEFT of the first node, anchored at lineStartX - 8
-              const labelX = lineStartX - 4
+              const isHov   = hovBranch === branch.id
+              const dimmed  = standup && hovBranch !== null && hovBranch !== branch.id
+              const lineX   = originX + FORK_OFFSET
+
+              // Label chip: sits AWAY from trunk (further from center)
+              // above = chip above branch line; below = chip below branch line
+              const chipY   = above
+                ? branchY - LABEL_CLEARANCE   // above branch line
+                : branchY + LABEL_CLEARANCE - 30  // below branch line
+
+              // Task title: on the side AWAY from trunk
+              // above branch → title above node; below branch → title below node
+              const titleY  = (ni: number, y: number) =>
+                above ? y - nR - 12 : y + nR + 16
+
+              // Due date: one line further out
+              const dateY   = (ni: number, y: number) =>
+                above ? y - nR - 25 : y + nR + 29
 
               return (
-                <g key={branch.id} opacity={isDimmed ? 0.08 : 1}
-                  style={{ transition: 'opacity 0.3s', cursor: isDragging ? 'grabbing' : 'pointer' }}
-                  onMouseEnter={() => !isDragging && setHoveredBranch(branch.id)}
-                  onMouseLeave={() => setHoveredBranch(null)}
-                  onClick={() => !isDragging && onBranchClick(branch)}
+                <g key={branch.id} opacity={dimmed ? 0.08 : 1}
+                  style={{ transition: 'opacity 0.3s', cursor: dragging ? 'grabbing' : 'pointer' }}
+                  onMouseEnter={() => !dragging && setHovBranch(branch.id)}
+                  onMouseLeave={() => setHovBranch(null)}
+                  onClick={() => !dragging && onBranchClick(branch)}
                 >
-                  {/* Diagonal fork */}
-                  <path d={`M ${originX} ${TRUNK_Y} Q ${originX} ${(TRUNK_Y + branchY) / 2} ${lineStartX} ${branchY}`}
+                  {/* Bezier fork from trunk */}
+                  <path
+                    d={`M ${originX} ${TRUNK_Y} C ${originX} ${(TRUNK_Y * 2 + branchY) / 3}, ${lineX} ${(TRUNK_Y + branchY * 2) / 3}, ${lineX} ${branchY}`}
                     fill="none" stroke={`url(#fg-bg-${branch.id})`}
                     strokeWidth={isHov ? 3 : 2} style={{ transition: 'stroke-width 0.2s' }}
                   />
 
-                  {/* Junction dot on trunk */}
-                  <circle cx={originX} cy={TRUNK_Y} r={isHov ? 8 : 6}
-                    fill={branch.color} opacity={isHov ? 1 : 0.75}
+                  {/* Junction dot */}
+                  <circle cx={originX} cy={TRUNK_Y} r={isHov ? 9 : 7}
+                    fill={branch.color} opacity={isHov ? 1 : 0.8}
                     filter={isHov ? `url(#fg-gf-${branch.id})` : undefined}
                     style={{ transition: 'all 0.2s' }}
                   />
 
                   {/* Horizontal branch line */}
-                  <line x1={lineStartX} y1={branchY} x2={endX} y2={branchY}
+                  <line x1={lineX} y1={branchY} x2={endX} y2={branchY}
                     stroke={branch.color} strokeWidth={isHov ? 2.5 : 2}
-                    strokeOpacity={isHov ? 0.9 : 0.55}
+                    strokeOpacity={isHov ? 0.85 : 0.5}
                     style={{ transition: 'all 0.2s' }}
                   />
 
-                  {/* Progress bar */}
+                  {/* Progress bar — thin line just beside branch */}
                   <line
-                    x1={lineStartX} y1={above ? branchY - 5 : branchY + 5}
-                    x2={lineStartX + (endX - lineStartX) * (branch.progress / 100)}
-                    y2={above ? branchY - 5 : branchY + 5}
-                    stroke={branch.color} strokeWidth={3} strokeOpacity={0.7} strokeLinecap="round"
+                    x1={lineX} y1={above ? branchY - 6 : branchY + 6}
+                    x2={lineX + (endX - lineX) * (branch.progress / 100)}
+                    y2={above ? branchY - 6 : branchY + 6}
+                    stroke={branch.color} strokeWidth={3} strokeOpacity={0.65} strokeLinecap="round"
                   />
 
-                  {/* ── BRANCH LABEL — foreignObject with avatar photo support ──
-                      Positioned ABOVE or BELOW the branch line, at the fork point
-                      width=180 height=36 sits to the right of the fork */}
+                  {/* ── BRANCH LABEL CHIP — foreignObject with real avatar ── */}
                   <foreignObject
-                    x={labelX}
-                    y={above ? branchY - 52 : branchY + 18}
-                    width={180} height={36}
+                    x={lineX - 4}
+                    y={chipY}
+                    width={200} height={36}
                     style={{ overflow: 'visible', pointerEvents: 'none' }}
                   >
                     <div style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '6px',
-                      background: `${branch.color}22`,
-                      border: `1.5px solid ${branch.color}${isHov ? 'cc' : '66'}`,
-                      borderRadius: '14px', padding: '3px 10px 3px 4px',
-                      backdropFilter: 'blur(10px)',
+                      display: 'inline-flex', alignItems: 'center', gap: '7px',
+                      background: `${branch.color}20`,
+                      border: `1.5px solid ${branch.color}${isHov ? 'cc' : '60'}`,
+                      borderRadius: '20px', padding: '4px 12px 4px 5px',
+                      backdropFilter: 'blur(12px)',
+                      boxShadow: isHov ? `0 0 16px ${branch.color}40` : 'none',
+                      transition: 'all 0.2s',
                       whiteSpace: 'nowrap',
                     }}>
-                      {/* Avatar */}
-                      <div style={{ width: '22px', height: '22px', borderRadius: '50%', border: `1.5px solid ${branch.color}`, overflow: 'hidden', flexShrink: 0 }}>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', border: `2px solid ${branch.color}`, overflow: 'hidden', flexShrink: 0 }}>
                         {branch.avatar_url
                           ? <img src={branch.avatar_url} alt={branch.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div style={{ width: '100%', height: '100%', background: `linear-gradient(135deg, ${branch.color}, ${branch.color}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 800, color: 'white' }}>
+                          : <div style={{ width: '100%', height: '100%', background: `linear-gradient(135deg, ${branch.color}, ${branch.color}66)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 800, color: 'white' }}>
                               {branch.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
                             </div>
                         }
                       </div>
-                      <span style={{ color: 'white', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 700 }}>
-                        {branch.name.split(' ')[0].slice(0, 11)}
+                      <span style={{ color: 'white', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 700 }}>
+                        {branch.name.split(' ')[0].slice(0, 12)}
                       </span>
                       <span style={{ color: branch.color, fontSize: '10px', fontFamily: 'Space Mono', fontWeight: 700 }}>
                         {branch.progress}%
@@ -420,62 +399,64 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
 
                   {/* ── TASK NODES ── */}
                   {nodes.map(({ task, x, y }, ni) => {
-                    const overdue  = isOverdue(task)
-                    const isDone   = task.status === 'done'
-                    const isActive = task.status === 'in_progress'
-                    const isReview = task.status === 'review'
-                    const isNH     = hoveredNode === task.id
-                    const fill     = overdue ? '#ef4444' : statusFill(task.status)
-                    const border   = overdue ? '#f87171' : statusBorder(task.status)
-                    const icon     = overdue ? '!' : statusIcon(task.status)
+                    const od    = isOverdue(task)
+                    const done  = task.status === 'done'
+                    const act   = task.status === 'in_progress'
+                    const rev   = task.status === 'review'
+                    const nh    = hovNode === task.id
+                    const fill  = od ? '#ef4444' : statusFill(task.status)
+                    const bdr   = od ? '#f87171' : statusBorder(task.status)
+                    const icon  = od ? '!' : statusIcon(task.status)
 
                     return (
                       <g key={task.id}
-                        onMouseEnter={(e) => { if (isDragging) return; setHoveredNode(task.id); setTooltip({ x: e.clientX, y: e.clientY, task, branch }) }}
-                        onMouseLeave={() => { setHoveredNode(null); setTooltip(null) }}
-                        onClick={(e) => { e.stopPropagation(); if (!isDragging) onBranchClick(branch) }}
-                        style={{ cursor: isDragging ? 'grabbing' : 'pointer' }}
+                        onMouseEnter={e => { if (dragging) return; setHovNode(task.id); setTooltip({ x: e.clientX, y: e.clientY, task, branch }) }}
+                        onMouseLeave={() => { setHovNode(null); setTooltip(null) }}
+                        onClick={e => { e.stopPropagation(); if (!dragging) onBranchClick(branch) }}
+                        style={{ cursor: dragging ? 'grabbing' : 'pointer' }}
                       >
+                        {/* Connector */}
                         {ni > 0 && (
-                          <line x1={nodes[ni - 1].x + nR} y1={y} x2={x - nR} y2={y}
-                            stroke={branch.color} strokeWidth={1.5} strokeOpacity={0.4} />
+                          <line x1={nodes[ni-1].x + nR} y1={y} x2={x - nR} y2={y}
+                            stroke={branch.color} strokeWidth={1.5} strokeOpacity={0.35} />
                         )}
 
-                        {(overdue || isReview || isActive) && (
-                          <circle cx={x} cy={y} r={nR + 8} fill="none" stroke={border} strokeWidth={2}
+                        {/* Pulse ring */}
+                        {(od || rev || act) && (
+                          <circle cx={x} cy={y} r={nR + 9} fill="none" stroke={bdr} strokeWidth={2}
                             style={{ animation: 'fgRing 3s ease-in-out infinite' }} />
                         )}
 
-                        {isNH && <circle cx={x} cy={y} r={nR + 13} fill="none" stroke={border} strokeWidth={1.5} strokeOpacity={0.3} />}
+                        {nh && <circle cx={x} cy={y} r={nR + 14} fill="none" stroke={bdr} strokeWidth={1.5} strokeOpacity={0.25} />}
 
                         <circle cx={x} cy={y} r={nR}
-                          fill={isDone ? fill : 'rgba(10,6,20,0.95)'}
-                          stroke={border} strokeWidth={isNH ? 3 : 2.5}
+                          fill={done ? fill : 'rgba(10,6,20,0.95)'}
+                          stroke={bdr} strokeWidth={nh ? 3 : 2.5}
                           strokeDasharray={task.status === 'todo' ? '4 3' : 'none'}
-                          filter={isActive || overdue ? `url(#fg-gf-${branch.id})` : undefined}
+                          filter={act || od ? `url(#fg-gf-${branch.id})` : undefined}
                           style={{ transition: 'all 0.15s' }}
                         />
 
-                        <text x={x} y={y + 5} textAnchor="middle"
-                          fill={isDone ? 'rgba(0,0,0,0.9)' : border}
-                          fontSize={standupMode ? 14 : 12} fontFamily="Space Mono" fontWeight="bold">
+                        <text x={x} y={y + 5.5} textAnchor="middle"
+                          fill={done ? 'rgba(0,0,0,0.9)' : bdr}
+                          fontSize={standup ? 15 : 13} fontFamily="Space Mono" fontWeight="bold">
                           {icon}
                         </text>
 
-                        {/* Title on OPPOSITE side from branch label */}
-                        <text x={x} y={above ? y + nR + 16 : y - nR - 10}
-                          textAnchor="middle" fill="rgba(255,255,255,0.92)"
+                        {/* Title — always away from trunk */}
+                        <text x={x} y={titleY(ni, y)} textAnchor="middle"
+                          fill="rgba(255,255,255,0.9)"
                           fontSize={10} fontFamily="Space Grotesk" fontWeight={600}
                           style={{ pointerEvents: 'none' }}>
-                          {task.title.length > 14 ? task.title.slice(0, 13) + '…' : task.title}
+                          {task.title.length > 15 ? task.title.slice(0, 14) + '…' : task.title}
                         </text>
 
+                        {/* Due date */}
                         {task.due_date && (
-                          <text x={x} y={above ? y + nR + 29 : y - nR - 23}
-                            textAnchor="middle"
-                            fill={overdue ? '#f87171' : 'rgba(255,255,255,0.5)'}
-                            fontSize={9} fontFamily="Space Mono" fontWeight={overdue ? 700 : 400}>
-                            {overdue ? '⚠ OVERDUE' : task.due_date.slice(5)}
+                          <text x={x} y={dateY(ni, y)} textAnchor="middle"
+                            fill={od ? '#f87171' : 'rgba(255,255,255,0.45)'}
+                            fontSize={9} fontFamily="Space Mono" fontWeight={od ? 700 : 400}>
+                            {od ? '⚠ OVERDUE' : task.due_date.slice(5)}
                           </text>
                         )}
                       </g>
@@ -487,33 +468,17 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
           </svg>
         </div>
 
-        {/* ── TOOLTIP ── */}
+        {/* Tooltip */}
         {tooltip && (
-          <div style={{
-            position: 'fixed', left: tooltip.x + 16, top: tooltip.y - 70,
-            background: 'rgba(8,4,20,0.98)',
-            border: `1.5px solid ${tooltip.branch.color}60`,
-            borderRadius: '14px', padding: '12px 16px',
-            pointerEvents: 'none', zIndex: 9999, width: '240px',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.9)',
-            backdropFilter: 'blur(24px)',
-          }}>
+          <div style={{ position: 'fixed', left: tooltip.x + 16, top: tooltip.y - 70, background: 'rgba(8,4,20,0.98)', border: `1.5px solid ${tooltip.branch.color}60`, borderRadius: '14px', padding: '12px 16px', pointerEvents: 'none', zIndex: 9999, width: '240px', boxShadow: '0 20px 60px rgba(0,0,0,0.9)', backdropFilter: 'blur(24px)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: isOverdue(tooltip.task) ? '#f87171' : statusBorder(tooltip.task.status), flexShrink: 0 }} />
               <p style={{ color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700, margin: 0 }}>{tooltip.task.title}</p>
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '10px', fontFamily: 'Space Mono' }}>
-                {tooltip.task.status.replace('_', ' ').toUpperCase()}
-              </span>
-              {tooltip.task.due_date && (
-                <span style={{ color: isOverdue(tooltip.task) ? '#f87171' : 'rgba(255,255,255,0.45)', fontSize: '10px', fontFamily: 'Space Mono', fontWeight: isOverdue(tooltip.task) ? 700 : 400 }}>
-                  · {isOverdue(tooltip.task) ? '⚠ OVERDUE' : tooltip.task.due_date}
-                </span>
-              )}
-              {tooltip.task.priority === 'high' && (
-                <span style={{ color: '#fbbf24', fontSize: '10px', fontFamily: 'Space Mono' }}>· HIGH PRIORITY</span>
-              )}
+              <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '10px', fontFamily: 'Space Mono' }}>{tooltip.task.status.replace('_', ' ').toUpperCase()}</span>
+              {tooltip.task.due_date && <span style={{ color: isOverdue(tooltip.task) ? '#f87171' : 'rgba(255,255,255,0.45)', fontSize: '10px', fontFamily: 'Space Mono', fontWeight: isOverdue(tooltip.task) ? 700 : 400 }}>· {isOverdue(tooltip.task) ? '⚠ OVERDUE' : tooltip.task.due_date}</span>}
+              {tooltip.task.priority === 'high' && <span style={{ color: '#fbbf24', fontSize: '10px', fontFamily: 'Space Mono' }}>· HIGH PRIORITY</span>}
             </div>
             <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '7px' }}>
               <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: `linear-gradient(135deg, ${tooltip.branch.color}, ${tooltip.branch.color}66)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 800, color: 'white', flexShrink: 0 }}>
@@ -526,14 +491,14 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
         )}
       </div>
 
-      {/* ── SCROLL HINT ── */}
+      {/* Scroll hint */}
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '24px', padding: '7px 24px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
         <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.1em' }}>← DRAG TO EXPLORE →</span>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {[{ label: 'PAST', color: '#4ade80' }, { label: 'NOW', color: '#a78bfa' }, { label: 'UPCOMING', color: 'rgba(255,255,255,0.3)' }].map(s => (
-            <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <div style={{ width: '18px', height: '2px', background: s.color, borderRadius: '1px' }} />
-              <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '9px', fontFamily: 'Space Mono' }}>{s.label}</span>
+          {[{ l: 'PAST', c: '#4ade80' }, { l: 'NOW', c: '#a78bfa' }, { l: 'UPCOMING', c: 'rgba(255,255,255,0.3)' }].map(s => (
+            <div key={s.l} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <div style={{ width: '18px', height: '2px', background: s.c, borderRadius: '1px' }} />
+              <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '9px', fontFamily: 'Space Mono' }}>{s.l}</span>
             </div>
           ))}
         </div>
@@ -541,7 +506,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
 
       <style>{`
         @keyframes fgSpin { to { transform: rotate(360deg); } }
-        @keyframes fgRing { 0%,100% { stroke-opacity: 0.05; } 50% { stroke-opacity: 0.55; } }
+        @keyframes fgRing { 0%,100% { stroke-opacity: 0.04; } 50% { stroke-opacity: 0.5; } }
       `}</style>
     </div>
   )
