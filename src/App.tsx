@@ -18,6 +18,7 @@ import SettingsModal from './components/SettingsModal'
 import OnboardingFlow from './components/OnboardingFlow'
 import InviteNotifications from './components/InviteNotifications'
 import ExecutionMap from './components/ExecutionMap'
+import type { FlowBranch } from './hooks/useFlowData'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 
@@ -45,6 +46,8 @@ function App() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  // Branch filter — set when clicking a branch in Flow view
+  const [branchFilter, setBranchFilter] = useState<{ assigneeId: string; name: string } | null>(null)
   const navigate = useNavigate()
 
   const isPro = true
@@ -62,16 +65,10 @@ function App() {
     })
   }
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  )
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   const fetchProfile = async (uid: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', uid)
-      .single()
+    const { data } = await supabase.from('profiles').select('*').eq('id', uid).single()
     if (data) {
       setProfile(data)
       if (!data.onboarding_completed) setShowOnboarding(true)
@@ -98,41 +95,24 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        setUserId(session.user.id)
-        fetchProfile(session.user.id)
-      } else {
-        navigate('/auth')
-      }
+      if (session) { setUserId(session.user.id); fetchProfile(session.user.id) }
+      else navigate('/auth')
     }
     checkAuth()
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setUserId(session.user.id)
-        fetchProfile(session.user.id)
-      } else {
-        navigate('/auth')
-      }
+      if (session) { setUserId(session.user.id); fetchProfile(session.user.id) }
+      else navigate('/auth')
     })
     return () => subscription.unsubscribe()
   }, [navigate])
 
   useEffect(() => {
     if (!userId) return
-
     const fetchTasks = async () => {
       setLoading(true)
-      let query = supabase
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: true })
-
-      if (currentWorkspace) {
-        query = query.eq('workspace_id', currentWorkspace.id)
-      } else {
-        query = query.is('workspace_id', null).eq('user_id', userId)
-      }
-
+      let query = supabase.from('tasks').select('*').order('created_at', { ascending: true })
+      if (currentWorkspace) query = query.eq('workspace_id', currentWorkspace.id)
+      else query = query.is('workspace_id', null).eq('user_id', userId)
       const { data, error } = await query
       if (error) console.error('Fetch error:', error)
       else {
@@ -144,38 +124,28 @@ function App() {
       }
       setLoading(false)
     }
-
     fetchTasks()
-
     const channelName = currentWorkspace ? `workspace-${currentWorkspace.id}` : `personal-${userId}`
-    const channel = supabase
-      .channel(channelName)
+    const channel = supabase.channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newTask = payload.new as Task
-          const belongs = currentWorkspace
-            ? newTask.workspace_id === currentWorkspace.id
-            : !newTask.workspace_id && newTask.user_id === userId
+          const belongs = currentWorkspace ? newTask.workspace_id === currentWorkspace.id : !newTask.workspace_id && newTask.user_id === userId
           if (belongs) setTasks(prev => [...prev, newTask])
         } else if (payload.eventType === 'UPDATE') {
           setTasks(prev => prev.map(t => t.id === (payload.new as Task).id ? payload.new as Task : t))
         } else if (payload.eventType === 'DELETE') {
           setTasks(prev => prev.filter(t => t.id !== (payload.old as Task).id))
         }
-      })
-      .subscribe()
-
+      }).subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [userId, currentWorkspace])
 
   const refetchTasks = async () => {
     if (!userId) return
     let query = supabase.from('tasks').select('*').order('created_at', { ascending: true })
-    if (currentWorkspace) {
-      query = query.eq('workspace_id', currentWorkspace.id)
-    } else {
-      query = query.is('workspace_id', null).eq('user_id', userId)
-    }
+    if (currentWorkspace) query = query.eq('workspace_id', currentWorkspace.id)
+    else query = query.is('workspace_id', null).eq('user_id', userId)
     const { data } = await query
     setTasks(data ?? [])
     if (data) {
@@ -200,30 +170,37 @@ function App() {
     const task = tasks.find(t => t.id === taskId)
     if (!task || task.status === newStatus) return
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
-    const { error } = await supabase
-      .from('tasks')
+    const { error } = await supabase.from('tasks')
       .update({ status: newStatus, last_edited_by: userId, last_edited_at: new Date().toISOString() })
       .eq('id', taskId)
     if (error) { console.error('Update error:', error); refetchTasks() }
   }
 
-  const handleAddTask = (status: Status) => {
-    setDefaultStatus(status)
-    setShowModal(true)
+  const handleAddTask = (status: Status) => { setDefaultStatus(status); setShowModal(true) }
+  const handleLogout = async () => { await supabase.auth.signOut(); navigate('/auth') }
+
+  // Branch click — switch to Board view filtered to that assignee
+  const handleBranchClick = (branch: FlowBranch) => {
+    if (branch.id === 'unassigned') {
+      setBranchFilter(null)
+    } else {
+      setBranchFilter({ assigneeId: branch.id, name: branch.name })
+    }
+    setView('board')
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    navigate('/auth')
-  }
-
-  const total = tasks.length
+  const total     = tasks.length
   const completed = tasks.filter(t => t.status === 'done').length
-  const overdue = tasks.filter(t => {
+  const overdue   = tasks.filter(t => {
     if (!t.due_date) return false
     const [y, m, d] = t.due_date.split('-').map(Number)
     return new Date(y, m - 1, d) < new Date(new Date().setHours(0, 0, 0, 0))
   }).length
+
+  // Tasks filtered by branch (when coming from Flow)
+  const filteredTasks = branchFilter
+    ? tasks.filter(t => t.assignee_id === branchFilter.assigneeId)
+    : tasks
 
   return (
     <div style={{ minHeight: '100vh', background: '#000', overflowX: 'hidden', fontFamily: 'Space Grotesk, sans-serif' }}>
@@ -238,18 +215,14 @@ function App() {
       <div style={{ position: 'relative', zIndex: 100, borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)' }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', padding: isMobile ? '12px 16px' : '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
 
-          {/* Logo */}
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
             <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 800, color: 'white' }}>N</div>
             <div>
-              <h1 style={{ color: 'white', fontWeight: 800, fontSize: isMobile ? '15px' : '17px', letterSpacing: '-0.02em', margin: 0, lineHeight: 1 }}>
-                NEX<span style={{ color: '#8b5cf6' }}>TASK</span>
-              </h1>
+              <h1 style={{ color: 'white', fontWeight: 800, fontSize: isMobile ? '15px' : '17px', letterSpacing: '-0.02em', margin: 0, lineHeight: 1 }}>NEX<span style={{ color: '#8b5cf6' }}>TASK</span></h1>
               {!isMobile && <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.2em', margin: 0 }}>AI-POWERED BOARD</p>}
             </div>
           </motion.div>
 
-          {/* Workspace switcher */}
           <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
             onClick={() => setShowWorkspacePanel(true)}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '7px 12px', cursor: 'pointer', flexShrink: 0 }}>
@@ -262,7 +235,6 @@ function App() {
             <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>⌄</span>
           </motion.button>
 
-          {/* Stats — desktop only */}
           {!isMobile && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               {[
@@ -279,7 +251,6 @@ function App() {
             </motion.div>
           )}
 
-          {/* Right actions */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
             {!isMobile && (
               <div style={{ position: 'relative' }}>
@@ -299,7 +270,6 @@ function App() {
               {!isMobile && 'New Task'}
             </motion.button>
 
-            {/* Profile */}
             <div style={{ position: 'relative', isolation: 'isolate' as const }}>
               <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={() => setShowProfileMenu(p => !p)}
                 style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '5px 10px 5px 5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -311,7 +281,7 @@ function App() {
               {showProfileMenu && (
                 <>
                   <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setShowProfileMenu(false)} />
-                  <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '230px', zIndex: 9999, borderRadius: '14px', padding: '6px', border: '1px solid #333', boxShadow: '0 32px 80px rgba(0,0,0,0.9), 0 0 0 1px #000', backgroundColor: '#111111', isolation: 'isolate' as const }}>
+                  <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '230px', zIndex: 9999, borderRadius: '14px', padding: '6px', border: '1px solid #333', boxShadow: '0 32px 80px rgba(0,0,0,0.9)', backgroundColor: '#111111', isolation: 'isolate' as const }}>
                     <div style={{ padding: '12px', marginBottom: '4px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <Avatar name={profile?.full_name ?? profile?.email ?? 'User'} avatarUrl={profile?.avatar_url} size={38} />
                       <div style={{ overflow: 'hidden' }}>
@@ -319,7 +289,6 @@ function App() {
                         <p style={{ color: '#aaa', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.email}</p>
                       </div>
                     </div>
-
                     {[
                       { icon: '⚙', label: 'Settings', action: () => { setShowSettings(true); setShowProfileMenu(false) } },
                       { icon: '👥', label: 'Workspaces', action: () => { setShowWorkspacePanel(true); setShowProfileMenu(false) } },
@@ -328,13 +297,10 @@ function App() {
                         style={{ width: '100%', padding: '9px 12px', background: 'transparent', border: 'none', borderRadius: '8px', color: '#ccc', cursor: 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', marginBottom: '2px' }}
                         onMouseEnter={e => { e.currentTarget.style.background = '#222'; e.currentTarget.style.color = '#fff' }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#ccc' }}>
-                        <span style={{ fontSize: '14px' }}>{item.icon}</span>
-                        {item.label}
+                        <span style={{ fontSize: '14px' }}>{item.icon}</span>{item.label}
                       </button>
                     ))}
-
                     <div style={{ height: '1px', background: '#333', margin: '4px 0' }} />
-
                     <button onClick={handleLogout}
                       style={{ width: '100%', padding: '9px 12px', background: 'transparent', border: 'none', borderRadius: '8px', color: '#f87171', cursor: 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left' }}
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444' }}
@@ -348,7 +314,6 @@ function App() {
           </motion.div>
         </div>
 
-        {/* Mobile search */}
         {isMobile && (
           <div style={{ padding: '8px 16px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
             <div style={{ position: 'relative' }}>
@@ -361,10 +326,10 @@ function App() {
       </div>
 
       {/* MAIN CONTENT */}
-      <div style={{ position: 'relative', zIndex: 10, maxWidth: '1400px', margin: '0 auto', padding: isMobile ? '16px' : '28px 32px' }}>
+      <div style={{ position: 'relative', zIndex: 10, maxWidth: view === 'flow' ? '100%' : '1400px', margin: '0 auto', padding: view === 'flow' ? '0' : (isMobile ? '16px' : '28px 32px') }}>
 
         {/* View toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: view === 'flow' ? '0' : '20px', flexWrap: 'wrap', padding: view === 'flow' ? (isMobile ? '12px 16px' : '16px 28px') : '0', borderBottom: view === 'flow' ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
           <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '4px' }}>
             {[
               { id: 'today',    label: '☀ Today' },
@@ -373,26 +338,26 @@ function App() {
               { id: 'flow',     label: '⚡ Flow' },
             ].map(v => (
               <button key={v.id}
-                onClick={() => setView(v.id as 'today' | 'board' | 'calendar' | 'flow')}
-                style={{
-                  padding: '6px 14px', borderRadius: '7px', border: 'none',
-                  background: view === v.id ? 'rgba(139,92,246,0.25)' : 'transparent',
-                  color: view === v.id ? '#a78bfa' : 'rgba(255,255,255,0.5)',
-                  cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk',
-                  fontWeight: view === v.id ? 600 : 400, transition: 'all 0.15s',
-                }}>
+                onClick={() => { setView(v.id as typeof view); if (v.id !== 'board') setBranchFilter(null) }}
+                style={{ padding: '6px 14px', borderRadius: '7px', border: 'none', background: view === v.id ? 'rgba(139,92,246,0.25)' : 'transparent', color: view === v.id ? '#a78bfa' : 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: view === v.id ? 600 : 400, transition: 'all 0.15s' }}>
                 {v.label}
               </button>
             ))}
           </div>
 
+          {/* Branch filter badge */}
+          {branchFilter && view === 'board' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '20px', padding: '4px 10px 4px 8px' }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#8b5cf6' }} />
+              <span style={{ color: '#a78bfa', fontSize: '11px', fontFamily: 'Space Grotesk' }}>{branchFilter.name}</span>
+              <button onClick={() => setBranchFilter(null)}
+                style={{ background: 'none', border: 'none', color: 'rgba(167,139,250,0.5)', cursor: 'pointer', fontSize: '12px', padding: '0', lineHeight: 1, marginLeft: '2px' }}>✕</button>
+            </div>
+          )}
+
           {isMobile && (
             <div style={{ display: 'flex', gap: '8px' }}>
-              {[
-                { value: total, color: '#a78bfa', label: 'total' },
-                { value: completed, color: '#34d399', label: 'done' },
-                { value: overdue, color: '#f87171', label: 'late' },
-              ].map(s => (
+              {[{ value: total, color: '#a78bfa', label: 'total' }, { value: completed, color: '#34d399', label: 'done' }, { value: overdue, color: '#f87171', label: 'late' }].map(s => (
                 <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '4px 8px' }}>
                   <span style={{ color: s.color, fontSize: '13px', fontWeight: 700, fontFamily: 'Space Mono' }}>{s.value}</span>
                   <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono' }}>{s.label}</span>
@@ -401,16 +366,16 @@ function App() {
             </div>
           )}
 
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+          {view !== 'flow' && <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />}
 
-          {currentWorkspace && (
+          {currentWorkspace && view !== 'flow' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '8px', padding: '4px 10px' }}>
               <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#8b5cf6', boxShadow: '0 0 6px #8b5cf6' }} />
               <span style={{ color: '#a78bfa', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>{currentWorkspace.name}</span>
             </div>
           )}
 
-          {!isMobile && <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', fontFamily: 'Space Mono' }}>{total} tasks</span>}
+          {!isMobile && view !== 'flow' && <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', fontFamily: 'Space Mono' }}>{total} tasks</span>}
         </div>
 
         {/* Views */}
@@ -429,12 +394,12 @@ function App() {
                 <motion.div key={column.id} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.08 }} style={{ scrollSnapAlign: 'start' }}>
                   <Column
                     id={column.id}
-                    tasks={tasks.filter(t => t.status === column.id).filter(t => t.title.toLowerCase().includes(search.toLowerCase()))}
-                    onDeleted={refetchTasks}
-                    onOpen={setSelectedTask}
-                    onAddTask={handleAddTask}
-                    profiles={profiles}
-                    userId={userId}
+                    tasks={filteredTasks
+                      .filter(t => t.status === column.id)
+                      .filter(t => t.title.toLowerCase().includes(search.toLowerCase()))
+                    }
+                    onDeleted={refetchTasks} onOpen={setSelectedTask}
+                    onAddTask={handleAddTask} profiles={profiles} userId={userId}
                   />
                 </motion.div>
               ))}
@@ -452,24 +417,25 @@ function App() {
             <CalendarView tasks={tasks} onOpenTask={setSelectedTask} />
           </motion.div>
         ) : view === 'flow' ? (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '28px' }}>
-            {!currentWorkspace ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', gap: '12px' }}>
-                <p style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'Space Mono', fontSize: '12px', letterSpacing: '0.1em' }}>FLOW REQUIRES A WORKSPACE</p>
-                <p style={{ color: 'rgba(255,255,255,0.15)', fontFamily: 'Space Grotesk', fontSize: '13px' }}>Select or create a workspace to see your execution map.</p>
-                <button onClick={() => setShowWorkspacePanel(true)}
-                  style={{ marginTop: '8px', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '8px', padding: '8px 18px', color: '#a78bfa', cursor: 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk' }}>
-                  Open Workspaces
-                </button>
-              </div>
-            ) : (
+          !currentWorkspace ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '400px', gap: '12px', padding: '28px' }}>
+              <p style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'Space Mono', fontSize: '12px', letterSpacing: '0.12em' }}>FLOW REQUIRES A WORKSPACE</p>
+              <p style={{ color: 'rgba(255,255,255,0.15)', fontFamily: 'Space Grotesk', fontSize: '13px' }}>Select or create a workspace to see your execution map.</p>
+              <button onClick={() => setShowWorkspacePanel(true)}
+                style={{ marginTop: '8px', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '8px', padding: '8px 18px', color: '#a78bfa', cursor: 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk' }}>
+                Open Workspaces
+              </button>
+            </div>
+          ) : (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
+              style={{ height: 'calc(100vh - 130px)' }}>
               <ExecutionMap
                 workspaceId={currentWorkspace.id}
+                onBranchClick={handleBranchClick}
                 onTaskClick={(task) => setSelectedTask(task as unknown as Task)}
               />
-            )}
-          </motion.div>
+            </motion.div>
+          )
         ) : null}
       </div>
 
@@ -477,27 +443,22 @@ function App() {
       {showModal && userId && (
         <CreateTaskModal userId={userId} onClose={() => setShowModal(false)} onTaskCreated={refetchTasks} defaultStatus={defaultStatus} workspaceId={currentWorkspace?.id} />
       )}
-
       {selectedTask && userId && (
         <TaskDetailPanel task={selectedTask} userId={userId} onClose={() => setSelectedTask(null)} onUpdated={() => { refetchTasks(); setSelectedTask(null) }} profiles={profiles} />
       )}
-
       <AnimatePresence>
         {showWorkspacePanel && userId && (
           <WorkspacePanel userId={userId} currentWorkspace={currentWorkspace} onWorkspaceChange={setCurrentWorkspace} onClose={() => setShowWorkspacePanel(false)} />
         )}
       </AnimatePresence>
-
       {showOnboarding && userId && (
         <OnboardingFlow userId={userId} userName={profile?.full_name ?? profile?.email ?? ''} onComplete={() => { setShowOnboarding(false); setProfile(prev => prev ? { ...prev, onboarding_completed: true } : prev); refetchTasks() }} />
       )}
-
       <AnimatePresence>
         {showSettings && userId && (
           <SettingsModal userId={userId} profile={profile} onClose={() => setShowSettings(false)} onProfileUpdated={setProfile} nexEnabled={nexEnabled} onToggleNex={toggleNex} defaultView={view} onDefaultViewChange={(v) => { setView(v); try { localStorage.setItem('nex_default_view', v) } catch (e) { void e } }} />
         )}
       </AnimatePresence>
-
       {userId && (
         <NexErrorBoundary>
           <NexAssistant workspaceId={currentWorkspace?.id ?? null} userId={userId} isPro={isPro} nexEnabled={nexEnabled} onTaskCreated={refetchTasks} panelOpen={showSettings} />
