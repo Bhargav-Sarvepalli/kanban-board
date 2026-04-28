@@ -17,7 +17,7 @@ import NexErrorBoundary from './components/Nex/NexErrorBoundary'
 import SettingsModal from './components/SettingsModal'
 import OnboardingFlow from './components/OnboardingFlow'
 import InviteNotifications from './components/InviteNotifications'
-import ExecutionMap from './components/ExecutionMap'
+import FlowGraph from './components/Flow/FlowGraph'
 import type { FlowBranch } from './hooks/useFlowData'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
@@ -429,10 +429,10 @@ function App() {
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
               style={{ height: 'calc(100vh - 130px)' }}>
-              <ExecutionMap
+              <FlowGraph
                 workspaceId={currentWorkspace.id}
+                userId={userId}
                 onBranchClick={handleBranchClick}
-                onTaskClick={(task) => setSelectedTask(task as unknown as Task)}
               />
             </motion.div>
           )
