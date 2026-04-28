@@ -431,7 +431,7 @@ function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
-              style={{ height: 'calc(100vh - 160px)', overflow: 'hidden' }}
+              style={{ height: 'calc(100vh - 110px)', overflow: 'hidden' }}
             >
               <FlowGraph
                 workspaceId={currentWorkspace.id}

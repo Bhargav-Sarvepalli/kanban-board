@@ -9,14 +9,14 @@ interface FlowGraphProps {
 }
 
 // ── Layout constants ──────────────────────────────────────────────
-const TRUNK_Y        = 140   // vertical center of SVG
+const TRUNK_Y        = 220   // vertical center of SVG
 const NODE_R         = 16    // task node radius
 const TRUNK_NODE_R   = 22    // milestone node radius
-const BRANCH_OFFSET  = 140   // how far above/below trunk branches run
+const BRANCH_OFFSET  = 200   // how far above/below trunk branches run
 const NODE_SPACING   = 130   // horizontal space between task nodes
 const BRANCH_START_X = 220   // where first branch origin starts
 const BRANCH_GAP     = 340   // horizontal gap between branches
-const SVG_HEIGHT     = 520   // total SVG height
+const SVG_HEIGHT     = 680   // total SVG height
 
 function statusFill(status: string): string {
   switch (status) {
@@ -455,8 +455,8 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
                       {/* Pulse ring */}
                       {(overdue || isReview || isActive) && (
                         <circle cx={x} cy={y} r={nR + 7} fill="none" stroke={border}
-                          strokeWidth={1.5} strokeOpacity={0.3}
-                          style={{ animation: overdue ? 'fgOverdue 1.5s ease-in-out infinite' : 'fgPulse 2.5s ease-in-out infinite' }}
+                            strokeWidth={1.5}
+                            style={{ animation: 'fgRing 2s ease-in-out infinite' }}
                         />
                       )}
 
@@ -564,9 +564,8 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
       </div>
 
       <style>{`
-        @keyframes fgSpin  { to { transform: rotate(360deg); } }
-        @keyframes fgPulse { 0%,100% { opacity:0.3; transform:scale(1); } 50% { opacity:0.8; transform:scale(1.15); } }
-        @keyframes fgOverdue { 0%,100% { opacity:0.15; transform:scale(1); } 50% { opacity:0.5; transform:scale(1.1); } }
+         @keyframes fgSpin { to { transform: rotate(360deg); } }
+         @keyframes fgRing { 0%,100% { stroke-opacity: 0.1; } 50% { stroke-opacity: 0.5; } }
       `}</style>
     </div>
   )
