@@ -14,6 +14,8 @@ const BRANCH_OFFSET  = 140
 const NODE_SPACING   = 140
 const BRANCH_START_X = 200
 const BRANCH_GAP     = 340
+// Branch horizontal line starts 50px after originX
+const FORK_OFFSET    = 50
 
 function statusFill(status: string): string {
   switch (status) {
@@ -95,12 +97,15 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
       const above   = idx % 2 === 0
       const branchY = above ? TRUNK_Y - BRANCH_OFFSET : TRUNK_Y + BRANCH_OFFSET
       const originX = x + 60
+      // First node starts at originX + FORK_OFFSET
       const nodes: NodeLayout[] = branch.tasks.map((task, i) => ({
-        task, x: originX + i * NODE_SPACING, y: branchY,
+        task,
+        x: originX + FORK_OFFSET + i * NODE_SPACING,
+        y: branchY,
       }))
-      const endX = nodes.length > 0 ? nodes[nodes.length - 1].x : originX
+      const endX = nodes.length > 0 ? nodes[nodes.length - 1].x : originX + FORK_OFFSET
       result.push({ branch, above, originX, branchY, nodes, endX })
-      x += Math.max(branch.tasks.length * NODE_SPACING + 120, BRANCH_GAP)
+      x += Math.max(branch.tasks.length * NODE_SPACING + 160, BRANCH_GAP)
     })
     const svgWidth = x + 200
     const nowX     = svgWidth * 0.45
@@ -143,9 +148,6 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
   const nowX     = layout.nowX
   const pastX    = nowX * 0.45
 
-  // Label offset from branch line — enough space to clear nodes
-  const LABEL_GAP = NODE_R + 28
-
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
@@ -153,7 +155,6 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0, flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
 
-          {/* Circular progress — uses its own isolated SVG with unique gradient id */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ position: 'relative', width: '44px', height: '44px' }}>
               <svg width="44" height="44" style={{ transform: 'rotate(-90deg)' }}>
@@ -180,13 +181,11 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
 
           <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.1)' }} />
 
-          {/* Health badge */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px', background: `${health.color}20`, border: `1px solid ${health.color}60`, borderRadius: '8px', padding: '5px 14px' }}>
             <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: health.color, boxShadow: `0 0 10px ${health.color}` }} />
             <span style={{ color: health.color, fontSize: '12px', fontFamily: 'Space Mono', fontWeight: 700, letterSpacing: '0.1em' }}>{health.label}</span>
           </div>
 
-          {/* Stats */}
           <div style={{ display: 'flex', gap: '20px' }}>
             {[
               { label: 'BRANCHES', value: branches.length, color: '#c4b5fd' },
@@ -202,7 +201,6 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
           </div>
         </div>
 
-        {/* Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ display: 'flex', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '3px' }}>
             {(['person', 'feature'] as const).map(v => (
@@ -264,19 +262,14 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
         >
           <svg width={layout.svgWidth} height={svgH} style={{ display: 'block' }}>
             <defs>
-              {/* Branch fork gradients */}
               {layout.branches.map(({ branch }) => (
                 <linearGradient key={branch.id} id={`fg-bg-${branch.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
                   <stop offset="0%"   stopColor={branch.color} stopOpacity="1" />
                   <stop offset="100%" stopColor={branch.color} stopOpacity="0.15" />
                 </linearGradient>
               ))}
-              {/* Glow filters */}
               <filter id="fg-tg" x="-20%" y="-200%" width="140%" height="500%">
-                <feGaussianBlur stdDeviation="6" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-              <filter id="fg-trunk-sharp" x="-5%" y="-400%" width="110%" height="900%">
-                <feGaussianBlur stdDeviation="2" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+                <feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
               {layout.branches.map(({ branch }) => (
                 <filter key={branch.id} id={`fg-gf-${branch.id}`} x="-50%" y="-50%" width="200%" height="200%">
@@ -285,44 +278,31 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
               ))}
             </defs>
 
-            {/* Zone background tints */}
+            {/* Zone tints */}
             <rect x={0}     y={0} width={pastX}                  height={svgH} fill="rgba(34,197,94,0.04)" />
             <rect x={pastX} y={0} width={nowX - pastX}           height={svgH} fill="rgba(139,92,246,0.05)" />
             <rect x={nowX}  y={0} width={layout.svgWidth - nowX} height={svgH} fill="rgba(255,255,255,0.01)" />
 
-            {/* Zone divider lines */}
+            {/* Zone dividers */}
             <line x1={pastX} y1={20} x2={pastX} y2={svgH - 20} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="5 4" />
             <text x={pastX + 10} y={42} fill="rgba(255,255,255,0.7)" fontSize={10} fontFamily="Space Mono" fontWeight="bold" letterSpacing="2">PAST</text>
             <line x1={nowX}  y1={20} x2={nowX}  y2={svgH - 20} stroke="rgba(167,139,250,0.6)" strokeWidth={1} strokeDasharray="5 4" />
             <text x={nowX + 10} y={42} fill="rgba(167,139,250,1)" fontSize={10} fontFamily="Space Mono" fontWeight="bold" letterSpacing="2">NOW</text>
             <text x={nowX + 10} y={svgH - 28} fill="rgba(167,139,250,0.5)" fontSize={9} fontFamily="Space Mono" letterSpacing="2">UPCOMING →</text>
 
-            {/* ── TRUNK LINE ──
-                Uses hardcoded stops — NO url() reference to avoid gradient ID conflicts
-                with the circular progress SVG in the top bar */}
-            {/* Glow layer */}
-            <line x1={60} y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y}
-              stroke="#7c3aed" strokeWidth={24} strokeLinecap="round" opacity={0.12}
-            />
-            {/* Past segment — green */}
-            <line x1={60} y1={TRUNK_Y} x2={pastX} y2={TRUNK_Y}
-              stroke="#4ade80" strokeWidth={3.5} strokeLinecap="round"
-              filter="url(#fg-trunk-sharp)"
-            />
-            {/* Now segment — purple */}
-            <line x1={pastX} y1={TRUNK_Y} x2={nowX} y2={TRUNK_Y}
-              stroke="#a78bfa" strokeWidth={3.5} strokeLinecap="round"
-              filter="url(#fg-trunk-sharp)"
-            />
-            {/* Upcoming segment — faint white */}
-            <line x1={nowX} y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y}
-              stroke="rgba(255,255,255,0.2)" strokeWidth={3.5} strokeLinecap="round"
-            />
+            {/* ── TRUNK — 3 solid segments, no url() gradient ── */}
+            {/* Glow */}
+            <line x1={60} y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y} stroke="#7c3aed" strokeWidth={28} strokeLinecap="round" opacity={0.1} />
+            {/* Past — bright green */}
+            <line x1={60} y1={TRUNK_Y} x2={pastX} y2={TRUNK_Y} stroke="#4ade80" strokeWidth={4} strokeLinecap="round" />
+            {/* Now — bright purple */}
+            <line x1={pastX} y1={TRUNK_Y} x2={nowX} y2={TRUNK_Y} stroke="#a78bfa" strokeWidth={4} strokeLinecap="round" />
+            {/* Upcoming — faint */}
+            <line x1={nowX} y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y} stroke="rgba(255,255,255,0.25)" strokeWidth={4} strokeLinecap="round" />
             {/* Arrow */}
-            <polygon points={`${trunkEnd + 16},${TRUNK_Y} ${trunkEnd},${TRUNK_Y - 8} ${trunkEnd},${TRUNK_Y + 8}`}
-              fill="rgba(255,255,255,0.4)" />
+            <polygon points={`${trunkEnd + 16},${TRUNK_Y} ${trunkEnd},${TRUNK_Y - 9} ${trunkEnd},${TRUNK_Y + 9}`} fill="rgba(255,255,255,0.5)" />
             {/* Start dot */}
-            <circle cx={60} cy={TRUNK_Y} r={5} fill="#4ade80" />
+            <circle cx={60} cy={TRUNK_Y} r={6} fill="#4ade80" />
 
             {/* ── MILESTONES ── */}
             {[
@@ -331,9 +311,9 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
               { label: ['Beta', 'live'],     x: nowX },
               { label: ['Public', 'launch'], x: layout.svgWidth - 120 },
             ].map(({ label, x }) => {
-              const isPast = x <= pastX
-              const isNow  = x > pastX && x <= nowX
-              const col    = isPast ? '#4ade80' : isNow ? '#a78bfa' : 'rgba(255,255,255,0.25)'
+              const isPast  = x <= pastX
+              const isNow   = x > pastX && x <= nowX
+              const col     = isPast ? '#4ade80' : isNow ? '#a78bfa' : 'rgba(255,255,255,0.25)'
               const textCol = isPast ? '#4ade80' : isNow ? '#c4b5fd' : 'rgba(255,255,255,0.55)'
               return (
                 <g key={label[0]}>
@@ -361,8 +341,12 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
             {layout.branches.map(({ branch, above, originX, branchY, nodes, endX }) => {
               const isHov    = hoveredBranch === branch.id
               const isDimmed = standupMode && hoveredBranch !== null && hoveredBranch !== branch.id
-              // Label sits outside the node area — above: above the branch line; below: below
-              const labelY   = above ? branchY - LABEL_GAP : branchY + LABEL_GAP
+              // Branch line starts at originX + FORK_OFFSET
+              const lineStartX = originX + FORK_OFFSET
+              // Label position: above branch = above branch line; below = below branch line
+              // Placed at lineStartX, clear of nodes (nodes start at lineStartX too)
+              // So label goes to the LEFT of the first node, anchored at lineStartX - 8
+              const labelX = lineStartX - 4
 
               return (
                 <g key={branch.id} opacity={isDimmed ? 0.08 : 1}
@@ -371,13 +355,10 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
                   onMouseLeave={() => setHoveredBranch(null)}
                   onClick={() => !isDragging && onBranchClick(branch)}
                 >
-                  {/* Diagonal fork from trunk to branch */}
-                  <path
-                    d={`M ${originX} ${TRUNK_Y} Q ${originX} ${(TRUNK_Y + branchY) / 2} ${originX + 50} ${branchY}`}
-                    fill="none"
-                    stroke={`url(#fg-bg-${branch.id})`}
-                    strokeWidth={isHov ? 3 : 2}
-                    style={{ transition: 'stroke-width 0.2s' }}
+                  {/* Diagonal fork */}
+                  <path d={`M ${originX} ${TRUNK_Y} Q ${originX} ${(TRUNK_Y + branchY) / 2} ${lineStartX} ${branchY}`}
+                    fill="none" stroke={`url(#fg-bg-${branch.id})`}
+                    strokeWidth={isHov ? 3 : 2} style={{ transition: 'stroke-width 0.2s' }}
                   />
 
                   {/* Junction dot on trunk */}
@@ -388,43 +369,54 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
                   />
 
                   {/* Horizontal branch line */}
-                  <line x1={originX + 50} y1={branchY} x2={endX} y2={branchY}
+                  <line x1={lineStartX} y1={branchY} x2={endX} y2={branchY}
                     stroke={branch.color} strokeWidth={isHov ? 2.5 : 2}
                     strokeOpacity={isHov ? 0.9 : 0.55}
                     style={{ transition: 'all 0.2s' }}
                   />
 
-                  {/* Progress bar alongside branch */}
+                  {/* Progress bar */}
                   <line
-                    x1={originX + 50}
-                    y1={above ? branchY - 5 : branchY + 5}
-                    x2={originX + 50 + (endX - originX - 50) * (branch.progress / 100)}
+                    x1={lineStartX} y1={above ? branchY - 5 : branchY + 5}
+                    x2={lineStartX + (endX - lineStartX) * (branch.progress / 100)}
                     y2={above ? branchY - 5 : branchY + 5}
                     stroke={branch.color} strokeWidth={3} strokeOpacity={0.7} strokeLinecap="round"
                   />
 
-                  {/* ── BRANCH LABEL — pure SVG, positioned well clear of nodes ── */}
-                  {/* Avatar circle */}
-                  <circle cx={originX + 4} cy={labelY} r={11}
-                    fill={branch.color} stroke="rgba(0,0,0,0.4)" strokeWidth={1.5}
-                  />
-                  {/* Avatar initials */}
-                  <text x={originX + 4} y={labelY + 4} textAnchor="middle"
-                    fill="white" fontSize={7} fontFamily="Space Grotesk" fontWeight={800}>
-                    {branch.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                  </text>
-                  {/* Branch name */}
-                  <text x={originX + 20} y={above ? labelY - 3 : labelY - 3}
-                    fill="white" fontSize={11} fontFamily="Space Grotesk" fontWeight={700}
-                    textAnchor="start">
-                    {branch.name.split(' ')[0].slice(0, 12)}
-                  </text>
-                  {/* Progress % */}
-                  <text x={originX + 20} y={above ? labelY + 11 : labelY + 11}
-                    fill={branch.color} fontSize={10} fontFamily="Space Mono" fontWeight={700}
-                    textAnchor="start">
-                    {branch.progress}% · {branch.total} tasks
-                  </text>
+                  {/* ── BRANCH LABEL — foreignObject with avatar photo support ──
+                      Positioned ABOVE or BELOW the branch line, at the fork point
+                      width=180 height=36 sits to the right of the fork */}
+                  <foreignObject
+                    x={labelX}
+                    y={above ? branchY - 52 : branchY + 18}
+                    width={180} height={36}
+                    style={{ overflow: 'visible', pointerEvents: 'none' }}
+                  >
+                    <div style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '6px',
+                      background: `${branch.color}22`,
+                      border: `1.5px solid ${branch.color}${isHov ? 'cc' : '66'}`,
+                      borderRadius: '14px', padding: '3px 10px 3px 4px',
+                      backdropFilter: 'blur(10px)',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {/* Avatar */}
+                      <div style={{ width: '22px', height: '22px', borderRadius: '50%', border: `1.5px solid ${branch.color}`, overflow: 'hidden', flexShrink: 0 }}>
+                        {branch.avatar_url
+                          ? <img src={branch.avatar_url} alt={branch.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : <div style={{ width: '100%', height: '100%', background: `linear-gradient(135deg, ${branch.color}, ${branch.color}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 800, color: 'white' }}>
+                              {branch.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </div>
+                        }
+                      </div>
+                      <span style={{ color: 'white', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 700 }}>
+                        {branch.name.split(' ')[0].slice(0, 11)}
+                      </span>
+                      <span style={{ color: branch.color, fontSize: '10px', fontFamily: 'Space Mono', fontWeight: 700 }}>
+                        {branch.progress}%
+                      </span>
+                    </div>
+                  </foreignObject>
 
                   {/* ── TASK NODES ── */}
                   {nodes.map(({ task, x, y }, ni) => {
@@ -444,48 +436,40 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
                         onClick={(e) => { e.stopPropagation(); if (!isDragging) onBranchClick(branch) }}
                         style={{ cursor: isDragging ? 'grabbing' : 'pointer' }}
                       >
-                        {/* Connector line between nodes */}
                         {ni > 0 && (
                           <line x1={nodes[ni - 1].x + nR} y1={y} x2={x - nR} y2={y}
                             stroke={branch.color} strokeWidth={1.5} strokeOpacity={0.4} />
                         )}
 
-                        {/* Pulse ring */}
                         {(overdue || isReview || isActive) && (
                           <circle cx={x} cy={y} r={nR + 8} fill="none" stroke={border} strokeWidth={2}
                             style={{ animation: 'fgRing 3s ease-in-out infinite' }} />
                         )}
 
-                        {/* Hover ring */}
                         {isNH && <circle cx={x} cy={y} r={nR + 13} fill="none" stroke={border} strokeWidth={1.5} strokeOpacity={0.3} />}
 
-                        {/* Node circle */}
                         <circle cx={x} cy={y} r={nR}
                           fill={isDone ? fill : 'rgba(10,6,20,0.95)'}
-                          stroke={border}
-                          strokeWidth={isNH ? 3 : 2.5}
+                          stroke={border} strokeWidth={isNH ? 3 : 2.5}
                           strokeDasharray={task.status === 'todo' ? '4 3' : 'none'}
                           filter={isActive || overdue ? `url(#fg-gf-${branch.id})` : undefined}
                           style={{ transition: 'all 0.15s' }}
                         />
 
-                        {/* Status icon */}
                         <text x={x} y={y + 5} textAnchor="middle"
                           fill={isDone ? 'rgba(0,0,0,0.9)' : border}
                           fontSize={standupMode ? 14 : 12} fontFamily="Space Mono" fontWeight="bold">
                           {icon}
                         </text>
 
-                        {/* Task title — on the opposite side from the branch label */}
+                        {/* Title on OPPOSITE side from branch label */}
                         <text x={x} y={above ? y + nR + 16 : y - nR - 10}
-                          textAnchor="middle"
-                          fill="rgba(255,255,255,0.92)"
+                          textAnchor="middle" fill="rgba(255,255,255,0.92)"
                           fontSize={10} fontFamily="Space Grotesk" fontWeight={600}
                           style={{ pointerEvents: 'none' }}>
                           {task.title.length > 14 ? task.title.slice(0, 13) + '…' : task.title}
                         </text>
 
-                        {/* Due date */}
                         {task.due_date && (
                           <text x={x} y={above ? y + nR + 29 : y - nR - 23}
                             textAnchor="middle"
@@ -511,7 +495,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
             border: `1.5px solid ${tooltip.branch.color}60`,
             borderRadius: '14px', padding: '12px 16px',
             pointerEvents: 'none', zIndex: 9999, width: '240px',
-            boxShadow: `0 20px 60px rgba(0,0,0,0.9)`,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.9)',
             backdropFilter: 'blur(24px)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
