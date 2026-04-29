@@ -320,11 +320,11 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
 
               // Task title: on the side AWAY from trunk
               // above branch → title above node; below branch → title below node
-              const titleY  = (ni: number, y: number) =>
+              const titleY  = (y: number) =>
                 above ? y - nR - 12 : y + nR + 16
 
               // Due date: one line further out
-              const dateY   = (ni: number, y: number) =>
+              const dateY   = (y: number) =>
                 above ? y - nR - 25 : y + nR + 29
 
               return (
@@ -444,7 +444,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
                         </text>
 
                         {/* Title — always away from trunk */}
-                        <text x={x} y={titleY(ni, y)} textAnchor="middle"
+                        <text x={x} y={titleY(y)} textAnchor="middle"
                           fill="rgba(255,255,255,0.9)"
                           fontSize={10} fontFamily="Space Grotesk" fontWeight={600}
                           style={{ pointerEvents: 'none' }}>
@@ -453,7 +453,7 @@ export default function FlowGraph({ workspaceId, onBranchClick }: FlowGraphProps
 
                         {/* Due date */}
                         {task.due_date && (
-                          <text x={x} y={dateY(ni, y)} textAnchor="middle"
+                          <text x={x} y={dateY(y)} textAnchor="middle"
                             fill={od ? '#f87171' : 'rgba(255,255,255,0.45)'}
                             fontSize={9} fontFamily="Space Mono" fontWeight={od ? 700 : 400}>
                             {od ? '⚠ OVERDUE' : task.due_date.slice(5)}
