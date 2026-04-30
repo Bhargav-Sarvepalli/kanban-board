@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 interface Props {
   userId: string
   workspaceId?: string | null
-  onComplete: (project: Project) => void
+  onCreated: (project: Project) => void   // used by App.tsx
+  onComplete?: (project: Project) => void // kept for backward compat
   onClose: () => void
 }
 
@@ -17,11 +18,14 @@ export interface Project {
   target_date: string | null
   owner_id: string
   workspace_id: string | null
+  created_at: string
 }
 
 const STEPS = ['Create Project', 'Add Team', 'Plan Flow', 'Create Features']
 
-export default function ProjectCreationWizard({ userId, workspaceId, onComplete, onClose }: Props) {
+export default function ProjectCreationWizard({ userId, workspaceId, onCreated, onComplete, onClose }: Props) {
+  const finish = (p: Project) => { onCreated(p); onComplete?.(p) }
+
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -146,8 +150,8 @@ export default function ProjectCreationWizard({ userId, workspaceId, onComplete,
           }))
         )
       }
-      onComplete(createdProject)
-    } catch { onComplete(createdProject!) }
+      finish(createdProject)
+    } catch { finish(createdProject!) }
     finally { setLoading(false) }
   }
 
