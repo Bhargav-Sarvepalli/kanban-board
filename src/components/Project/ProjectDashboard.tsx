@@ -82,21 +82,15 @@ export default function ProjectDashboard({ projectId, projectName, onClose, onFe
     const saved = localStorage.getItem(`project_current_ms_${projectId}`)
     const resolvedMs = saved && ms.find(m => m.id === saved) ? saved : ms[0]?.id ?? null
 
-    return { ms, enriched, resolvedMs }
+    // Update all state here so both the effect and manual void calls work correctly
+    setMilestones(ms)
+    setFeatures(enriched)
+    setCurrentMilestoneId(prev => prev ?? resolvedMs)  // don't overwrite user's current selection
+    setLoading(false)
   }, [projectId])
 
-  useEffect(() => {
-    let cancelled = false
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchData().then(result => {
-      if (cancelled || !result) return
-      setMilestones(result.ms)
-      setFeatures(result.enriched)
-      setCurrentMilestoneId(result.resolvedMs)
-      setLoading(false)
-    })
-    return () => { cancelled = true }
-  }, [fetchData])
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchData() }, [fetchData])
 
   const setCurrentMilestone = (id: string) => {
     setCurrentMilestoneId(id)
