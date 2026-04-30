@@ -6,6 +6,7 @@ import { breakIntoSubtasks } from '../lib/ai'
 import toast from 'react-hot-toast'
 import Avatar from './Avatar'
 import { useWorkspaceRole, canEditTask } from '../hooks/useWorkspaceRole'
+import ShowOnFlowToggle from './Project/ShowOnFlowToggle'
 
 interface Props {
   task: Task
@@ -25,11 +26,11 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
   const [status, setStatus] = useState<Status>(task.status)
   const [priority, setPriority] = useState(task.priority)
   const [dueDate, setDueDate] = useState(task.due_date ?? '')
+  const [showOnFlow, setShowOnFlow] = useState(task.show_on_flow ?? false)
   const [saving, setSaving] = useState(false)
   const [subtasks, setSubtasks] = useState<string[]>([])
   const [generatingSubtasks, setGeneratingSubtasks] = useState(false)
 
-  // Role check
   const role = useWorkspaceRole(task.workspace_id, userId)
   const isPersonal = !task.workspace_id
   const canEdit = isPersonal
@@ -37,16 +38,17 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
     : canEditTask(role, task.user_id, task.assignee_id, userId)
 
   useEffect(() => {
-    fetchComments()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false
+    const run = async () => {
+      const { data } = await supabase.from('comments').select('*').eq('task_id', task.id).order('created_at', { ascending: true })
+      if (!cancelled) setComments(data ?? [])
+    }
+    void run()
+    return () => { cancelled = true }
   }, [task.id])
 
-  const fetchComments = async () => {
-    const { data } = await supabase
-      .from('comments')
-      .select('*')
-      .eq('task_id', task.id)
-      .order('created_at', { ascending: true })
+  const refetchComments = async () => {
+    const { data } = await supabase.from('comments').select('*').eq('task_id', task.id).order('created_at', { ascending: true })
     setComments(data ?? [])
   }
 
@@ -54,78 +56,42 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
     if (!canEdit) return
     setSaving(true)
     const wasNotDone = task.status !== 'done'
-    const isNowDone = status === 'done'
-    const isRecurring = task.recurring
+    const isNowDone  = status === 'done'
+    const { error } = await supabase.from('tasks').update({
+      title, description, status, priority,
+      due_date: dueDate || null,
+      show_on_flow: showOnFlow,
+      last_edited_by: userId,
+      last_edited_at: new Date().toISOString(),
+    }).eq('id', task.id)
 
-    const { error } = await supabase
-      .from('tasks')
-      .update({
-        title, description, status, priority,
-        due_date: dueDate || null,
-        last_edited_by: userId,
-        last_edited_at: new Date().toISOString(),
-      })
-      .eq('id', task.id)
-
-    if (!error && wasNotDone && isNowDone && isRecurring && task.due_date) {
+    if (!error && wasNotDone && isNowDone && task.recurring && task.due_date) {
       const [y, m, d] = task.due_date.split('-').map(Number)
-      const currentDue = new Date(y, m - 1, d)
-      const nextDue = new Date(currentDue)
+      const nextDue = new Date(y, m - 1, d)
       if (task.recurring === 'weekly') nextDue.setDate(nextDue.getDate() + 7)
       else if (task.recurring === 'monthly') nextDue.setMonth(nextDue.getMonth() + 1)
       const pad = (n: number) => String(n).padStart(2, '0')
-      const nextDueStr = `${nextDue.getFullYear()}-${pad(nextDue.getMonth() + 1)}-${pad(nextDue.getDate())}`
       await supabase.from('tasks').insert({
-        title: task.title, description: task.description,
-        priority: task.priority, status: 'todo',
-        due_date: nextDueStr, recurring: task.recurring,
-        user_id: task.user_id, workspace_id: task.workspace_id ?? null,
+        title: task.title, description: task.description, priority: task.priority,
+        status: 'todo', due_date: `${nextDue.getFullYear()}-${pad(nextDue.getMonth() + 1)}-${pad(nextDue.getDate())}`,
+        recurring: task.recurring, user_id: task.user_id, workspace_id: task.workspace_id ?? null,
       })
       toast.success(`↻ Next ${task.recurring} task created!`)
     }
 
-    setSaving(false)
-    setEditingTitle(false)
+    setSaving(false); setEditingTitle(false)
     if (error) toast.error('Failed to save changes')
     else { toast.success('Changes saved!'); onUpdated() }
   }
 
-  const handleAddComment = async () => {
-    if (!newComment.trim()) return
-    setSubmitting(true)
-    await supabase.from('comments').insert({
-      task_id: task.id, user_id: userId, content: newComment.trim(),
-    })
-    setNewComment('')
-    await fetchComments()
-    setSubmitting(false)
+  const handleToggleFlow = async (v: boolean) => {
+    setShowOnFlow(v)
+    await supabase.from('tasks').update({ show_on_flow: v }).eq('id', task.id)
   }
 
-  const handleDeleteComment = async (id: string) => {
-    await supabase.from('comments').delete().eq('id', id)
-    await fetchComments()
-  }
+  const labelStyle = { display: 'block' as const, color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono, monospace', letterSpacing: '0.2em', marginBottom: '8px' }
 
-  const handleBreakIntoSubtasks = async () => {
-    setGeneratingSubtasks(true)
-    try {
-      const result = await breakIntoSubtasks(title, description)
-      setSubtasks(result)
-      toast.success('Subtasks generated!')
-    } catch {
-      toast.error('Failed to generate subtasks')
-    }
-    setGeneratingSubtasks(false)
-  }
-
-  const formatTime = (timestamp: string) =>
-    new Date(timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-
-  const formatDueDate = (dateStr: string) => {
-    if (!dateStr) return ''
-    const [y, m, d] = dateStr.split('-').map(Number)
-    return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  }
+  const formatTime = (ts: string) => new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
   const getDueDateStatus = () => {
     if (!dueDate) return null
@@ -136,9 +102,8 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
     if (due < today) return { label: 'Overdue', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' }
     if (due.getTime() === today.getTime()) return { label: 'Due Today', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' }
     if (due.getTime() === tomorrow.getTime()) return { label: 'Due Tomorrow', color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' }
-    return { label: formatDueDate(dueDate), color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.05)' }
+    return { label: new Date(y, m-1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.05)' }
   }
-
   const dueDateStatus = getDueDateStatus()
 
   const statusOptions = [
@@ -147,107 +112,44 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
     { value: 'in_review',   label: 'In Review',   color: '#f59e0b' },
     { value: 'done',        label: 'Done',        color: '#10b981' },
   ]
-
   const priorityOptions = [
     { value: 'low',    label: 'Low',    color: '#64748b' },
     { value: 'normal', label: 'Normal', color: '#8b5cf6' },
     { value: 'high',   label: 'High',   color: '#ef4444' },
   ]
 
-  const labelStyle = {
-    display: 'block' as const,
-    color: 'rgba(255,255,255,0.3)', fontSize: '10px',
-    fontFamily: 'Space Mono, monospace', letterSpacing: '0.2em', marginBottom: '8px',
-  }
-
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 50 }}
-      >
-        <motion.div
-          initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-          onClick={e => e.stopPropagation()}
-          style={{
-            position: 'absolute', right: 0, top: 0, bottom: 0,
-            width: '100%', maxWidth: '520px',
-            background: '#050505', borderLeft: '1px solid rgba(255,255,255,0.07)',
-            display: 'flex', flexDirection: 'column', overflow: 'hidden',
-          }}
-        >
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 50 }}>
+        <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 30, stiffness: 300 }} onClick={e => e.stopPropagation()}
+          style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '100%', maxWidth: '520px', background: '#050505', borderLeft: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ height: '2px', background: 'linear-gradient(90deg, #8b5cf6, #ec4899, #06b6d4)' }} />
 
           {/* Header */}
           <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>
-                TASK DETAILS
-              </span>
-              {/* Viewer badge */}
-              {!canEdit && (
-                <span style={{
-                  fontSize: '9px', fontFamily: 'Space Mono', padding: '2px 7px', borderRadius: '4px',
-                  color: '#fb923c', background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.25)',
-                }}>
-                  VIEW ONLY
-                </span>
-              )}
-              {task.recurring && (
-                <span style={{
-                  fontSize: '9px', fontFamily: 'Space Mono', padding: '2px 6px', borderRadius: '4px',
-                  color: task.recurring === 'weekly' ? '#06b6d4' : '#8b5cf6',
-                  background: task.recurring === 'weekly' ? 'rgba(6,182,212,0.1)' : 'rgba(139,92,246,0.1)',
-                }}>
-                  ↻ {task.recurring.toUpperCase()}
-                </span>
-              )}
-              {dueDateStatus && (
-                <span style={{ fontSize: '9px', fontFamily: 'Space Mono', padding: '2px 6px', borderRadius: '4px', color: dueDateStatus.color, background: dueDateStatus.bg }}>
-                  {dueDateStatus.label}
-                </span>
-              )}
+              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>TASK DETAILS</span>
+              {!canEdit && <span style={{ fontSize: '9px', fontFamily: 'Space Mono', padding: '2px 7px', borderRadius: '4px', color: '#fb923c', background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.25)' }}>VIEW ONLY</span>}
+              {task.recurring && <span style={{ fontSize: '9px', fontFamily: 'Space Mono', padding: '2px 6px', borderRadius: '4px', color: task.recurring === 'weekly' ? '#06b6d4' : '#8b5cf6', background: task.recurring === 'weekly' ? 'rgba(6,182,212,0.1)' : 'rgba(139,92,246,0.1)' }}>↻ {task.recurring.toUpperCase()}</span>}
+              {dueDateStatus && <span style={{ fontSize: '9px', fontFamily: 'Space Mono', padding: '2px 6px', borderRadius: '4px', color: dueDateStatus.color, background: dueDateStatus.bg }}>{dueDateStatus.label}</span>}
+              {/* Show on Flow badge */}
+              {task.project_id && showOnFlow && <span style={{ fontSize: '9px', fontFamily: 'Space Mono', padding: '2px 6px', borderRadius: '4px', color: '#a78bfa', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}>⚡ ON FLOW</span>}
             </div>
             <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>✕</button>
           </div>
 
-          {/* Scrollable content */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
 
             {/* Title */}
             <div style={{ marginBottom: '24px' }}>
-              {editingTitle && canEdit ? (
-                <input
-                  autoFocus value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  onBlur={() => setEditingTitle(false)}
-                  style={{
-                    width: '100%', background: 'transparent', border: 'none',
-                    borderBottom: '1px solid #8b5cf6', padding: '4px 0', color: 'white',
-                    fontSize: '20px', fontFamily: 'Space Grotesk', fontWeight: 700,
-                    outline: 'none', letterSpacing: '-0.02em',
-                  }}
-                />
-              ) : (
-                <h2
-                  onClick={() => canEdit && setEditingTitle(true)}
-                  style={{
-                    color: 'white', fontSize: '20px', fontWeight: 700,
-                    letterSpacing: '-0.02em', cursor: canEdit ? 'pointer' : 'default',
-                    margin: 0, lineHeight: 1.3,
-                  }}
-                  title={canEdit ? 'Click to edit' : undefined}
-                >
-                  {title}
-                </h2>
-              )}
-              {canEdit && (
-                <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', marginTop: '4px', fontFamily: 'Space Mono' }}>
-                  Click title to edit
-                </p>
-              )}
+              {editingTitle && canEdit
+                ? <input autoFocus value={title} onChange={e => setTitle(e.target.value)} onBlur={() => setEditingTitle(false)}
+                    style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid #8b5cf6', padding: '4px 0', color: 'white', fontSize: '20px', fontFamily: 'Space Grotesk', fontWeight: 700, outline: 'none', letterSpacing: '-0.02em' }} />
+                : <h2 onClick={() => canEdit && setEditingTitle(true)} style={{ color: 'white', fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em', cursor: canEdit ? 'pointer' : 'default', margin: 0, lineHeight: 1.3 }}>{title}</h2>
+              }
+              {canEdit && <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', marginTop: '4px', fontFamily: 'Space Mono' }}>Click title to edit</p>}
             </div>
 
             {/* Status */}
@@ -255,22 +157,8 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
               <label style={labelStyle}>STATUS</label>
               <div style={{ display: 'flex', gap: '6px' }}>
                 {statusOptions.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => canEdit && setStatus(opt.value as Status)}
-                    disabled={!canEdit}
-                    style={{
-                      flex: 1, padding: '8px 4px', borderRadius: '8px',
-                      border: `1px solid ${status === opt.value ? opt.color + '60' : opt.color + '20'}`,
-                      background: status === opt.value ? `${opt.color}15` : `${opt.color}05`,
-                      color: status === opt.value ? opt.color : opt.color + '60',
-                      cursor: canEdit ? 'pointer' : 'default',
-                      fontSize: '10px', fontFamily: 'Space Grotesk', fontWeight: 600,
-                      transition: 'all 0.15s', opacity: canEdit ? 1 : 0.6,
-                    }}
-                  >
-                    {opt.label}
-                  </button>
+                  <button key={opt.value} onClick={() => canEdit && setStatus(opt.value as Status)} disabled={!canEdit}
+                    style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', border: `1px solid ${status === opt.value ? opt.color + '60' : opt.color + '20'}`, background: status === opt.value ? `${opt.color}15` : `${opt.color}05`, color: status === opt.value ? opt.color : opt.color + '60', cursor: canEdit ? 'pointer' : 'default', fontSize: '10px', fontFamily: 'Space Grotesk', fontWeight: 600, opacity: canEdit ? 1 : 0.6 }}>{opt.label}</button>
                 ))}
               </div>
             </div>
@@ -280,22 +168,8 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
               <label style={labelStyle}>PRIORITY</label>
               <div style={{ display: 'flex', gap: '6px' }}>
                 {priorityOptions.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => canEdit && setPriority(opt.value as 'low' | 'normal' | 'high')}
-                    disabled={!canEdit}
-                    style={{
-                      flex: 1, padding: '8px 4px', borderRadius: '8px',
-                      border: `1px solid ${priority === opt.value ? opt.color + '60' : opt.color + '30'}`,
-                      background: priority === opt.value ? `${opt.color}15` : `${opt.color}08`,
-                      color: priority === opt.value ? opt.color : opt.color + '70',
-                      cursor: canEdit ? 'pointer' : 'default',
-                      fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600,
-                      transition: 'all 0.15s', opacity: canEdit ? 1 : 0.6,
-                    }}
-                  >
-                    {opt.label}
-                  </button>
+                  <button key={opt.value} onClick={() => canEdit && setPriority(opt.value as 'low' | 'normal' | 'high')} disabled={!canEdit}
+                    style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', border: `1px solid ${priority === opt.value ? opt.color + '60' : opt.color + '30'}`, background: priority === opt.value ? `${opt.color}15` : `${opt.color}08`, color: priority === opt.value ? opt.color : opt.color + '70', cursor: canEdit ? 'pointer' : 'default', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600, opacity: canEdit ? 1 : 0.6 }}>{opt.label}</button>
                 ))}
               </div>
             </div>
@@ -303,67 +177,32 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
             {/* Due Date */}
             <div style={{ marginBottom: '20px' }}>
               <label style={labelStyle}>DUE DATE</label>
-              <input
-                type="date" value={dueDate}
-                onChange={e => canEdit && setDueDate(e.target.value)}
-                disabled={!canEdit}
-                style={{
-                  width: '100%', background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '10px', padding: '10px 14px',
-                  color: 'rgba(255,255,255,0.7)', fontSize: '13px',
-                  fontFamily: 'Space Grotesk', outline: 'none',
-                  colorScheme: 'dark', cursor: canEdit ? 'pointer' : 'default',
-                  opacity: canEdit ? 1 : 0.6,
-                }}
-              />
+              <input type="date" value={dueDate} onChange={e => canEdit && setDueDate(e.target.value)} disabled={!canEdit}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px 14px', color: 'rgba(255,255,255,0.7)', fontSize: '13px', fontFamily: 'Space Grotesk', outline: 'none', colorScheme: 'dark', cursor: canEdit ? 'pointer' : 'default', opacity: canEdit ? 1 : 0.6 }} />
             </div>
 
-            {/* Assignee — workspace tasks only */}
-            {task.workspace_id && task.assignee_id && profiles?.[task.assignee_id] && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '10px 12px', background: 'rgba(139,92,246,0.05)',
-                border: '1px solid rgba(139,92,246,0.15)', borderRadius: '10px', marginBottom: '12px',
-              }}>
-                <Avatar
-                  name={profiles[task.assignee_id].full_name ?? profiles[task.assignee_id].email}
-                  avatarUrl={profiles[task.assignee_id].avatar_url}
-                  size={24}
-                />
-                <div>
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>
-                    Assigned to <span style={{ color: '#c084fc', fontWeight: 600 }}>
-                      {profiles[task.assignee_id].full_name ?? profiles[task.assignee_id].email}
-                    </span>
-                  </p>
-                </div>
+            {/* ── Show on Flow toggle — only for project tasks ── */}
+            {task.project_id && (
+              <div style={{ marginBottom: '20px' }}>
+                <ShowOnFlowToggle value={showOnFlow} onChange={handleToggleFlow} projectId={task.project_id} />
               </div>
             )}
 
-            {/* Last edited by */}
+            {/* Assignee */}
+            {task.workspace_id && task.assignee_id && profiles?.[task.assignee_id] && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: '10px', marginBottom: '12px' }}>
+                <Avatar name={profiles[task.assignee_id].full_name ?? profiles[task.assignee_id].email} avatarUrl={profiles[task.assignee_id].avatar_url} size={24} />
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>Assigned to <span style={{ color: '#c084fc', fontWeight: 600 }}>{profiles[task.assignee_id].full_name ?? profiles[task.assignee_id].email}</span></p>
+              </div>
+            )}
+
+            {/* Last edited */}
             {task.last_edited_by && profiles?.[task.last_edited_by] && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '10px 12px', background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', marginBottom: '20px',
-              }}>
-                <Avatar
-                  name={profiles[task.last_edited_by].full_name ?? profiles[task.last_edited_by].email}
-                  avatarUrl={profiles[task.last_edited_by].avatar_url}
-                  size={24}
-                />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', marginBottom: '20px' }}>
+                <Avatar name={profiles[task.last_edited_by].full_name ?? profiles[task.last_edited_by].email} avatarUrl={profiles[task.last_edited_by].avatar_url} size={24} />
                 <div>
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>
-                    Last edited by <span style={{ color: 'white', fontWeight: 600 }}>
-                      {profiles[task.last_edited_by].full_name ?? profiles[task.last_edited_by].email}
-                    </span>
-                  </p>
-                  {task.last_edited_at && (
-                    <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px', fontFamily: 'Space Mono', margin: '2px 0 0' }}>
-                      {new Date(task.last_edited_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  )}
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>Last edited by <span style={{ color: 'white', fontWeight: 600 }}>{profiles[task.last_edited_by].full_name ?? profiles[task.last_edited_by].email}</span></p>
+                  {task.last_edited_at && <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px', fontFamily: 'Space Mono', margin: '2px 0 0' }}>{new Date(task.last_edited_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
                 </div>
               </div>
             )}
@@ -371,135 +210,63 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
             {/* Description */}
             <div style={{ marginBottom: '20px' }}>
               <label style={labelStyle}>DESCRIPTION</label>
-              <textarea
-                value={description}
-                onChange={e => canEdit && setDescription(e.target.value)}
-                readOnly={!canEdit}
-                rows={4}
-                placeholder={canEdit ? 'Add a description...' : ''}
-                style={{
-                  width: '100%', background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: '10px', padding: '12px',
-                  color: 'rgba(255,255,255,0.7)', fontSize: '13px',
-                  fontFamily: 'Space Grotesk', outline: 'none',
-                  resize: canEdit ? 'none' : 'none', lineHeight: 1.6,
-                  cursor: canEdit ? 'text' : 'default',
-                  opacity: canEdit ? 1 : 0.7,
-                }}
-              />
+              <textarea value={description} onChange={e => canEdit && setDescription(e.target.value)} readOnly={!canEdit} rows={4} placeholder={canEdit ? 'Add a description...' : ''}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '12px', color: 'rgba(255,255,255,0.7)', fontSize: '13px', fontFamily: 'Space Grotesk', outline: 'none', resize: 'none', lineHeight: 1.6, opacity: canEdit ? 1 : 0.7 }} />
             </div>
 
-            {/* Save button — hidden for viewers */}
+            {/* Save */}
             {canEdit && (
-              <motion.button
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                onClick={handleSave} disabled={saving}
-                style={{
-                  width: '100%',
-                  background: saving ? 'rgba(139,92,246,0.3)' : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                  border: 'none', borderRadius: '10px', padding: '12px',
-                  color: 'white', cursor: saving ? 'not-allowed' : 'pointer',
-                  fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700,
-                  marginBottom: '24px',
-                  boxShadow: saving ? 'none' : '0 0 20px rgba(139,92,246,0.3)',
-                }}
-              >
+              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleSave} disabled={saving}
+                style={{ width: '100%', background: saving ? 'rgba(139,92,246,0.3)' : 'linear-gradient(135deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '10px', padding: '12px', color: 'white', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700, marginBottom: '24px', boxShadow: saving ? 'none' : '0 0 20px rgba(139,92,246,0.3)' }}>
                 {saving ? '⟳ Saving...' : 'Save Changes →'}
               </motion.button>
             )}
 
-            {/* AI Subtasks — hidden for viewers */}
+            {/* AI Subtasks */}
             {canEdit && (
               <div style={{ marginBottom: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <label style={{ ...labelStyle, marginBottom: 0 }}>AI SUBTASKS</label>
-                  <button
-                    onClick={handleBreakIntoSubtasks} disabled={generatingSubtasks}
-                    style={{
-                      background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)',
-                      borderRadius: '6px', color: '#8b5cf6', cursor: 'pointer',
-                      fontSize: '11px', fontFamily: 'Space Grotesk', padding: '4px 10px',
-                    }}
-                  >
+                  <button onClick={async () => { setGeneratingSubtasks(true); try { setSubtasks(await breakIntoSubtasks(title, description)); toast.success('Subtasks generated!') } catch { toast.error('Failed') } setGeneratingSubtasks(false) }} disabled={generatingSubtasks}
+                    style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '6px', color: '#8b5cf6', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk', padding: '4px 10px' }}>
                     {generatingSubtasks ? '⟳ Breaking down...' : '✨ Generate'}
                   </button>
                 </div>
-                {subtasks.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {subtasks.map((subtask, i) => (
-                      <motion.div
-                        key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.1)', borderRadius: '8px', padding: '10px 12px' }}
-                      >
-                        <span style={{ color: '#8b5cf6', fontSize: '10px', fontFamily: 'Space Mono', marginTop: '2px', flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
-                        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', margin: 0, lineHeight: 1.5 }}>{subtask}</p>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
+                {subtasks.length > 0 && subtasks.map((s, i) => (
+                  <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.1)', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px' }}>
+                    <span style={{ color: '#8b5cf6', fontSize: '10px', fontFamily: 'Space Mono', marginTop: '2px', flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
+                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', margin: 0, lineHeight: 1.5 }}>{s}</p>
+                  </motion.div>
+                ))}
               </div>
             )}
 
-            {/* Comments — everyone can comment */}
+            {/* Comments */}
             <div>
               <label style={labelStyle}>COMMENTS ({comments.length})</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
-                {comments.length === 0 ? (
-                  <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: '12px', textAlign: 'center', padding: '20px 0', fontFamily: 'Space Mono' }}>
-                    NO COMMENTS YET
-                  </p>
-                ) : (
-                  comments.map(comment => (
-                    <motion.div
-                      key={comment.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}
-                    >
+                {comments.length === 0
+                  ? <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: '12px', textAlign: 'center', padding: '20px 0', fontFamily: 'Space Mono' }}>NO COMMENTS YET</p>
+                  : comments.map(c => (
+                    <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', margin: 0, lineHeight: 1.5, flex: 1 }}>
-                          {comment.content}
-                        </p>
-                        {comment.user_id === userId && (
-                          <button
-                            onClick={() => handleDeleteComment(comment.id)}
-                            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.15)', cursor: 'pointer', fontSize: '10px', flexShrink: 0 }}
-                          >✕</button>
-                        )}
+                        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', margin: 0, lineHeight: 1.5, flex: 1 }}>{c.content}</p>
+                        {c.user_id === userId && <button onClick={async () => { await supabase.from('comments').delete().eq('id', c.id); await refetchComments() }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.15)', cursor: 'pointer', fontSize: '10px' }}>✕</button>}
                       </div>
-                      <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px', margin: '6px 0 0', fontFamily: 'Space Mono' }}>
-                        {formatTime(comment.created_at)}
-                      </p>
+                      <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px', margin: '6px 0 0', fontFamily: 'Space Mono' }}>{formatTime(c.created_at)}</p>
                     </motion.div>
                   ))
-                )}
+                }
               </div>
-
-              {/* Add comment — everyone */}
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleAddComment()}
-                  placeholder="Add a comment..."
-                  style={{
-                    flex: 1, background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '10px', padding: '10px 14px',
-                    color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', outline: 'none',
-                  }}
-                />
-                <motion.button
-                  whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                  onClick={handleAddComment}
+                <input value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newComment.trim()) { setSubmitting(true); supabase.from('comments').insert({ task_id: task.id, user_id: userId, content: newComment.trim() }).then(() => { setNewComment(''); refetchComments().then(() => setSubmitting(false)) }) } }} placeholder="Add a comment..."
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px 14px', color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', outline: 'none' }} />
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                  onClick={async () => { if (!newComment.trim()) return; setSubmitting(true); await supabase.from('comments').insert({ task_id: task.id, user_id: userId, content: newComment.trim() }); setNewComment(''); await refetchComments(); setSubmitting(false) }}
                   disabled={submitting || !newComment.trim()}
-                  style={{
-                    background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                    border: 'none', borderRadius: '10px', padding: '10px 16px',
-                    color: 'white', cursor: 'pointer', fontSize: '12px',
-                    fontFamily: 'Space Grotesk', fontWeight: 700,
-                    opacity: !newComment.trim() ? 0.4 : 1,
-                  }}
-                >
+                  style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '10px', padding: '10px 16px', color: 'white', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 700, opacity: !newComment.trim() ? 0.4 : 1 }}>
                   {submitting ? '...' : 'Send'}
                 </motion.button>
               </div>
