@@ -47,7 +47,7 @@ function health(branches: FlowBranch[]) {
 }
 
 export default function FlowGraph({ workspaceId, onBranchClick, projectId }: FlowGraphProps) {
-  const { branches, totalTasks, totalDone, overallProgress, loading, error } = useFlowData(workspaceId, projectId)
+  const { branches, milestones, totalTasks, totalDone, overallProgress, loading, error } = useFlowData(workspaceId, projectId)
   const [hovBranch, setHovBranch] = useState<string | null>(null)
   const [hovNode,   setHovNode]   = useState<string | null>(null)
   const [tooltip,   setTooltip]   = useState<{ x: number; y: number; task: FlowTask; branch: FlowBranch } | null>(null)
@@ -272,37 +272,43 @@ export default function FlowGraph({ workspaceId, onBranchClick, projectId }: Flo
             <circle cx={60} cy={TRUNK_Y} r={6} fill="#4ade80" />
 
             {/* ── MILESTONES ── */}
-            {[
-              { label: ['Project', 'start'], x: 80 },
-              { label: ['MVP', 'shipped'],   x: pastX },
-              { label: ['Beta', 'live'],     x: nowX },
-              { label: ['Public', 'launch'], x: layout.svgWidth - 120 },
-            ].map(({ label, x }) => {
-              const isPast  = x <= pastX
-              const isNow   = x > pastX && x <= nowX
-              const col     = isPast ? '#4ade80' : isNow ? '#a78bfa' : 'rgba(255,255,255,0.2)'
-              const textCol = isPast ? '#4ade80' : isNow ? '#c4b5fd' : 'rgba(255,255,255,0.45)'
-              return (
-                <g key={label[0]}>
-                  <circle cx={x} cy={TRUNK_Y} r={TRUNK_NODE_R + 8} fill="none" stroke={col} strokeWidth={1} strokeOpacity={0.15} />
-                  <circle cx={x} cy={TRUNK_Y} r={TRUNK_NODE_R}
-                    fill={isPast || isNow ? col : 'rgba(10,6,20,0.95)'}
-                    stroke={col} strokeWidth={2.5}
-                    filter={isPast || isNow ? 'url(#fg-ms)' : undefined}
-                  />
-                  <text x={x} y={TRUNK_Y + 5.5} textAnchor="middle"
-                    fill={isPast ? 'rgba(0,0,0,0.9)' : isNow ? 'white' : 'rgba(255,255,255,0.4)'}
-                    fontSize={14} fontFamily="Space Mono" fontWeight="bold">
-                    {isPast ? '✓' : isNow ? '⚡' : '○'}
-                  </text>
-                  {label.map((line, li) => (
-                    <text key={li} x={x} y={TRUNK_Y + TRUNK_NODE_R + 20 + li * 15}
+            {(() => {
+              // In project mode use real milestones; in workspace mode show 2 generic markers
+              const nodes = milestones.length > 0
+                ? milestones.map((m, i) => ({
+                    label: m.name,
+                    x: 80 + i * Math.floor((layout.svgWidth - 200) / Math.max(milestones.length - 1, 1)),
+                  }))
+                : [
+                    { label: 'Start', x: 80 },
+                    { label: 'End',   x: layout.svgWidth - 120 },
+                  ]
+
+              return nodes.map(({ label, x }) => {
+                const isPast  = x <= pastX
+                const isNow   = x > pastX && x <= nowX
+                const col     = isPast ? '#4ade80' : isNow ? '#a78bfa' : 'rgba(255,255,255,0.2)'
+                const textCol = isPast ? '#4ade80' : isNow ? '#c4b5fd' : 'rgba(255,255,255,0.45)'
+                return (
+                  <g key={label + x}>
+                    <circle cx={x} cy={TRUNK_Y} r={TRUNK_NODE_R + 8} fill="none" stroke={col} strokeWidth={1} strokeOpacity={0.15} />
+                    <circle cx={x} cy={TRUNK_Y} r={TRUNK_NODE_R}
+                      fill={isPast || isNow ? col : 'rgba(10,6,20,0.95)'}
+                      stroke={col} strokeWidth={2.5}
+                      filter={isPast || isNow ? 'url(#fg-ms)' : undefined}
+                    />
+                    <text x={x} y={TRUNK_Y + 5.5} textAnchor="middle"
+                      fill={isPast ? 'rgba(0,0,0,0.9)' : isNow ? 'white' : 'rgba(255,255,255,0.4)'}
+                      fontSize={14} fontFamily="Space Mono" fontWeight="bold">
+                      {isPast ? '✓' : isNow ? '⚡' : '○'}
+                    </text>
+                    <text x={x} y={TRUNK_Y + TRUNK_NODE_R + 20}
                       textAnchor="middle" fill={textCol}
-                      fontSize={11} fontFamily="Space Grotesk" fontWeight={700}>{line}</text>
-                  ))}
-                </g>
-              )
-            })}
+                      fontSize={11} fontFamily="Space Grotesk" fontWeight={700}>{label}</text>
+                  </g>
+                )
+              })
+            })()}
 
             {/* ── BRANCHES ── */}
             {layout.branches.map(({ branch, above, originX, branchY, nodes, endX }) => {
