@@ -14,6 +14,9 @@ export interface Task {
   last_edited_by?: string | null
   last_edited_at?: string | null
   created_at: string
+  show_on_flow?: boolean
+  project_id?: string | null
+  feature_id?: string | null
 }
 
 export interface Comment {
