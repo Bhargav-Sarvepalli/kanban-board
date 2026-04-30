@@ -77,12 +77,22 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
           workspace_id: workspaceId || null,
         })
         .select().single()
-      if (err) throw err
+      if (err) {
+        console.error('[ProjectCreationWizard] insert error:', err)
+        setError(err.message ?? err.details ?? err.hint ?? 'Failed to create project')
+        setLoading(false)
+        return
+      }
       setCreatedProject(data)
-      await supabase.from('project_members').insert({ project_id: data.id, user_id: userId, role: 'owner' })
+      const { error: memberErr } = await supabase
+        .from('project_members')
+        .insert({ project_id: data.id, user_id: userId, role: 'owner' })
+      if (memberErr) console.warn('[ProjectCreationWizard] member insert error:', memberErr)
       setStep(1)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to create project')
+      console.error('[ProjectCreationWizard] caught:', e)
+      const msg = e instanceof Error ? e.message : (e as { message?: string })?.message
+      setError(msg ?? 'Failed to create project')
     } finally { setLoading(false) }
   }
 
