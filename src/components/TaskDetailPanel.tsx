@@ -8,6 +8,8 @@ import Avatar from './Avatar'
 import { useWorkspaceRole, canEditTask } from '../hooks/useWorkspaceRole'
 import ShowOnFlowToggle from './Project/ShowOnFlowToggle'
 
+interface ProjectFeature { id: string; name: string }
+
 interface Props {
   task: Task
   onClose: () => void
@@ -27,6 +29,8 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
   const [priority, setPriority] = useState(task.priority)
   const [dueDate, setDueDate] = useState(task.due_date ?? '')
   const [showOnFlow, setShowOnFlow] = useState(task.show_on_flow ?? false)
+  const [featureId, setFeatureId] = useState<string | null>(task.feature_id ?? null)
+  const [features, setFeatures] = useState<ProjectFeature[]>([])
   const [saving, setSaving] = useState(false)
   const [subtasks, setSubtasks] = useState<string[]>([])
   const [generatingSubtasks, setGeneratingSubtasks] = useState(false)
@@ -36,6 +40,19 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
   const canEdit = isPersonal
     ? task.user_id === userId
     : canEditTask(role, task.user_id, task.assignee_id, userId)
+
+  // Fetch features for this project
+  useEffect(() => {
+    if (!task.project_id) return
+    let cancelled = false
+    supabase
+      .from('project_features')
+      .select('id, name')
+      .eq('project_id', task.project_id)
+      .order('name', { ascending: true })
+      .then(({ data }) => { if (!cancelled) setFeatures(data ?? []) })
+    return () => { cancelled = true }
+  }, [task.project_id])
 
   useEffect(() => {
     let cancelled = false
@@ -61,6 +78,7 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
       title, description, status, priority,
       due_date: dueDate || null,
       show_on_flow: showOnFlow,
+      feature_id: featureId,
       last_edited_by: userId,
       last_edited_at: new Date().toISOString(),
     }).eq('id', task.id)
@@ -89,8 +107,12 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
     await supabase.from('tasks').update({ show_on_flow: v }).eq('id', task.id)
   }
 
-  const labelStyle = { display: 'block' as const, color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono, monospace', letterSpacing: '0.2em', marginBottom: '8px' }
+  const handleFeatureChange = async (newFeatureId: string | null) => {
+    setFeatureId(newFeatureId)
+    await supabase.from('tasks').update({ feature_id: newFeatureId }).eq('id', task.id)
+  }
 
+  const labelStyle = { display: 'block' as const, color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono, monospace', letterSpacing: '0.2em', marginBottom: '8px' }
   const formatTime = (ts: string) => new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
   const getDueDateStatus = () => {
@@ -118,6 +140,8 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
     { value: 'high',   label: 'High',   color: '#ef4444' },
   ]
 
+  const selectedFeature = features.find(f => f.id === featureId)
+
   return (
     <AnimatePresence>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
@@ -129,15 +153,15 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
 
           {/* Header */}
           <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>TASK DETAILS</span>
               {!canEdit && <span style={{ fontSize: '9px', fontFamily: 'Space Mono', padding: '2px 7px', borderRadius: '4px', color: '#fb923c', background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.25)' }}>VIEW ONLY</span>}
               {task.recurring && <span style={{ fontSize: '9px', fontFamily: 'Space Mono', padding: '2px 6px', borderRadius: '4px', color: task.recurring === 'weekly' ? '#06b6d4' : '#8b5cf6', background: task.recurring === 'weekly' ? 'rgba(6,182,212,0.1)' : 'rgba(139,92,246,0.1)' }}>↻ {task.recurring.toUpperCase()}</span>}
               {dueDateStatus && <span style={{ fontSize: '9px', fontFamily: 'Space Mono', padding: '2px 6px', borderRadius: '4px', color: dueDateStatus.color, background: dueDateStatus.bg }}>{dueDateStatus.label}</span>}
-              {/* Show on Flow badge */}
               {task.project_id && showOnFlow && <span style={{ fontSize: '9px', fontFamily: 'Space Mono', padding: '2px 6px', borderRadius: '4px', color: '#a78bfa', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}>⚡ ON FLOW</span>}
+              {selectedFeature && <span style={{ fontSize: '9px', fontFamily: 'Space Mono', padding: '2px 6px', borderRadius: '4px', color: '#34d399', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)' }}>🌿 {selectedFeature.name}</span>}
             </div>
-            <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>✕</button>
+            <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>✕</button>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
@@ -174,6 +198,44 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
               </div>
             </div>
 
+            {/* Feature selector — only for project tasks */}
+            {task.project_id && (
+              <div style={{ marginBottom: '20px' }}>
+                <label style={labelStyle}>FEATURE BRANCH</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  <button
+                    onClick={() => canEdit && handleFeatureChange(null)}
+                    style={{
+                      padding: '6px 12px', borderRadius: '20px', border: `1px solid ${featureId === null ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)'}`,
+                      background: featureId === null ? 'rgba(255,255,255,0.08)' : 'transparent',
+                      color: featureId === null ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.35)',
+                      cursor: canEdit ? 'pointer' : 'default', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600,
+                    }}>
+                    — None
+                  </button>
+                  {features.map(f => (
+                    <button key={f.id}
+                      onClick={() => canEdit && handleFeatureChange(f.id)}
+                      style={{
+                        padding: '6px 12px', borderRadius: '20px',
+                        border: `1px solid ${featureId === f.id ? 'rgba(52,211,153,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                        background: featureId === f.id ? 'rgba(52,211,153,0.12)' : 'rgba(255,255,255,0.03)',
+                        color: featureId === f.id ? '#34d399' : 'rgba(255,255,255,0.45)',
+                        cursor: canEdit ? 'pointer' : 'default', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: featureId === f.id ? 700 : 400,
+                        display: 'flex', alignItems: 'center', gap: '5px',
+                      }}>
+                      <span style={{ fontSize: '10px' }}>🌿</span>{f.name}
+                    </button>
+                  ))}
+                  {features.length === 0 && (
+                    <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', fontFamily: 'Space Grotesk', padding: '6px 0' }}>
+                      No features created yet — add them in Project Dashboard
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Due Date */}
             <div style={{ marginBottom: '20px' }}>
               <label style={labelStyle}>DUE DATE</label>
@@ -181,7 +243,7 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
                 style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px 14px', color: 'rgba(255,255,255,0.7)', fontSize: '13px', fontFamily: 'Space Grotesk', outline: 'none', colorScheme: 'dark', cursor: canEdit ? 'pointer' : 'default', opacity: canEdit ? 1 : 0.6 }} />
             </div>
 
-            {/* ── Show on Flow toggle — only for project tasks ── */}
+            {/* Show on Flow toggle */}
             {task.project_id && (
               <div style={{ marginBottom: '20px' }}>
                 <ShowOnFlowToggle value={showOnFlow} onChange={handleToggleFlow} projectId={task.project_id} />
@@ -261,7 +323,9 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
                 }
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newComment.trim()) { setSubmitting(true); supabase.from('comments').insert({ task_id: task.id, user_id: userId, content: newComment.trim() }).then(() => { setNewComment(''); refetchComments().then(() => setSubmitting(false)) }) } }} placeholder="Add a comment..."
+                <input value={newComment} onChange={e => setNewComment(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && newComment.trim()) { setSubmitting(true); supabase.from('comments').insert({ task_id: task.id, user_id: userId, content: newComment.trim() }).then(() => { setNewComment(''); refetchComments().then(() => setSubmitting(false)) }) } }}
+                  placeholder="Add a comment..."
                   style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px 14px', color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', outline: 'none' }} />
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                   onClick={async () => { if (!newComment.trim()) return; setSubmitting(true); await supabase.from('comments').insert({ task_id: task.id, user_id: userId, content: newComment.trim() }); setNewComment(''); await refetchComments(); setSubmitting(false) }}

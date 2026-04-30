@@ -19,6 +19,7 @@ import OnboardingFlow from './components/OnboardingFlow'
 import InviteNotifications from './components/InviteNotifications'
 import FlowGraph from './components/Flow/FlowGraph'
 import ProjectCreationWizard, { type Project } from './components/Project/ProjectCreationWizard'
+import ProjectDashboard from './components/Project/ProjectDashboard'
 import type { FlowBranch } from './hooks/useFlowData'
 import { useProjects } from './hooks/useProjects'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -37,6 +38,7 @@ function App() {
   const [showProjectWizard, setShowProjectWizard] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showProjectMenu, setShowProjectMenu] = useState(false)
+  const [showDashboard, setShowDashboard] = useState(false)
   const [search, setSearch] = useState('')
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -485,11 +487,19 @@ function App() {
             </div>
           )}
 
-          {/* Project context badge */}
+          {/* Project context badge + dashboard button */}
           {currentProject && effectiveView !== 'flow' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '8px', padding: '4px 10px' }}>
-              <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#8b5cf6', boxShadow: '0 0 6px #8b5cf6' }} />
-              <span style={{ color: '#a78bfa', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>⚡ {currentProject.name}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '8px', padding: '4px 10px' }}>
+                <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#8b5cf6', boxShadow: '0 0 6px #8b5cf6' }} />
+                <span style={{ color: '#a78bfa', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>⚡ {currentProject.name}</span>
+              </div>
+              <button onClick={() => setShowDashboard(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '8px', padding: '4px 10px', color: '#a78bfa', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.22)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.12)' }}>
+                ⊞ Dashboard
+              </button>
             </div>
           )}
 
@@ -611,6 +621,21 @@ function App() {
       <AnimatePresence>
         {showSettings && userId && (
           <SettingsModal userId={userId} profile={profile} onClose={() => setShowSettings(false)} onProfileUpdated={setProfile} nexEnabled={nexEnabled} onToggleNex={toggleNex} defaultView={effectiveView} onDefaultViewChange={(v) => { setView(v); try { localStorage.setItem('nex_default_view', v) } catch (e) { void e } }} />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showDashboard && currentProject && userId && (
+          <ProjectDashboard
+            projectId={currentProject.id}
+            projectName={currentProject.name}
+            userId={userId}
+            onClose={() => setShowDashboard(false)}
+            onFeatureClick={(featureId, featureName) => {
+              setBranchFilter({ id: featureId, name: featureName, mode: 'feature' })
+              setView('board')
+              setShowDashboard(false)
+            }}
+          />
         )}
       </AnimatePresence>
       {userId && (
