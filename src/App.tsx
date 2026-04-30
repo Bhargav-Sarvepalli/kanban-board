@@ -44,7 +44,11 @@ function App() {
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
   const [currentProject, setCurrentProject] = useState<Project | null>(null)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
-  const [branchFilter, setBranchFilter] = useState<{ assigneeId: string; name: string } | null>(null)
+  const [branchFilter, setBranchFilter] = useState<{
+    id: string
+    name: string
+    mode: 'assignee' | 'feature'   // feature = project mode, assignee = workspace mode
+  } | null>(null)
   const navigate = useNavigate()
 
   // Derive available tabs based on context
@@ -232,7 +236,11 @@ function App() {
     if (branch.id === 'unassigned') {
       setBranchFilter(null)
     } else {
-      setBranchFilter({ assigneeId: branch.id, name: branch.name })
+      setBranchFilter({
+        id: branch.id,
+        name: branch.name,
+        mode: currentProject ? 'feature' : 'assignee',
+      })
     }
     setView('board')
   }
@@ -246,7 +254,11 @@ function App() {
   }).length
 
   const filteredTasks = branchFilter
-    ? tasks.filter(t => t.assignee_id === branchFilter.assigneeId)
+    ? tasks.filter(t =>
+        branchFilter.mode === 'feature'
+          ? t.feature_id === branchFilter.id
+          : t.assignee_id === branchFilter.id
+      )
     : tasks
 
   // Tab definitions — Flow only visible when a project is active
@@ -466,8 +478,8 @@ function App() {
           {/* Branch filter badge */}
           {branchFilter && effectiveView === 'board' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '20px', padding: '4px 10px 4px 8px' }}>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#8b5cf6' }} />
-              <span style={{ color: '#a78bfa', fontSize: '11px', fontFamily: 'Space Grotesk' }}>{branchFilter.name}</span>
+              <span style={{ fontSize: '11px' }}>{branchFilter.mode === 'feature' ? '🌿' : '👤'}</span>
+              <span style={{ color: '#a78bfa', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>{branchFilter.name}</span>
               <button onClick={() => setBranchFilter(null)}
                 style={{ background: 'none', border: 'none', color: 'rgba(167,139,250,0.5)', cursor: 'pointer', fontSize: '12px', padding: '0', lineHeight: 1, marginLeft: '2px' }}>✕</button>
             </div>
