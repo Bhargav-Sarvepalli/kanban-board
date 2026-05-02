@@ -153,7 +153,7 @@ export default function Sidebar({
   currentView, availableViews, onViewChange,
   onSettings, onLogout, onWorkspaceLogoUpdated,
 }: Props) {
-  const wsWithLogo = currentWorkspace as (Workspace & { logo_url?: string | null }) | null
+  const wsWithLogo = currentWorkspace
   const [wsLogoUrl,      setWsLogoUrl]      = useState(wsWithLogo?.logo_url ?? null)
   const [collapsed,      setCollapsed]      = useState(false)
   const [showWorkspaces, setShowWorkspaces] = useState(false)

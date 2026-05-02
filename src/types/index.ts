@@ -10,7 +10,7 @@ export interface Task {
   recurring?: 'weekly' | 'monthly' | null
   user_id: string
   workspace_id?: string | null
-  assignee_id?: string | null        // who is responsible for this task
+  assignee_id?: string | null
   last_edited_by?: string | null
   last_edited_at?: string | null
   created_at: string
@@ -35,13 +35,14 @@ export interface Workspace {
   color?: string | null
   icon?: string | null
   description?: string | null
+  logo_url?: string | null   // uploaded logo or null — falls back to initials
 }
 
 export interface WorkspaceMember {
   id: string
   workspace_id: string
   user_id: string
-  role: 'admin' | 'member' | 'viewer'   // expanded from owner|member
+  role: 'admin' | 'member' | 'viewer'
   email: string
   created_at: string
 }

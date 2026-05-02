@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../supabase'
 import Avatar from '../Avatar'
+import LogoUpload from '../LogoUpload'
 import AddFeatureModal from './AddFeatureModal'
 import InviteMemberModal from './InviteMemberModal'
 
@@ -134,6 +135,7 @@ export default function ProjectDashboard({
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [activity,   setActivity]   = useState<ActivityItem[]>([])
   const [loading,    setLoading]    = useState(true)
+  const [logoUrl,    setLogoUrl]    = useState<string | null>(null)
 
   // Edit states
   const [editDesc,    setEditDesc]    = useState('')
@@ -167,10 +169,11 @@ export default function ProjectDashboard({
 
     const { data: proj } = await supabase
       .from('projects')
-      .select('name,description,links,target_date,owner_id,workspace_id')
+      .select('name,description,links,target_date,owner_id,workspace_id,logo_url')
       .eq('id', projectId).single()
 
     const wsId = proj?.workspace_id ?? ''
+    if (proj?.logo_url) setLogoUrl(proj.logo_url)
 
     const [membersRes, featuresRes, milestonesRes, tasksRes, wsMembersRes] = await Promise.all([
       supabase.from('project_members')
@@ -383,9 +386,17 @@ export default function ProjectDashboard({
 
         {/* Row 1: Logo + Name + Phase badge + Settings */}
         <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px' }}>
-          <div style={{ width:'34px', height:'34px', borderRadius:'8px', background:'linear-gradient(135deg,#7c3aed,#db2777)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:700, color:'white', flexShrink:0 }}>
-            {projectName.charAt(0).toUpperCase()}
-          </div>
+          <LogoUpload
+            currentUrl={logoUrl}
+            fallbackText={projectName}
+            accentColor="#7c3aed"
+            bucket="project-logos"
+            entityId={projectId}
+            table="projects"
+            size={34}
+            onUploaded={url => setLogoUrl(url)}
+            editable={isOwnerOrManager}
+          />
 
           {editingName ? (
             <div style={{ display:'flex', alignItems:'center', gap:'7px', flex:1 }}>
