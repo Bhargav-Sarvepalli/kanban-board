@@ -15,8 +15,8 @@ const NODE_R        = 20
 const TRUNK_NODE_R  = 24
 const NODE_SPACING  = 160
 const PHASE_START_X = 100
-const PHASE_SPACING = 520
-const BRANCH_CARD_W = 330
+const PHASE_SPACING = 560
+const BRANCH_CARD_W = 280
 
 function statusFill(s: string) {
   return s === 'done' ? '#22c55e' : s === 'in_progress' ? '#3b82f6' : s === 'in_review' ? '#f59e0b' : 'transparent'
@@ -85,8 +85,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     return () => ro.disconnect()
   }, [])
 
-  const canvasH = Math.max(svgH, 780)
-  const TRUNK_Y = canvasH - 120
+  const canvasH = Math.max(svgH, 920)
+  const TRUNK_Y = Math.round(canvasH * 0.52)
 
   const layout = useMemo<{ branches: BranchLayout[]; svgWidth: number; nowX: number; milestoneNodes: MilestoneLayout[] } | null>(() => {
     if (!branches.length) return null
@@ -100,7 +100,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     const maxTaskRun = showTaskPaths
       ? branches.reduce((max, b) => Math.max(max, Math.max(b.tasks.length - 1, 0) * NODE_SPACING + BRANCH_CARD_W), 0)
       : 0
-    const svgWidth   = Math.max(lastPhaseX + maxTaskRun + 760, 2400)
+    const svgWidth   = Math.max(lastPhaseX + maxTaskRun + 760, 2600)
     const nowX       = milestoneNodes[Math.min(1, milestoneNodes.length - 1)]?.x ?? 360
 
     const milestoneIndex = new Map(milestoneNodes.map((m, i) => [m.id, i]))
@@ -118,14 +118,13 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       const intervalStart = milestoneNodes[phaseIndex].x
       const intervalEnd = milestoneNodes[phaseIndex + 1]?.x ?? intervalStart + PHASE_SPACING
       const intervalWidth = intervalEnd - intervalStart
-      const topStart = 62
-      const rowStep = 58
       bucket.forEach((branch, slot) => {
-        const above = true
-        const branchY = topStart + slot * rowStep
+        const above = slot % 2 === 0
+        const lane = Math.floor(slot / 2)
+        const branchY = TRUNK_Y + (above ? -1 : 1) * (104 + lane * 88)
         const slotRatio = (slot + 1) / (bucket.length + 1)
-        const originX = intervalStart + intervalWidth * (0.16 + slotRatio * 0.68)
-        const cardX = intervalStart + 92
+        const originX = intervalStart + intervalWidth * (0.12 + slotRatio * 0.58)
+        const cardX = intervalStart + 152
         const taskStartX = cardX + BRANCH_CARD_W + 58
         const nodes: NodeLayout[] = branch.tasks.map((task, i) => ({
           task, x: taskStartX + i * NODE_SPACING, y: branchY + 20,
@@ -135,7 +134,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       })
     })
     return { branches: result, svgWidth, nowX, milestoneNodes }
-  }, [branches, milestones, showTaskPaths])
+  }, [branches, milestones, showTaskPaths, TRUNK_Y])
 
   useEffect(() => {
     if (!layout || !scrollRef.current) return
@@ -221,6 +220,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const trunkEnd = layout.svgWidth - 60
   const nowX     = layout.nowX
   const pastX    = nowX * 0.44
+  const trunkPath = `M 60 ${TRUNK_Y} C ${layout.svgWidth * 0.26} ${TRUNK_Y - 18}, ${layout.svgWidth * 0.48} ${TRUNK_Y + 18}, ${layout.svgWidth * 0.7} ${TRUNK_Y - 8} S ${layout.svgWidth - 220} ${TRUNK_Y + 12}, ${trunkEnd} ${TRUNK_Y}`
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -420,6 +420,17 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                   <stop offset="100%" stopColor={branch.color} stopOpacity="0.1" />
                 </linearGradient>
               ))}
+              <linearGradient id="fg-river" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#22c55e" />
+                <stop offset="42%" stopColor="#8b5cf6" />
+                <stop offset="72%" stopColor="#60a5fa" />
+                <stop offset="100%" stopColor="#c084fc" />
+                <animateTransform attributeName="gradientTransform" type="translate" from="-0.18 0" to="0.18 0" dur="4s" repeatCount="indefinite" />
+              </linearGradient>
+              <filter id="fg-river-glow" x="-10%" y="-80%" width="120%" height="260%">
+                <feGaussianBlur stdDeviation="8" result="b" />
+                <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
               <filter id="fg-ms" x="-30%" y="-30%" width="160%" height="160%">
                 <feGaussianBlur stdDeviation="5" result="b" />
                 <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
@@ -439,12 +450,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
               const nextX = layout.milestoneNodes[i + 1]?.x ?? m.x + PHASE_SPACING
               return (
                 <g key={`lane-${m.id}`}>
-                  <rect
-                    x={m.x + 36} y={18} width={nextX - m.x - 72} height={canvasH - 42}
-                    rx={10}
-                    fill={i % 2 === 0 ? 'rgba(255,255,255,0.018)' : 'rgba(124,58,237,0.025)'}
-                    stroke="rgba(255,255,255,0.035)"
-                  />
+                  <line x1={nextX} y1={54} x2={nextX} y2={canvasH - 78} stroke="rgba(167,139,250,0.12)" strokeWidth={1} strokeDasharray="5 8" />
                   <text x={m.x + 52} y={36} fill="rgba(255,255,255,0.25)" fontSize={9} fontFamily="Space Mono" fontWeight={700} letterSpacing="0.12em">
                     {m.label.toUpperCase()}
                   </text>
@@ -453,10 +459,9 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             })}
 
             {/* ── TRUNK ── */}
-            <line x1={60}    y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y} stroke="#7c3aed" strokeWidth={32} strokeLinecap="round" opacity={0.08} />
-            <line x1={60}    y1={TRUNK_Y} x2={pastX}    y2={TRUNK_Y} stroke="#4ade80" strokeWidth={4} strokeLinecap="round" />
-            <line x1={pastX} y1={TRUNK_Y} x2={nowX}     y2={TRUNK_Y} stroke="#a78bfa" strokeWidth={4} strokeLinecap="round" />
-            <line x1={nowX}  y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y} stroke="rgba(255,255,255,0.18)" strokeWidth={4} strokeLinecap="round" />
+            <path d={trunkPath} stroke="#7c3aed" strokeWidth={34} strokeLinecap="round" opacity={0.08} fill="none" />
+            <path d={trunkPath} stroke="url(#fg-river)" strokeWidth={8} strokeLinecap="round" fill="none" filter="url(#fg-river-glow)" />
+            <path d={trunkPath} stroke="rgba(255,255,255,0.36)" strokeWidth={2} strokeLinecap="round" fill="none" strokeDasharray="14 22" className="fg-river-flow" />
             <polygon points={`${trunkEnd + 16},${TRUNK_Y} ${trunkEnd},${TRUNK_Y - 9} ${trunkEnd},${TRUNK_Y + 9}`} fill="rgba(255,255,255,0.4)" />
             <circle cx={60}  cy={TRUNK_Y} r={6} fill="#4ade80" />
 
@@ -498,6 +503,11 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
               const titleY     = (y: number) => above ? y - NODE_R - 18 : y + NODE_R + 26
               const dateY      = (y: number) => above ? y - NODE_R - 32 : y + NODE_R + 40
               const bh         = branchHealth(branch)
+              const canMerge   = projectId && branch.total > 0 && branch.done === branch.total
+              const branchEndX = cardX + BRANCH_CARD_W
+              const mergeX     = originX + PHASE_SPACING * 0.72
+              const branchPath = `M ${originX} ${TRUNK_Y} C ${originX + 50} ${TRUNK_Y}, ${cardX - 82} ${connectorY}, ${cardX} ${connectorY}`
+              const returnPath = `M ${branchEndX} ${connectorY} C ${branchEndX + 96} ${connectorY}, ${mergeX - 130} ${TRUNK_Y}, ${mergeX} ${TRUNK_Y}`
 
               return (
                 <g key={branch.id}
@@ -507,46 +517,41 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                   onMouseLeave={() => setHovBranch(null)}
                   onClick={() => !dragging && onBranchClick(branch)}
                 >
-                  {showTaskPaths && (
-                    <>
-                      {/* Stem from trunk to branch line */}
-                      <path
-                        d={`M ${originX} ${TRUNK_Y} C ${originX} ${(TRUNK_Y * 2 + connectorY) / 3}, ${cardX + 20} ${(TRUNK_Y + connectorY * 2) / 3}, ${cardX + 20} ${connectorY}`}
-                        fill="none" stroke={`url(#fg-bg-${branch.id})`}
-                        strokeOpacity={isHov ? 0.8 : 0.22}
-                        strokeWidth={isHov ? 2.5 : 1.4} style={{ transition: 'all 0.2s' }}
-                      />
-                      {/* Fork dot on trunk */}
-                      <circle cx={originX} cy={TRUNK_Y} r={isHov ? 7 : 5}
-                        fill={branch.color} opacity={isHov ? 1 : 0.72}
-                        filter={isHov ? `url(#fg-gf-${branch.id})` : undefined}
-                        style={{ transition: 'all 0.2s' }}
-                      />
-                      {/* Branch line */}
-                      <line x1={cardX + BRANCH_CARD_W} y1={connectorY} x2={endX} y2={connectorY}
-                        stroke={branch.color} strokeWidth={isHov ? 2.5 : 2}
-                        strokeOpacity={nodes.length > 0 ? (isHov ? 0.7 : 0.18) : 0}
-                        style={{ transition: 'all 0.2s' }}
-                      />
-                      {nodes.length > 0 && (
-                        <line
-                          x1={cardX + BRANCH_CARD_W} y1={connectorY}
-                          x2={cardX + BRANCH_CARD_W + (endX - cardX - BRANCH_CARD_W) * (branch.progress / 100)}
-                          y2={connectorY}
-                          stroke={branch.color} strokeWidth={3} strokeOpacity={0.5} strokeLinecap="round"
-                        />
-                      )}
-                    </>
+                  <path
+                    d={branchPath}
+                    fill="none" stroke={branch.color}
+                    strokeOpacity={isHov ? 0.92 : 0.48}
+                    strokeWidth={isHov ? 3.2 : 2.2}
+                    strokeLinecap="round"
+                    className="fg-branch-flow"
+                    style={{ transition: 'all 0.2s' }}
+                  />
+                  <circle cx={originX} cy={TRUNK_Y} r={isHov ? 7 : 5}
+                    fill={branch.color} opacity={isHov ? 1 : 0.78}
+                    filter={isHov ? `url(#fg-gf-${branch.id})` : undefined}
+                    style={{ transition: 'all 0.2s' }}
+                  />
+                  {(canMerge || mergingId === branch.id) && (
+                    <path
+                      d={returnPath}
+                      fill="none" stroke={branch.color}
+                      strokeOpacity={mergingId === branch.id ? 0.95 : 0.38}
+                      strokeWidth={mergingId === branch.id ? 3.4 : 2}
+                      strokeLinecap="round"
+                      strokeDasharray={mergingId === branch.id ? '14 10' : '5 8'}
+                      className={mergingId === branch.id ? 'fg-merge-flow' : undefined}
+                    />
                   )}
-                  {!showTaskPaths && (
-                    <line
-                      x1={cardX + 12} y1={connectorY} x2={cardX + BRANCH_CARD_W - 12} y2={connectorY}
-                      stroke={branch.color} strokeWidth={2} strokeOpacity={0.1} strokeLinecap="round"
+                  {showTaskPaths && nodes.length > 0 && (
+                    <line x1={branchEndX} y1={connectorY} x2={endX} y2={connectorY}
+                      stroke={branch.color} strokeWidth={isHov ? 2.5 : 2}
+                      strokeOpacity={isHov ? 0.62 : 0.2}
+                      style={{ transition: 'all 0.2s' }}
                     />
                   )}
 
                   {/* ── Branch chip — anchored at fork, never floating ── */}
-                  <foreignObject x={chipStartX} y={chipY} width={chipWidth} height={44} style={{ overflow: 'hidden', pointerEvents: 'none' }}>
+                  <foreignObject x={chipStartX} y={chipY} width={chipWidth} height={72} style={{ overflow: 'visible', pointerEvents: 'auto' }}>
                     <div style={{
                       display: 'grid', gridTemplateColumns: '28px minmax(0, 1fr) auto auto', alignItems: 'center', columnGap: '7px',
                       background: `${branch.color}1a`,
@@ -586,6 +591,29 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                       <span style={{ color: branch.color, fontSize: '10px', fontFamily: 'Space Mono', fontWeight: 700 }}>
                         {branch.progress}%
                       </span>
+                      {projectId && (canMerge || mergingId === branch.id) && (
+                        <button
+                          onClick={e => { e.stopPropagation(); void mergeBranch(branch) }}
+                          disabled={!canMerge || mergingId === branch.id}
+                          title={canMerge ? 'Merge completed feature into main trunk' : 'Finish all feature tasks before merging'}
+                          style={{
+                            gridColumn: '1 / -1',
+                            justifySelf: 'end',
+                            marginTop: '5px',
+                            height: '18px',
+                            padding: '0 8px',
+                            borderRadius: '9px',
+                            border: `1px solid ${canMerge ? 'rgba(34,197,94,0.45)' : 'rgba(255,255,255,0.08)'}`,
+                            background: canMerge ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.03)',
+                            color: canMerge ? '#4ade80' : 'rgba(255,255,255,0.28)',
+                            cursor: canMerge ? 'pointer' : 'not-allowed',
+                            fontSize: '8px',
+                            fontFamily: 'Space Mono',
+                            fontWeight: 700,
+                          }}>
+                          {mergingId === branch.id ? 'MERGING...' : 'MERGE'}
+                        </button>
+                      )}
                     </div>
                   </foreignObject>
 
@@ -705,6 +733,12 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       <style>{`
         @keyframes fgSpin { to { transform: rotate(360deg); } }
         @keyframes fgRing { 0%,100% { stroke-opacity: 0.04; } 50% { stroke-opacity: 0.5; } }
+        @keyframes fgRiverFlow { to { stroke-dashoffset: -72; } }
+        @keyframes fgBranchFlow { to { stroke-dashoffset: -46; } }
+        @keyframes fgMergeFlow { to { stroke-dashoffset: -96; } }
+        .fg-river-flow { animation: fgRiverFlow 2.8s linear infinite; }
+        .fg-branch-flow { stroke-dasharray: 12 18; animation: fgBranchFlow 4.2s linear infinite; }
+        .fg-merge-flow { animation: fgMergeFlow 0.75s linear infinite; }
       `}</style>
     </div>
   )
