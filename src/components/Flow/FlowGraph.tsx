@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { useFlowData } from '../../hooks/useFlowData'
 import type { FlowBranch, FlowTask } from '../../hooks/useFlowData'
+import StandupMode from './StandupMode'
 
 interface FlowGraphProps {
   workspaceId: string | null
@@ -62,7 +63,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const [tooltip,     setTooltip]     = useState<{ x: number; y: number; task: FlowTask; branch: FlowBranch } | null>(null)
   // myTasksOnly: highlights only branches/nodes that belong to the current user
   // Useful for individuals to see their own workload on the flow map
-  const [myTasksOnly, setMyTasksOnly] = useState(false)
+  const [myTasksOnly,  setMyTasksOnly]  = useState(false)
+  const [standupOpen,  setStandupOpen]  = useState(false)
   const [dragging,    setDragging]    = useState(false)
   const [drag0,       setDrag0]       = useState({ x: 0, scroll: 0 })
   const [svgH,        setSvgH]        = useState(500)
@@ -215,27 +217,32 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
           </div>
         </div>
 
-        {/* Right: MY TASKS toggle — actually useful for individuals */}
+        {/* Right: MY TASKS + STANDUP */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {myBranchIds.size > 0 && (
-            <button
-              onClick={() => setMyTasksOnly(v => !v)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '7px',
-                padding: '7px 14px',
-                background: myTasksOnly ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.07)',
-                border: `1px solid ${myTasksOnly ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.15)'}`,
-                borderRadius: '8px',
-                color: myTasksOnly ? '#a78bfa' : 'rgba(255,255,255,0.65)',
-                cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono',
-                fontWeight: 600, transition: 'all 0.2s',
-              }}>
+            <button onClick={() => setMyTasksOnly(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: myTasksOnly ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.07)', border: `1px solid ${myTasksOnly ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: myTasksOnly ? '#a78bfa' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: myTasksOnly ? '#8b5cf6' : 'rgba(255,255,255,0.4)' }} />
               MY TASKS
             </button>
           )}
+          {branches.length > 0 && (
+            <button onClick={() => setStandupOpen(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', color: '#f87171', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#ef4444' }} />
+              STANDUP
+            </button>
+          )}
         </div>
       </div>
+
+      {standupOpen && (
+        <StandupMode
+          branches={branches}
+          onClose={() => setStandupOpen(false)}
+          onBranchClick={(branch) => { setStandupOpen(false); onBranchClick(branch) }}
+        />
+      )}
 
       {/* ── BRANCH / FEATURE PILLS ── */}
       <div style={{
