@@ -1,13 +1,13 @@
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { useFlowData } from '../../hooks/useFlowData'
 import type { FlowBranch, FlowTask } from '../../hooks/useFlowData'
-import StandupMode from './StandupMode'
 
 interface FlowGraphProps {
   workspaceId: string | null
   userId: string | null
   onBranchClick: (branch: FlowBranch) => void
   projectId?: string | null
+  onOpenStandup?: () => void
 }
 
 const NODE_R        = 20
@@ -55,19 +55,16 @@ function overallHealth(branches: FlowBranch[]) {
        :             { label: 'BEHIND',   color: '#ef4444' }
 }
 
-export default function FlowGraph({ workspaceId, userId, onBranchClick, projectId }: FlowGraphProps) {
+export default function FlowGraph({ workspaceId, userId, onBranchClick, projectId, onOpenStandup }: FlowGraphProps) {
   const { branches, milestones, totalTasks, totalDone, overallProgress, loading, error } = useFlowData(workspaceId, projectId)
 
-  const [hovBranch,   setHovBranch]   = useState<string | null>(null)
-  const [hovNode,     setHovNode]     = useState<string | null>(null)
-  const [tooltip,     setTooltip]     = useState<{ x: number; y: number; task: FlowTask; branch: FlowBranch } | null>(null)
-  // myTasksOnly: highlights only branches/nodes that belong to the current user
-  // Useful for individuals to see their own workload on the flow map
-  const [myTasksOnly,  setMyTasksOnly]  = useState(false)
-  const [standupOpen,  setStandupOpen]  = useState(false)
-  const [dragging,    setDragging]    = useState(false)
-  const [drag0,       setDrag0]       = useState({ x: 0, scroll: 0 })
-  const [svgH,        setSvgH]        = useState(500)
+  const [hovBranch,  setHovBranch]  = useState<string | null>(null)
+  const [hovNode,    setHovNode]    = useState<string | null>(null)
+  const [tooltip,    setTooltip]    = useState<{ x: number; y: number; task: FlowTask; branch: FlowBranch } | null>(null)
+  const [myTasksOnly, setMyTasksOnly] = useState(false)
+  const [dragging,   setDragging]   = useState(false)
+  const [drag0,      setDrag0]      = useState({ x: 0, scroll: 0 })
+  const [svgH,       setSvgH]       = useState(500)
   const wrapRef   = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -227,7 +224,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             </button>
           )}
           {branches.length > 0 && (
-            <button onClick={() => setStandupOpen(true)}
+            <button onClick={() => onOpenStandup?.()}
               style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', color: '#f87171', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#ef4444' }} />
               STANDUP
@@ -235,14 +232,6 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
           )}
         </div>
       </div>
-
-      {standupOpen && (
-        <StandupMode
-          branches={branches}
-          onClose={() => setStandupOpen(false)}
-          onBranchClick={(branch) => { setStandupOpen(false); onBranchClick(branch) }}
-        />
-      )}
 
       {/* ── BRANCH / FEATURE PILLS ── */}
       <div style={{

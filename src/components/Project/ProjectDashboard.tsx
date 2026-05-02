@@ -365,7 +365,7 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
                   <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.12em', margin: '0 0 6px' }}>{s.label.toUpperCase()}</p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
                     {s.dot && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: s.color }} />}
-                    <p style={{ color: s.color, fontSize: '20px', fontFamily: 'Space Mono', fontWeight: 700, margin: 0 }}>{s.value}</p>
+                    <p style={{ color: s.color, fontSize: '20px', fontFamily: 'Space Grotesk', fontWeight: 700, margin: 0 }}>{s.value}</p>
                   </div>
                   <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '4px 0 0' }}>{s.sub}</p>
                 </div>
@@ -378,9 +378,12 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
                 <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.12em', margin: '0 0 14px' }}>PHASE TIMELINE</p>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   {milestones.map((m, i) => {
-                    const isPast    = !m.is_current && i < milestones.findIndex(x => x.is_current)
-                    const isCurrent = m.is_current
-                    const col       = isPast ? '#4ade80' : isCurrent ? '#a78bfa' : 'rgba(255,255,255,0.2)'
+                    // Derive current from is_current flag; if none set, treat first as current
+                    const currentIdx = milestones.findIndex(x => x.is_current)
+                    const activeIdx  = currentIdx >= 0 ? currentIdx : 0
+                    const isPast     = i < activeIdx
+                    const isCurrent  = i === activeIdx
+                    const col        = isPast ? '#4ade80' : isCurrent ? '#a78bfa' : 'rgba(255,255,255,0.2)'
                     return (
                       <div key={m.id} style={{ display: 'flex', alignItems: 'center', flex: i < milestones.length - 1 ? 1 : 0 }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>

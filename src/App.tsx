@@ -18,14 +18,13 @@ import SettingsModal from './components/SettingsModal'
 import OnboardingFlow from './components/OnboardingFlow'
 import InviteNotifications from './components/InviteNotifications'
 import FlowGraph from './components/Flow/FlowGraph'
+import StandupMode from './components/Flow/StandupMode'
 import ProjectCreationWizard, { type Project } from './components/Project/ProjectCreationWizard'
 import ProjectDashboard from './components/Project/ProjectDashboard'
 import type { FlowBranch } from './hooks/useFlowData'
 import { useProjects } from './hooks/useProjects'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-
-// Project type is imported from the wizard to keep a single source of truth
 
 function App() {
   const [userId, setUserId] = useState<string | null>(null)
@@ -39,6 +38,7 @@ function App() {
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showProjectMenu, setShowProjectMenu] = useState(false)
   const [showDashboard, setShowDashboard] = useState(false)
+  const [showStandup, setShowStandup] = useState(false)
   const [search, setSearch] = useState('')
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -49,18 +49,17 @@ function App() {
   const [branchFilter, setBranchFilter] = useState<{
     id: string
     name: string
-    mode: 'assignee' | 'feature'   // feature = project mode, assignee = workspace mode
+    mode: 'assignee' | 'feature'
   } | null>(null)
   const navigate = useNavigate()
 
-  // Derive available tabs based on context
   // Personal / Workspace: Today, Board, Calendar
-  // Project active: Board, Flow, Calendar
+  // Project active: Dashboard, Board, Flow, Calendar
   const availableTabs = currentProject
-    ? (['board', 'flow', 'calendar'] as const)
+    ? (['dashboard', 'board', 'flow', 'calendar'] as const)
     : (['today', 'board', 'calendar'] as const)
 
-  const [view, setView] = useState<'today' | 'board' | 'calendar' | 'flow'>(() => {
+  const [view, setView] = useState<'today' | 'board' | 'calendar' | 'flow' | 'dashboard'>(() => {
     try {
       const saved = localStorage.getItem('nex_default_view')
       if (saved === 'board' || saved === 'calendar' || saved === 'today' || saved === 'flow') return saved
@@ -78,21 +77,18 @@ function App() {
     catch { return true }
   })
 
-  // Load projects for current workspace
   const { projects, refetch: refetchProjects } = useProjects(userId, currentWorkspace?.id ?? null)
 
-  // Track previous workspace so we can reset project on workspace change
-  // without calling setState inside an effect (which triggers cascading renders)
   const prevWorkspaceIdRef = useRef<string | undefined>(currentWorkspace?.id)
   if (prevWorkspaceIdRef.current !== currentWorkspace?.id) {
     prevWorkspaceIdRef.current = currentWorkspace?.id
-    // Inline state reset — safe because this runs during render, not after
     if (currentProject !== null) setCurrentProject(null)
   }
 
-  // Derive the effective view: if flow is active but no project, fall back to board.
-  // Read-during-render adjustment — no effect needed.
-  const effectiveView = (view === 'flow' && !currentProject) ? 'board' : view
+  // If flow/dashboard active but no project, fall back gracefully
+  const effectiveView = (view === 'flow' && !currentProject) ? 'board'
+    : (view === 'dashboard' && !currentProject) ? 'today'
+    : view
 
   const toggleNex = () => {
     setNexEnabled(prev => {
@@ -263,12 +259,13 @@ function App() {
       )
     : tasks
 
-  // Tab definitions — Flow only visible when a project is active
-  const TAB_DEFS: { id: 'today' | 'board' | 'calendar' | 'flow'; label: string }[] = [
-    { id: 'today',    label: '☀ Today' },
-    { id: 'board',    label: '⊞ Board' },
-    { id: 'calendar', label: '⊟ Calendar' },
-    { id: 'flow',     label: '⚡ Flow' },
+  // Dashboard + Flow only visible when a project is active
+  const TAB_DEFS: { id: 'today' | 'board' | 'calendar' | 'flow' | 'dashboard'; label: string }[] = [
+    { id: 'dashboard', label: '⊟ Dashboard' },
+    { id: 'today',     label: '☀ Today' },
+    { id: 'board',     label: '⊞ Board' },
+    { id: 'calendar',  label: '⊟ Calendar' },
+    { id: 'flow',      label: '⚡ Flow' },
   ]
   const visibleTabs = TAB_DEFS.filter(t => (availableTabs as readonly string[]).includes(t.id))
 
@@ -296,7 +293,6 @@ function App() {
 
           {/* Context switchers: Workspace → Project */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-            {/* Workspace switcher */}
             <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               onClick={() => setShowWorkspacePanel(true)}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '7px 12px', cursor: 'pointer', flexShrink: 0 }}>
@@ -309,11 +305,9 @@ function App() {
               <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>⌄</span>
             </motion.button>
 
-            {/* Project switcher — only when workspace is active */}
             {currentWorkspace && (
               <>
                 <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '14px', flexShrink: 0 }}>/</span>
-
                 <div style={{ position: 'relative', isolation: 'isolate' as const }}>
                   <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                     onClick={() => setShowProjectMenu(p => !p)}
@@ -329,7 +323,6 @@ function App() {
                     <>
                       <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setShowProjectMenu(false)} />
                       <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '220px', zIndex: 9999, borderRadius: '14px', padding: '6px', border: '1px solid #333', boxShadow: '0 32px 80px rgba(0,0,0,0.9)', backgroundColor: '#111111' }}>
-                        {/* No project option */}
                         <button
                           onClick={() => { setCurrentProject(null); setShowProjectMenu(false) }}
                           style={{ width: '100%', padding: '9px 12px', background: !currentProject ? 'rgba(139,92,246,0.12)' : 'transparent', border: 'none', borderRadius: '8px', color: !currentProject ? '#a78bfa' : '#ccc', cursor: 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk', display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left', marginBottom: '2px' }}
@@ -340,7 +333,6 @@ function App() {
 
                         {projects.length > 0 && <div style={{ height: '1px', background: '#222', margin: '4px 0' }} />}
 
-                        {/* Project list */}
                         {projects.map(proj => (
                           <button key={proj.id}
                             onClick={() => { setCurrentProject(proj); setShowProjectMenu(false); setView('board') }}
@@ -354,7 +346,6 @@ function App() {
 
                         <div style={{ height: '1px', background: '#222', margin: '4px 0' }} />
 
-                        {/* New project */}
                         <button
                           onClick={() => { setShowProjectMenu(false); setShowProjectWizard(true) }}
                           style={{ width: '100%', padding: '9px 12px', background: 'transparent', border: 'none', borderRadius: '8px', color: '#8b5cf6', cursor: 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk', display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left' }}
@@ -374,9 +365,9 @@ function App() {
           {!isMobile && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               {[
-                { label: 'TOTAL', value: total, color: '#a78bfa' },
-                { label: 'DONE', value: completed, color: '#34d399' },
-                { label: 'OVERDUE', value: overdue, color: '#f87171' },
+                { label: 'TOTAL',   value: total,     color: '#a78bfa' },
+                { label: 'DONE',    value: completed, color: '#34d399' },
+                { label: 'OVERDUE', value: overdue,   color: '#f87171' },
               ].map((stat, i) => (
                 <div key={stat.label} style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {i > 0 && <div style={{ width: '1px', height: '14px', background: 'rgba(255,255,255,0.12)', marginRight: '6px' }} />}
@@ -387,7 +378,7 @@ function App() {
             </motion.div>
           )}
 
-          {/* Right side: search + actions */}
+          {/* Right: search + actions */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
             {!isMobile && (
               <div style={{ position: 'relative' }}>
@@ -427,7 +418,7 @@ function App() {
                       </div>
                     </div>
                     {[
-                      { icon: '⚙', label: 'Settings', action: () => { setShowSettings(true); setShowProfileMenu(false) } },
+                      { icon: '⚙', label: 'Settings',   action: () => { setShowSettings(true);       setShowProfileMenu(false) } },
                       { icon: '👥', label: 'Workspaces', action: () => { setShowWorkspacePanel(true); setShowProfileMenu(false) } },
                     ].map(item => (
                       <button key={item.label} onClick={item.action}
@@ -465,12 +456,16 @@ function App() {
       {/* MAIN CONTENT */}
       <div style={{ position: 'relative', zIndex: 10, maxWidth: effectiveView === 'flow' ? '100%' : '1400px', margin: '0 auto', padding: effectiveView === 'flow' ? '0' : (isMobile ? '16px' : '28px 32px') }}>
 
-        {/* View toggle — only shows tabs valid for current context */}
+        {/* Tab bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: effectiveView === 'flow' ? '0' : '20px', flexWrap: 'wrap', padding: effectiveView === 'flow' ? (isMobile ? '12px 16px' : '16px 28px') : '0', borderBottom: effectiveView === 'flow' ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
           <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '4px' }}>
             {visibleTabs.map(v => (
               <button key={v.id}
-                onClick={() => { setView(v.id); if (v.id !== 'board') setBranchFilter(null) }}
+                onClick={() => {
+                  if (v.id === 'dashboard') { setShowDashboard(true); return }
+                  setView(v.id)
+                  if (v.id !== 'board') setBranchFilter(null)
+                }}
                 style={{ padding: '6px 14px', borderRadius: '7px', border: 'none', background: effectiveView === v.id ? 'rgba(139,92,246,0.25)' : 'transparent', color: effectiveView === v.id ? '#a78bfa' : 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: effectiveView === v.id ? 600 : 400, transition: 'all 0.15s' }}>
                 {v.label}
               </button>
@@ -484,22 +479,6 @@ function App() {
               <span style={{ color: '#a78bfa', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>{branchFilter.name}</span>
               <button onClick={() => setBranchFilter(null)}
                 style={{ background: 'none', border: 'none', color: 'rgba(167,139,250,0.5)', cursor: 'pointer', fontSize: '12px', padding: '0', lineHeight: 1, marginLeft: '2px' }}>✕</button>
-            </div>
-          )}
-
-          {/* Project context badge + dashboard button */}
-          {currentProject && effectiveView !== 'flow' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '8px', padding: '4px 10px' }}>
-                <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#8b5cf6', boxShadow: '0 0 6px #8b5cf6' }} />
-                <span style={{ color: '#a78bfa', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>⚡ {currentProject.name}</span>
-              </div>
-              <button onClick={() => setShowDashboard(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '8px', padding: '4px 10px', color: '#a78bfa', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.22)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.12)' }}>
-                ⊞ Dashboard
-              </button>
             </div>
           )}
 
@@ -523,7 +502,9 @@ function App() {
             </div>
           )}
 
-          {!isMobile && effectiveView !== 'flow' && <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', fontFamily: 'Space Mono' }}>{total} tasks</span>}
+          {!isMobile && effectiveView !== 'flow' && (
+            <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', fontFamily: 'Space Mono' }}>{total} tasks</span>
+          )}
         </div>
 
         {/* Views */}
@@ -576,12 +557,14 @@ function App() {
               userId={userId}
               onBranchClick={handleBranchClick}
               projectId={currentProject.id}
+              onOpenStandup={() => setShowStandup(true)}
             />
           </motion.div>
         ) : null}
       </div>
 
-      {/* Modals */}
+      {/* ── MODALS & OVERLAYS ── */}
+
       {showModal && userId && (
         <CreateTaskModal
           userId={userId}
@@ -592,14 +575,26 @@ function App() {
           projectId={currentProject?.id}
         />
       )}
+
       {selectedTask && userId && (
-        <TaskDetailPanel task={selectedTask} userId={userId} onClose={() => setSelectedTask(null)} onUpdated={() => { refetchTasks(); setSelectedTask(null) }} profiles={profiles} />
+        <TaskDetailPanel
+          task={selectedTask} userId={userId}
+          onClose={() => setSelectedTask(null)}
+          onUpdated={() => { refetchTasks(); setSelectedTask(null) }}
+          profiles={profiles}
+        />
       )}
+
       <AnimatePresence>
         {showWorkspacePanel && userId && (
-          <WorkspacePanel userId={userId} currentWorkspace={currentWorkspace} onWorkspaceChange={setCurrentWorkspace} onClose={() => setShowWorkspacePanel(false)} />
+          <WorkspacePanel
+            userId={userId} currentWorkspace={currentWorkspace}
+            onWorkspaceChange={setCurrentWorkspace}
+            onClose={() => setShowWorkspacePanel(false)}
+          />
         )}
       </AnimatePresence>
+
       <AnimatePresence>
         {showProjectWizard && userId && currentWorkspace && (
           <ProjectCreationWizard
@@ -615,14 +610,36 @@ function App() {
           />
         )}
       </AnimatePresence>
+
       {showOnboarding && userId && (
-        <OnboardingFlow userId={userId} userName={profile?.full_name ?? profile?.email ?? ''} onComplete={() => { setShowOnboarding(false); setProfile(prev => prev ? { ...prev, onboarding_completed: true } : prev); refetchTasks() }} />
+        <OnboardingFlow
+          userId={userId}
+          userName={profile?.full_name ?? profile?.email ?? ''}
+          onComplete={() => {
+            setShowOnboarding(false)
+            setProfile(prev => prev ? { ...prev, onboarding_completed: true } : prev)
+            refetchTasks()
+          }}
+        />
       )}
+
       <AnimatePresence>
         {showSettings && userId && (
-          <SettingsModal userId={userId} profile={profile} onClose={() => setShowSettings(false)} onProfileUpdated={setProfile} nexEnabled={nexEnabled} onToggleNex={toggleNex} defaultView={effectiveView} onDefaultViewChange={(v) => { setView(v); try { localStorage.setItem('nex_default_view', v) } catch (e) { void e } }} />
+          <SettingsModal
+            userId={userId} profile={profile}
+            onClose={() => setShowSettings(false)}
+            onProfileUpdated={setProfile}
+            nexEnabled={nexEnabled} onToggleNex={toggleNex}
+            defaultView={effectiveView === 'dashboard' ? 'board' : effectiveView}
+            onDefaultViewChange={(v) => {
+              setView(v)
+              try { localStorage.setItem('nex_default_view', v) } catch (e) { void e }
+            }}
+          />
         )}
       </AnimatePresence>
+
+      {/* Dashboard — slide-in panel */}
       <AnimatePresence>
         {showDashboard && currentProject && userId && (
           <ProjectDashboard
@@ -638,9 +655,25 @@ function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* Standup — fullscreen, rendered at root so it's never clipped */}
+      {showStandup && currentProject && (
+        <StandupMode
+          projectId={currentProject.id}
+          onClose={() => setShowStandup(false)}
+          onBranchClick={(branch) => { setShowStandup(false); handleBranchClick(branch) }}
+        />
+      )}
+
       {userId && (
         <NexErrorBoundary>
-          <NexAssistant workspaceId={currentWorkspace?.id ?? null} userId={userId} isPro={isPro} nexEnabled={nexEnabled} onTaskCreated={refetchTasks} panelOpen={showSettings} />
+          <NexAssistant
+            workspaceId={currentWorkspace?.id ?? null}
+            userId={userId} isPro={isPro}
+            nexEnabled={nexEnabled}
+            onTaskCreated={refetchTasks}
+            panelOpen={showSettings}
+          />
         </NexErrorBoundary>
       )}
     </div>

@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { useFlowData } from '../../hooks/useFlowData'
 import type { FlowBranch, FlowTask } from '../../hooks/useFlowData'
 
 interface Props {
-  branches: FlowBranch[]
+  projectId: string
   onClose: () => void
   onBranchClick: (branch: FlowBranch) => void
 }
@@ -11,13 +12,26 @@ function isOverdue(t: FlowTask) {
   return !!t.due_date && t.status !== 'done' && new Date(t.due_date) < new Date()
 }
 
-export default function StandupMode({ branches, onClose, onBranchClick }: Props) {
+export default function StandupMode({ projectId, onClose, onBranchClick }: Props) {
+  const { branches, loading } = useFlowData(null, projectId)
   const [idx, setIdx] = useState(0)
 
-  if (!branches.length) return null
+  if (loading) return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 10001, background: '#04020e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: '36px', height: '36px', border: '2px solid rgba(239,68,68,0.2)', borderTop: '2px solid #ef4444', borderRadius: '50%', animation: 'smSpin 0.8s linear infinite' }} />
+      <style>{`@keyframes smSpin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
 
-  const branch  = branches[idx]
-  const total   = branches.length
+  if (!branches.length) return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 10001, background: '#04020e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+      <p style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'Space Mono', fontSize: '12px', letterSpacing: '0.2em' }}>NO BRANCHES ON FLOW YET</p>
+      <button onClick={onClose} style={{ padding: '8px 20px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Mono' }}>Close</button>
+    </div>
+  )
+
+  const branch = branches[idx]
+  const total  = branches.length
   const active  = branch.tasks.filter(t => t.status === 'in_progress')
   const review  = branch.tasks.filter(t => t.status === 'in_review')
   const todo    = branch.tasks.filter(t => t.status === 'todo')
