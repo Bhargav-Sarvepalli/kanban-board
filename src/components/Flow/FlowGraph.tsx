@@ -349,7 +349,7 @@ export default function FlowGraph({ workspaceId, onBranchClick, projectId }: Flo
                     y2={above ? branchY - 6 : branchY + 6}
                     stroke={branch.color} strokeWidth={3} strokeOpacity={0.65} strokeLinecap="round"
                   />
-                  <foreignObject x={lineX - 4} y={chipY} width={200} height={36} style={{ overflow: 'visible', pointerEvents: 'none' }}>
+                  <foreignObject x={lineX + 8} y={chipY} width={200} height={36} style={{ overflow: 'visible', pointerEvents: 'none' }}>
                     <div style={{
                       display: 'inline-flex', alignItems: 'center', gap: '7px',
                       background: `${branch.color}20`,
