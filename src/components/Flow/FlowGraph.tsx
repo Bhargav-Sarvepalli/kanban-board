@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { useFlowData } from '../../hooks/useFlowData'
+import { supabase } from '../../supabase'
 import type { FlowBranch, FlowTask } from '../../hooks/useFlowData'
 
 interface FlowGraphProps {
@@ -18,20 +19,25 @@ const BRANCH_GAP    = 400
 const FORK_OFFSET   = 80
 
 function statusFill(s: string) {
-  return s === 'done' ? '#22c55e' : s === 'in_progress' ? '#3b82f6' : s === 'review' ? '#f59e0b' : 'transparent'
+  return s === 'done' ? '#22c55e' : s === 'in_progress' ? '#3b82f6' : s === 'in_review' ? '#f59e0b' : 'transparent'
 }
 function statusBorder(s: string) {
-  return s === 'done' ? '#22c55e' : s === 'in_progress' ? '#60a5fa' : s === 'review' ? '#fbbf24' : 'rgba(255,255,255,0.3)'
+  return s === 'done' ? '#22c55e' : s === 'in_progress' ? '#60a5fa' : s === 'in_review' ? '#fbbf24' : 'rgba(255,255,255,0.3)'
 }
 function statusIcon(s: string) {
-  return s === 'done' ? '✓' : s === 'in_progress' ? '⚡' : s === 'review' ? '👁' : '○'
+  return s === 'done' ? '✓' : s === 'in_progress' ? '⚡' : s === 'in_review' ? '👁' : '○'
 }
 function isOverdue(t: FlowTask) {
-  return !!t.due_date && t.status !== 'done' && new Date(t.due_date) < new Date()
+  if (!t.due_date || t.status === 'done') return false
+  const [y, m, d] = t.due_date.split('-').map(Number)
+  const due = new Date(y, m - 1, d)
+  const today = new Date(new Date().setHours(0, 0, 0, 0))
+  return due < today
 }
 
 // Health label per branch — useful for managers and leads
 function branchHealth(branch: FlowBranch): { label: string; color: string } {
+  if (branch.total > 0 && branch.done === branch.total) return { label: 'MERGED', color: '#22c55e' }
   const hasOverdue = branch.tasks.some(t => isOverdue(t))
   const hasBlocked = branch.tasks.some(t => t.priority === 'high' && t.status === 'todo')
   if (hasOverdue || hasBlocked) return { label: 'BLOCKED', color: '#ef4444' }
@@ -56,7 +62,7 @@ function overallHealth(branches: FlowBranch[]) {
 }
 
 export default function FlowGraph({ workspaceId, userId, onBranchClick, projectId, onOpenStandup }: FlowGraphProps) {
-  const { branches, milestones, totalTasks, totalDone, overallProgress, loading, error } = useFlowData(workspaceId, projectId)
+  const { branches, milestones, totalTasks, totalDone, overallProgress, loading, error, refetch } = useFlowData(workspaceId, projectId)
 
   const [hovBranch,  setHovBranch]  = useState<string | null>(null)
   const [hovNode,    setHovNode]    = useState<string | null>(null)
@@ -65,6 +71,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const [dragging,   setDragging]   = useState(false)
   const [drag0,      setDrag0]      = useState({ x: 0, scroll: 0 })
   const [svgH,       setSvgH]       = useState(500)
+  const [mergingId,  setMergingId]  = useState<string | null>(null)
+  const [mergeError, setMergeError] = useState<string | null>(null)
   const wrapRef   = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -121,11 +129,33 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const activeTasks  = branches.reduce((s, b) => s + b.tasks.filter(t => t.status === 'in_progress').length, 0)
   const overdueTasks = branches.reduce((s, b) => s + b.tasks.filter(t => isOverdue(t)).length, 0)
   const blockedCount = branches.filter(b => branchHealth(b).label === 'BLOCKED').length
+  const mergedCount  = branches.filter(b => b.total > 0 && b.done === b.total).length
 
   // My tasks: branches where at least one task belongs to the current user
   const myBranchIds = userId
     ? new Set(branches.filter(b => b.tasks.some(t => t.assignee_id === userId)).map(b => b.id))
     : new Set<string>()
+
+  const mergeBranch = async (branch: FlowBranch) => {
+    if (!projectId || branch.total === 0 || mergingId) return
+    const unfinished = branch.tasks.filter(t => t.status !== 'done')
+    if (unfinished.length > 0) {
+      setMergeError(`${branch.name} still has ${unfinished.length} open task${unfinished.length === 1 ? '' : 's'}. Finish the branch before merging.`)
+      return
+    }
+
+    setMergeError(null)
+    setMergingId(branch.id)
+    const { error: taskErr } = await supabase.from('tasks').update({
+      show_on_flow: true,
+      last_edited_by: userId,
+      last_edited_at: new Date().toISOString(),
+    }).eq('project_id', projectId).eq('feature_id', branch.id)
+
+    if (taskErr) setMergeError(taskErr.message)
+    else await refetch()
+    setMergingId(null)
+  }
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
@@ -226,6 +256,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
           <div style={{ display: 'flex', gap: '20px' }}>
             {[
               { label: projectId ? 'FEATURES' : 'BRANCHES', value: branches.length,  color: '#c4b5fd' },
+              ...(projectId ? [{ label: 'MERGED', value: mergedCount, color: '#22c55e' }] : []),
               { label: 'BLOCKED',  value: blockedCount,  color: '#ef4444' },
               { label: 'ACTIVE',   value: activeTasks,   color: '#60a5fa' },
               { label: 'OVERDUE',  value: overdueTasks,  color: '#f87171' },
@@ -263,10 +294,16 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         overflowX: 'auto', flexShrink: 0, alignItems: 'center',
       }}>
+        {mergeError && (
+          <div style={{ flexShrink: 0, padding: '5px 10px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5', fontSize: '11px', fontFamily: 'Space Grotesk' }}>
+            {mergeError}
+          </div>
+        )}
         {branches.map(b => {
           const bh = branchHealth(b)
           const isMyBranch = myBranchIds.has(b.id)
           const dimmed = myTasksOnly && !isMyBranch
+          const canMerge = projectId && b.total > 0 && b.done === b.total
           return (
             <div key={b.id}
               onClick={() => onBranchClick(b)}
@@ -298,6 +335,26 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                 <div style={{ width: `${b.progress}%`, height: '100%', background: b.color, borderRadius: '2px' }} />
               </div>
               <span style={{ color: b.color, fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 700 }}>{b.progress}%</span>
+              {projectId && (
+                <button
+                  onClick={e => { e.stopPropagation(); void mergeBranch(b) }}
+                  disabled={!canMerge || mergingId === b.id}
+                  title={canMerge ? 'Merge completed feature into main trunk' : 'Finish all feature tasks before merging'}
+                  style={{
+                    marginLeft: '2px',
+                    padding: '3px 8px',
+                    borderRadius: '12px',
+                    border: `1px solid ${canMerge ? 'rgba(34,197,94,0.35)' : 'rgba(255,255,255,0.08)'}`,
+                    background: canMerge ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.03)',
+                    color: canMerge ? '#4ade80' : 'rgba(255,255,255,0.28)',
+                    cursor: canMerge ? 'pointer' : 'not-allowed',
+                    fontSize: '9px',
+                    fontFamily: 'Space Mono',
+                    fontWeight: 700,
+                  }}>
+                  {mergingId === b.id ? '...' : 'MERGE'}
+                </button>
+              )}
             </div>
           )
         })}
@@ -308,6 +365,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             { l: 'Done',    c: '#4ade80' },
             { l: 'Active',  c: '#60a5fa' },
             { l: 'Review',  c: '#fbbf24' },
+            ...(projectId ? [{ l: 'Merged', c: '#22c55e' }] : []),
             { l: 'Overdue', c: '#f87171' },
             { l: 'Planned', c: 'rgba(255,255,255,0.35)' },
           ].map(s => (
@@ -490,7 +548,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                     const od   = isOverdue(task)
                     const done = task.status === 'done'
                     const act  = task.status === 'in_progress'
-                    const rev  = task.status === 'review'
+                    const rev  = task.status === 'in_review'
                     const nh   = hovNode === task.id
                     // In myTasksOnly mode, highlight nodes belonging to current user
                     const isMyNode = userId && task.assignee_id === userId

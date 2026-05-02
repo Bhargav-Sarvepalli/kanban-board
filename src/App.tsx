@@ -410,7 +410,10 @@ function App() {
       {/* ── OVERLAYS ── */}
       {showModal && userId && (
         <CreateTaskModal userId={userId} onClose={() => setShowModal(false)} onTaskCreated={refetchTasks}
-          defaultStatus={defaultStatus} workspaceId={currentWorkspace?.id} projectId={currentProject?.id} />
+          defaultStatus={defaultStatus}
+          workspaceId={currentWorkspace?.id}
+          projectId={currentProject?.id}
+          featureId={branchFilter?.mode === 'feature' ? branchFilter.id : null} />
       )}
       {selectedTask && userId && (
         <TaskDetailPanel task={selectedTask} userId={userId} onClose={() => setSelectedTask(null)}
@@ -449,6 +452,7 @@ function App() {
       {userId && (
         <NexErrorBoundary>
           <NexAssistant workspaceId={currentWorkspace?.id ?? null} userId={userId}
+            projectId={currentProject?.id ?? null}
             isPro={isPro} nexEnabled={nexEnabled} onTaskCreated={refetchTasks} panelOpen={showSettings} />
         </NexErrorBoundary>
       )}

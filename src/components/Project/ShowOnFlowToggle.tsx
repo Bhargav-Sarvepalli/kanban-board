@@ -2,9 +2,10 @@ interface Props {
   value: boolean
   onChange: (v: boolean) => void
   projectId?: string | null
+  disabled?: boolean
 }
 
-export default function ShowOnFlowToggle({ value, onChange, projectId }: Props) {
+export default function ShowOnFlowToggle({ value, onChange, projectId, disabled = false }: Props) {
   // Only show if task belongs to a project
   if (!projectId) return null
 
@@ -16,8 +17,9 @@ export default function ShowOnFlowToggle({ value, onChange, projectId }: Props) 
       border: `1px solid ${value ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.08)'}`,
       borderRadius: '10px',
       transition: 'all 0.2s',
-      cursor: 'pointer',
-    }} onClick={() => onChange(!value)}>
+      cursor: disabled ? 'default' : 'pointer',
+      opacity: disabled ? 0.6 : 1,
+    }} onClick={() => { if (!disabled) onChange(!value) }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <span style={{ fontSize: '16px' }}>⚡</span>
         <div>

@@ -19,6 +19,7 @@ export interface TaskContext {
     description: string | null
   }[]
   workspaceName: string
+  projectName?: string
   userName: string
   isPersonal: boolean
 }
@@ -88,7 +89,7 @@ When disambiguating tasks with the same name:
 
 Creating tasks: extract title (remove filler words), priority (urgent→high, default→normal), due_date (resolve relative dates).
 
-Board: ${ctx.isPersonal ? 'Personal' : ctx.workspaceName}
+Board: ${ctx.projectName ? `${ctx.workspaceName} / ${ctx.projectName}` : ctx.isPersonal ? 'Personal' : ctx.workspaceName}
 Tasks (include IDs for precise operations):
 ${ctx.tasks.length === 0
     ? 'Board is empty.'
@@ -197,12 +198,19 @@ export function buildGreeting(ctx: TaskContext): string {
   return `${greeting} What can I help you with?`
 }
 
+async function callNexChat(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke('nex-chat', { body })
+  if (error) throw error
+  return data
+}
+
 export async function executeNexTool(
   tool: NexTool,
   input: Record<string, unknown>,
   ctx: TaskContext,
   workspaceId: string | null,
-  userId: string
+  userId: string,
+  projectId: string | null = null
 ): Promise<{ result: string; action?: NexActionResult }> {
   switch (tool) {
     case 'get_task_summary': {
@@ -249,6 +257,7 @@ export async function executeNexTool(
         title: input.title as string, priority,
         due_date: resolvedDate, description: (input.description as string) ?? null,
         status: 'todo', workspace_id: workspaceId ?? null,
+        project_id: projectId,
         user_id: userId, last_edited_by: userId, last_edited_at: new Date().toISOString(),
       }).select().single()
       if (error) { console.error('[Nex create_task]', error); return { result: `Couldn't create that. ${error.message}` } }
@@ -306,65 +315,52 @@ export async function askNex(
   ctx: TaskContext,
   workspaceId: string | null,
   userId: string,
+  projectId: string | null = null,
   history: ConvMessage[] = []
 ): Promise<{ speech: string; action?: NexActionResult; newHistory: ConvMessage[] }> {
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY as string,
-    'anthropic-version': '2023-06-01',
-    'anthropic-dangerous-direct-browser-access': 'true',
-  }
-
   // Build message array: history + current user turn
   const messages: ConvMessage[] = [
     ...history,
     { role: 'user', content: transcript },
   ]
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST', headers,
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001', max_tokens: 400,
-      system: NEX_SYSTEM_PROMPT(ctx), tools: NEX_TOOLS,
+  let data: { content?: { type: string; [key: string]: unknown }[] }
+  try {
+    data = await callNexChat({
+      max_tokens: 400,
+      system: NEX_SYSTEM_PROMPT(ctx),
+      tools: NEX_TOOLS,
       messages,
-    }),
-  })
-
-  if (!res.ok) {
-    console.error('Nex API error:', await res.text())
+    })
+  } catch (err) {
+    console.error('Nex API error:', err)
     return { speech: 'Systems are unresponsive. Try again.', newHistory: history }
   }
 
-  const data = await res.json()
   const toolBlock = data.content?.find((b: { type: string }) => b.type === 'tool_use')
 
   if (toolBlock) {
-    const toolResult = await executeNexTool(toolBlock.name as NexTool, toolBlock.input, ctx, workspaceId, userId)
+    const toolResult = await executeNexTool(toolBlock.name as NexTool, toolBlock.input as Record<string, unknown>, ctx, workspaceId, userId, projectId)
 
-    // Add assistant tool_use + tool_result to history
     const withTool: ConvMessage[] = [
       ...messages,
-      { role: 'assistant', content: data.content },
+      { role: 'assistant', content: data.content ?? [] },
       { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: toolResult.result }] },
     ]
 
-    const followRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST', headers,
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001', max_tokens: 200,
-        system: NEX_SYSTEM_PROMPT(ctx), tools: NEX_TOOLS,
-        messages: withTool,
-      }),
+    const followData = await callNexChat({
+      max_tokens: 200,
+      system: NEX_SYSTEM_PROMPT(ctx),
+      tools: NEX_TOOLS,
+      messages: withTool,
     })
 
-    const followData = await followRes.json()
     const textBlock  = followData.content?.find((b: { type: string }) => b.type === 'text')
-    const speech     = stripMarkdown(textBlock?.text ?? toolResult.result)
+    const speech     = stripMarkdown(typeof textBlock?.text === 'string' ? textBlock.text : toolResult.result)
 
-    // Return updated history including this full exchange
     const newHistory: ConvMessage[] = [
       ...messages,
-      { role: 'assistant', content: data.content },
+      { role: 'assistant', content: data.content ?? [] },
       { role: 'user',      content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: toolResult.result }] },
       { role: 'assistant', content: followData.content ?? [{ type: 'text', text: speech }] },
     ]
@@ -373,7 +369,7 @@ export async function askNex(
   }
 
   const textBlock = data.content?.find((b: { type: string }) => b.type === 'text')
-  const speech    = stripMarkdown(textBlock?.text ?? 'No response.')
+  const speech    = stripMarkdown(typeof textBlock?.text === 'string' ? textBlock.text : 'No response.')
 
   // Return updated history
   const newHistory: ConvMessage[] = [

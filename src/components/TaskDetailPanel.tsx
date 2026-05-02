@@ -92,7 +92,15 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
       await supabase.from('tasks').insert({
         title: task.title, description: task.description, priority: task.priority,
         status: 'todo', due_date: `${nextDue.getFullYear()}-${pad(nextDue.getMonth() + 1)}-${pad(nextDue.getDate())}`,
-        recurring: task.recurring, user_id: task.user_id, workspace_id: task.workspace_id ?? null,
+        recurring: task.recurring,
+        user_id: task.user_id,
+        workspace_id: task.workspace_id ?? null,
+        project_id: task.project_id ?? null,
+        feature_id: task.feature_id ?? null,
+        assignee_id: task.assignee_id ?? null,
+        show_on_flow: task.show_on_flow ?? false,
+        last_edited_by: userId,
+        last_edited_at: new Date().toISOString(),
       })
       toast.success(`↻ Next ${task.recurring} task created!`)
     }
@@ -103,11 +111,13 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
   }
 
   const handleToggleFlow = async (v: boolean) => {
+    if (!canEdit) return
     setShowOnFlow(v)
     await supabase.from('tasks').update({ show_on_flow: v }).eq('id', task.id)
   }
 
   const handleFeatureChange = async (newFeatureId: string | null) => {
+    if (!canEdit) return
     setFeatureId(newFeatureId)
     await supabase.from('tasks').update({ feature_id: newFeatureId }).eq('id', task.id)
   }
@@ -246,7 +256,7 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
             {/* Show on Flow toggle */}
             {task.project_id && (
               <div style={{ marginBottom: '20px' }}>
-                <ShowOnFlowToggle value={showOnFlow} onChange={handleToggleFlow} projectId={task.project_id} />
+                <ShowOnFlowToggle value={showOnFlow} onChange={handleToggleFlow} projectId={task.project_id} disabled={!canEdit} />
               </div>
             )}
 

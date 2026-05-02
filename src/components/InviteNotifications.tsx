@@ -66,7 +66,6 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
 
   const handleAccept = async (invite: WorkspaceInvite) => {
     setProcessing(invite.id)
-    await supabase.from('workspace_invites').update({ status: 'accepted' }).eq('id', invite.id)
     const { error } = await supabase.from('workspace_members').insert({
       workspace_id: invite.workspace_id,
       user_id: userId,
@@ -74,6 +73,8 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
       role: invite.role,
     })
     if (error) { toast.error('Failed to join workspace'); setProcessing(null); return }
+    const { error: inviteErr } = await supabase.from('workspace_invites').update({ status: 'accepted' }).eq('id', invite.id)
+    if (inviteErr) { toast.error('Joined workspace, but failed to update invite status'); setProcessing(null); return }
     toast.success(`Joined ${invite.workspace?.name ?? 'workspace'}! 🎉`)
     setInvites(prev => prev.filter(i => i.id !== invite.id))
     onInviteAccepted()

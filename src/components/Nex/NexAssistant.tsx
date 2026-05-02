@@ -9,6 +9,7 @@ type GlobeState = 'idle' | 'listening' | 'thinking' | 'speaking'
 
 interface NexAssistantProps {
   workspaceId: string | null
+  projectId?: string | null
   userId: string | null
   isPro: boolean
   nexEnabled: boolean
@@ -56,7 +57,7 @@ const SILENCE_MS  = 1200
 const ORB_SIZE    = 52
 const MAX_HISTORY = 20
 
-export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, onTaskCreated, panelOpen = false }: NexAssistantProps) {
+export default function NexAssistant({ workspaceId, projectId = null, userId, isPro, nexEnabled, onTaskCreated, panelOpen = false }: NexAssistantProps) {
   const [globeState, setGlobeState]   = useState<GlobeState>('idle')
   const [expanded, setExpanded]       = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
@@ -102,8 +103,9 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
   const loadContext = useCallback(async () => {
     if (!userId) return undefined
     let q = supabase.from('tasks').select('id,title,status,priority,due_date,description')
-    if (workspaceId) q = q.eq('workspace_id', workspaceId)
-    else q = q.is('workspace_id', null).eq('user_id', userId)
+    if (projectId) q = q.eq('project_id', projectId)
+    else if (workspaceId) q = q.eq('workspace_id', workspaceId).is('project_id', null)
+    else q = q.is('workspace_id', null).is('project_id', null).eq('user_id', userId)
     const [{ data: tasks }, { data: profile }] = await Promise.all([
       q, supabase.from('profiles').select('full_name').eq('id', userId).single(),
     ])
@@ -112,10 +114,15 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
       const { data: ws } = await supabase.from('workspaces').select('name').eq('id', workspaceId).single()
       workspaceName = ws?.name ?? 'Workspace'
     }
-    const ctx: TaskContext = { tasks: tasks ?? [], workspaceName, userName: profile?.full_name?.split(' ')[0] ?? '', isPersonal: !workspaceId }
+    let projectName: string | undefined
+    if (projectId) {
+      const { data: project } = await supabase.from('projects').select('name').eq('id', projectId).single()
+      projectName = project?.name
+    }
+    const ctx: TaskContext = { tasks: tasks ?? [], workspaceName, projectName, userName: profile?.full_name?.split(' ')[0] ?? '', isPersonal: !workspaceId && !projectId }
     setTaskCtx(ctx)
     return ctx
-  }, [workspaceId, userId])
+  }, [workspaceId, projectId, userId])
 
   useEffect(() => { void loadContext() }, [loadContext])
 
@@ -173,6 +180,7 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
     try {
       const { speech, action, newHistory } = await askNex(
         transcript, taskCtx, workspaceId, userId,
+        projectId,
         historyRef.current.slice(-MAX_HISTORY)
       )
       historyRef.current = newHistory.slice(-MAX_HISTORY)
@@ -191,7 +199,7 @@ export default function NexAssistant({ workspaceId, userId, isPro, nexEnabled, o
       setGlobeState('idle')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskCtx, workspaceId, userId, speak, handleAction, addMessage])
+  }, [taskCtx, workspaceId, projectId, userId, speak, handleAction, addMessage])
 
   const startListeningCycle = useCallback(() => {
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition

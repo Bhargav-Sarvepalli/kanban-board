@@ -22,6 +22,7 @@ export interface Project {
 }
 
 const STEPS = ['Create Project', 'Add Team', 'Plan Flow', 'Create Features']
+const FEATURE_COLORS = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#db2777', '#0891b2', '#65a30d']
 
 export default function ProjectCreationWizard({ userId, workspaceId, onCreated, onComplete, onClose }: Props) {
   const finish = (p: Project) => { onCreated(p); onComplete?.(p) }
@@ -154,15 +155,42 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
     if (!createdProject) return
     setLoading(true)
     try {
+      const uniqueEmails = [...new Set(invitedEmails.map(e => e.trim().toLowerCase()).filter(Boolean))]
+      if (uniqueEmails.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id,email')
+          .in('email', uniqueEmails)
+
+        const profileIds = (profiles ?? []).map(p => p.id).filter(id => id !== userId)
+        const { data: existingMembers } = profileIds.length > 0
+          ? await supabase
+              .from('project_members')
+              .select('user_id')
+              .eq('project_id', createdProject.id)
+              .in('user_id', profileIds)
+          : { data: [] }
+
+        const existingIds = new Set((existingMembers ?? []).map(m => m.user_id))
+        const memberRows = profileIds
+          .filter(id => !existingIds.has(id))
+          .map(id => ({ project_id: createdProject.id, user_id: id, role: 'member' }))
+
+        if (memberRows.length > 0) {
+          await supabase.from('project_members').insert(memberRows)
+        }
+      }
+
       if (features.length > 0) {
         const { data: msData } = await supabase.from('project_milestones').select('id,name').eq('project_id', createdProject.id)
         const msMap: Record<string, string> = {}
         msData?.forEach(m => { msMap[m.name] = m.id })
         await supabase.from('project_features').insert(
-          features.map(f => ({
+          features.map((f, i) => ({
             project_id: createdProject.id,
             milestone_id: msMap[f.milestone] || null,
             name: f.name,
+            color: FEATURE_COLORS[i % FEATURE_COLORS.length],
             start_date: f.startDate || null,
             end_date: f.endDate || null,
           }))
