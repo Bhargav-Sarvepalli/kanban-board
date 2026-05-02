@@ -9,6 +9,7 @@ export interface FlowTask {
   due_date: string | null
   pending_approval: boolean
   assignee_id: string | null
+  feature_id?: string | null
 }
 
 export interface FlowBranch {
@@ -31,7 +32,7 @@ export interface FlowMilestone {
 
 export interface FlowData {
   branches: FlowBranch[]
-  milestones: FlowMilestone[]   // populated in project mode, empty in workspace mode
+  milestones: FlowMilestone[]
   totalTasks: number
   totalDone: number
   overallProgress: number
@@ -41,8 +42,9 @@ export interface FlowData {
 }
 
 const BRANCH_COLORS = [
+  '#7c3aed', '#2563eb', '#059669', '#d97706',
+  '#dc2626', '#db2777', '#0891b2', '#65a30d',
   '#8b5cf6', '#38bdf8', '#34d399', '#f472b6',
-  '#fb923c', '#a78bfa', '#22d3ee', '#f87171',
 ]
 
 function colorForIndex(i: number): string {
@@ -50,7 +52,7 @@ function colorForIndex(i: number): string {
 }
 
 function buildBranches(
-  groups: Map<string, { name: string; avatar_url: string | null; tasks: FlowTask[] }>,
+  groups: Map<string, { name: string; avatar_url: string | null; tasks: FlowTask[]; color?: string }>,
   unassignedKey = 'unassigned',
   includeUnassigned = true,
   unassignedColor = '#6b7280',
@@ -63,7 +65,7 @@ function buildBranches(
     const done = data.tasks.filter(t => t.status === 'done').length
     result.push({
       id, name: data.name, avatar_url: data.avatar_url,
-      color: colorForIndex(colorIndex++),
+      color: data.color ?? colorForIndex(colorIndex++),
       tasks: data.tasks, total: data.tasks.length, done,
       progress: data.tasks.length > 0 ? Math.round((done / data.tasks.length) * 100) : 0,
     })
@@ -100,7 +102,7 @@ export function useFlowData(
     setLoading(true); setError(null)
 
     try {
-      // ── PROJECT MODE ────────────────────────────────────────────────────────
+      // ── PROJECT MODE ─────────────────────────────────────────────────────────
       if (projectId) {
         const [msRes, taskRes, featRes] = await Promise.all([
           supabase
@@ -116,7 +118,7 @@ export function useFlowData(
             .order('created_at', { ascending: true }),
           supabase
             .from('project_features')
-            .select('id, name')
+            .select('id, name, color')
             .eq('project_id', projectId),
         ])
 
@@ -125,35 +127,52 @@ export function useFlowData(
 
         setMilestones(msRes.data ?? [])
 
-        const tasks = taskRes.data ?? []
-        if (tasks.length === 0) {
+        const tasks    = taskRes.data ?? []
+        const features = featRes.data ?? []
+
+        // Always render feature branches — even if no tasks have show_on_flow = true.
+        // Empty branches show the feature exists and prompt the user to opt tasks in.
+        if (features.length === 0) {
           setBranches([]); setTotalTasks(0); setTotalDone(0); setLoading(false); return
         }
 
-        const featureNameMap: Record<string, string> = {}
-        featRes.data?.forEach(f => { featureNameMap[f.id] = f.name })
+        // Build a map seeded with every feature (empty task list by default)
+        const featureMap = new Map<string, {
+          name: string; avatar_url: string | null; tasks: FlowTask[]; color?: string
+        }>()
 
-        // Group by feature_id only — tasks without a feature are skipped in project mode
-        // so no "Unassigned" branch clutters the graph
-        const featureMap = new Map<string, { name: string; avatar_url: string | null; tasks: FlowTask[] }>()
+        features.forEach(f => {
+          featureMap.set(f.id, {
+            name:       f.name,
+            avatar_url: null,
+            tasks:      [],
+            color:      f.color ?? undefined,
+          })
+        })
+
+        // Fill in tasks that are opted in via show_on_flow
         for (const task of tasks) {
           if (!task.feature_id) continue
-          const name = featureNameMap[task.feature_id] ?? 'Unknown Feature'
-          if (!featureMap.has(task.feature_id)) {
-            featureMap.set(task.feature_id, { name, avatar_url: null, tasks: [] })
-          }
+          if (!featureMap.has(task.feature_id)) continue
           featureMap.get(task.feature_id)!.tasks.push({
-            id: task.id, title: task.title, status: task.status,
-            priority: task.priority, due_date: task.due_date,
+            id:               task.id,
+            title:            task.title,
+            status:           task.status,
+            priority:         task.priority,
+            due_date:         task.due_date,
             pending_approval: task.pending_approval ?? false,
-            assignee_id: task.assignee_id,
+            assignee_id:      task.assignee_id,
+            feature_id:       task.feature_id,
           })
         }
 
-        const result  = buildBranches(featureMap, 'unassigned', false)
-        const allDone = tasks.filter(t => t.status === 'done').length
-        setBranches(result); setTotalTasks(tasks.length); setTotalDone(allDone)
-        setLoading(false); return
+        const result   = buildBranches(featureMap, 'unassigned', false)
+        const flowDone = tasks.filter(t => t.status === 'done').length
+        setBranches(result)
+        setTotalTasks(tasks.length)
+        setTotalDone(flowDone)
+        setLoading(false)
+        return
       }
 
       // ── WORKSPACE MODE ───────────────────────────────────────────────────────
@@ -174,7 +193,10 @@ export function useFlowData(
         setBranches([]); setTotalTasks(0); setTotalDone(0); setLoading(false); return
       }
 
-      const assigneeMap = new Map<string, { name: string; avatar_url: string | null; tasks: FlowTask[] }>()
+      const assigneeMap = new Map<string, {
+        name: string; avatar_url: string | null; tasks: FlowTask[]
+      }>()
+
       for (const task of tasks) {
         const key        = task.assignee_id ?? 'unassigned'
         const profile    = Array.isArray(task.profiles) ? task.profiles[0] : task.profiles
@@ -182,15 +204,18 @@ export function useFlowData(
         const avatar_url = profile?.avatar_url ?? null
         if (!assigneeMap.has(key)) assigneeMap.set(key, { name, avatar_url, tasks: [] })
         assigneeMap.get(key)!.tasks.push({
-          id: task.id, title: task.title, status: task.status,
-          priority: task.priority, due_date: task.due_date,
+          id:               task.id,
+          title:            task.title,
+          status:           task.status,
+          priority:         task.priority,
+          due_date:         task.due_date,
           pending_approval: task.pending_approval ?? false,
-          assignee_id: task.assignee_id,
+          assignee_id:      task.assignee_id,
         })
       }
 
-      const result  = buildBranches(assigneeMap, 'unassigned', true)
-      const allDone = tasks.filter(t => t.status === 'done').length
+      const result   = buildBranches(assigneeMap, 'unassigned', true)
+      const allDone  = tasks.filter(t => t.status === 'done').length
       setBranches(result); setTotalTasks(tasks.length); setTotalDone(allDone)
       setLoading(false)
 

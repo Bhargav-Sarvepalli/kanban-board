@@ -52,6 +52,7 @@ interface ProjectData {
   links: ProjectLink[]
   target_date: string | null
   owner_id: string
+  workspace_id: string | null
 }
 
 interface ActivityItem {
@@ -130,12 +131,17 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
-    const [projRes, membersRes, featuresRes, milestonesRes, tasksRes] = await Promise.all([
-      supabase.from('projects').select('name,description,links,target_date,owner_id').eq('id', projectId).single(),
+    const [projRes, membersRes, featuresRes, milestonesRes, tasksRes, wsMembersRes] = await Promise.all([
+      supabase.from('projects').select('name,description,links,target_date,owner_id,workspace_id').eq('id', projectId).single(),
       supabase.from('project_members').select('user_id,role,profiles(full_name,email,avatar_url)').eq('project_id', projectId),
       supabase.from('project_features').select('id,name,color,milestone_id').eq('project_id', projectId),
       supabase.from('project_milestones').select('id,name,position,target_date,is_current').eq('project_id', projectId).order('position'),
       supabase.from('tasks').select('id,status,due_date,feature_id,last_edited_by,last_edited_at,title,assignee_id').eq('project_id', projectId),
+      // Also fetch workspace members so they appear in Team even without explicit project_member row
+      supabase.from('workspace_members').select('user_id,role,profiles(full_name,email,avatar_url)').eq('workspace_id',
+        // workspace_id comes from project — we get it after projRes but need it here, so re-fetch inline
+        (await supabase.from('projects').select('workspace_id').eq('id', projectId).single()).data?.workspace_id ?? ''
+      ),
     ])
 
     if (projRes.data) { setProject(projRes.data as ProjectData); setEditDesc(projRes.data.description ?? '') }
@@ -144,9 +150,25 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
     const tasks = tasksRes.data ?? []
     const now = new Date()
 
-    if (membersRes.data) {
-      type RawMember = { user_id: string; role: 'owner' | 'manager' | 'member'; profiles: { full_name: string | null; email: string; avatar_url: string | null } }
-      const built: Member[] = (membersRes.data as unknown as RawMember[]).map(m => ({
+    // Merge project_members + workspace_members, project role takes priority
+    type RawMember = { user_id: string; role: 'owner' | 'manager' | 'member'; profiles: { full_name: string | null; email: string; avatar_url: string | null } }
+    const seenIds = new Set<string>()
+    const allRaw: RawMember[] = []
+
+    // Project members first (higher priority role)
+    for (const m of (membersRes.data ?? []) as unknown as RawMember[]) {
+      seenIds.add(m.user_id)
+      allRaw.push(m)
+    }
+    // Workspace members — only add if not already in project_members
+    for (const m of (wsMembersRes.data ?? []) as unknown as RawMember[]) {
+      if (!seenIds.has(m.user_id)) {
+        allRaw.push({ ...m, role: 'member' }) // workspace members default to member role in project context
+      }
+    }
+
+    if (allRaw.length > 0) {
+      const built: Member[] = allRaw.map(m => ({
         user_id: m.user_id, role: m.role, profile: m.profiles,
         activeTaskCount: tasks.filter(t => t.assignee_id === m.user_id && t.status === 'in_progress').length,
         doneTaskCount:   tasks.filter(t => t.assignee_id === m.user_id && t.status === 'done').length,
@@ -351,7 +373,14 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = f.color + '50' }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#1e1e2e' }}>
                     <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: f.color, flexShrink: 0 }} />
-                    <span style={{ color: '#e2e2e8', fontSize: '13px', fontFamily: 'Inter, sans-serif', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ color: '#e2e2e8', fontSize: '13px', fontFamily: 'Inter, sans-serif', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</p>
+                      {f.milestone_id && (
+                        <p style={{ color: '#3d3d52', fontSize: '10px', fontFamily: 'Inter, sans-serif', margin: 0 }}>
+                          {milestones.find(m => m.id === f.milestone_id)?.name ?? 'Unknown phase'}
+                        </p>
+                      )}
+                    </div>
                     <div style={{ width: '50px', height: '2px', background: '#1e1e2e', borderRadius: '1px', flexShrink: 0 }}>
                       <div style={{ width: `${pct}%`, height: '100%', background: f.color, borderRadius: '1px' }} />
                     </div>
