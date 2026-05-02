@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../supabase'
 import Avatar from '../Avatar'
+import AddFeatureModal from './AddFeatureModal'
+import InviteMemberModal from './InviteMemberModal'
 
 interface Props {
   projectId: string
@@ -86,10 +88,6 @@ const ACTIVITY_COLORS: Record<string, string> = {
   complete: '#16a34a', block: '#dc2626', move: '#7c3aed', add: '#2563eb',
 }
 
-function daysUntil(d: string | null): number | null {
-  if (!d) return null
-  return Math.ceil((new Date(d).getTime() - new Date().setHours(0,0,0,0)) / 86400000)
-}
 function timeAgo(ts: string): string {
   const h = Math.floor((Date.now() - new Date(ts).getTime()) / 3600000)
   if (h < 1) return 'Just now'
@@ -123,7 +121,9 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
   const [editDesc,   setEditDesc]   = useState('')
   const [addingLink, setAddingLink] = useState(false)
   const [newLink,    setNewLink]    = useState({ label: '', url: '', type: 'other' as ProjectLink['type'] })
-  const [saving,     setSaving]     = useState(false)
+  const [saving,          setSaving]          = useState(false)
+  const [showAddFeature,  setShowAddFeature]  = useState(false)
+  const [showInvite,      setShowInvite]      = useState(false)
 
   const isOwnerOrManager = members.some(m => m.user_id === userId && (m.role === 'owner' || m.role === 'manager'))
     || project?.owner_id === userId
@@ -215,7 +215,12 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
     setProject(p => p ? { ...p, links: updated } : p)
   }
 
-  const days          = daysUntil(project?.target_date ?? null)
+  const setCurrentMilestone = async (milestoneId: string) => {
+    // Clear all is_current, then set the clicked one
+    await supabase.from('project_milestones').update({ is_current: false }).eq('project_id', projectId)
+    await supabase.from('project_milestones').update({ is_current: true }).eq('id', milestoneId)
+    setMilestones(prev => prev.map(m => ({ ...m, is_current: m.id === milestoneId })))
+  }
   const totalTasks    = features.reduce((s, f) => s + f.totalTasks, 0)
   const doneTasks     = features.reduce((s, f) => s + f.doneTasks, 0)
   const blockedCount  = features.filter(f => f.health === 'blocked').length
@@ -223,6 +228,10 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
   const currentMs     = milestones.find(m => m.is_current)
   const overallHealth: Feature['health'] = blockedCount > 0 ? 'blocked'
     : features.some(f => f.health === 'at_risk') ? 'at_risk' : 'on_track'
+
+  const days = project?.target_date
+    ? Math.ceil((new Date(project.target_date).getTime() - new Date().setHours(0,0,0,0)) / 86400000)
+    : null
 
   // ── Shared content ──
   const headerSection = (
@@ -285,7 +294,9 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
       {/* Milestone timeline */}
       {milestones.length > 0 && (
         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1e1e2e', borderRadius: '8px', padding: '14px 18px' }}>
-          <p style={{ color: '#3d3d52', fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 600, letterSpacing: '0.08em', margin: '0 0 12px', textTransform: 'uppercase' }}>Phase timeline</p>
+        <p style={{ color: '#3d3d52', fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 600, letterSpacing: '0.08em', margin: '0 0 12px', textTransform: 'uppercase' }}>
+          Phase timeline <span style={{ color: '#2a2a3d', fontWeight: 400 }}>· click to set current</span>
+        </p>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             {milestones.map((m, i) => {
               const activeIdx = (() => { const ci = milestones.findIndex(x => x.is_current); return ci >= 0 ? ci : 0 })()
@@ -295,7 +306,12 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
               return (
                 <div key={m.id} style={{ display: 'flex', alignItems: 'center', flex: i < milestones.length - 1 ? 1 : 0 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: isPast ? '#16a34a' : isCurrent ? '#7c3aed' : 'rgba(255,255,255,0.04)', border: `2px solid ${col}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: isPast || isCurrent ? 'white' : '#3d3d52', fontWeight: 600 }}>
+                    <div
+                      onClick={() => isOwnerOrManager && setCurrentMilestone(m.id)}
+                      title={isOwnerOrManager ? 'Click to set as current phase' : undefined}
+                      style={{ width: '26px', height: '26px', borderRadius: '50%', background: isPast ? '#16a34a' : isCurrent ? '#7c3aed' : 'rgba(255,255,255,0.04)', border: `2px solid ${col}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: isPast || isCurrent ? 'white' : '#3d3d52', fontWeight: 600, cursor: isOwnerOrManager ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
+                      onMouseEnter={e => { if (isOwnerOrManager && !isCurrent) (e.currentTarget as HTMLElement).style.opacity = '0.7' }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1' }}>
                       {isPast ? '✓' : isCurrent ? '⚡' : '○'}
                     </div>
                     <span style={{ color: isCurrent ? '#a78bfa' : isPast ? '#16a34a' : '#3d3d52', fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: isCurrent ? 600 : 400, marginTop: '5px', whiteSpace: 'nowrap' }}>{m.name}</span>
@@ -312,7 +328,18 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
       {/* Features + Team */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1e1e2e', borderRadius: '8px', padding: '14px 18px' }}>
-          <p style={{ color: '#3d3d52', fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 600, letterSpacing: '0.08em', margin: '0 0 10px', textTransform: 'uppercase' }}>Features</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <p style={{ color: '#3d3d52', fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 600, letterSpacing: '0.08em', margin: 0, textTransform: 'uppercase' }}>Features</p>
+            {isOwnerOrManager && (
+              <button onClick={() => setShowAddFeature(true)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3d3d52', padding: '2px', display: 'flex', alignItems: 'center', borderRadius: '4px' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#7c3aed' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3d3d52' }}
+                title="Add feature">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              </button>
+            )}
+          </div>
           {features.length === 0
             ? <p style={{ color: '#2a2a3d', fontSize: '13px', fontFamily: 'Inter, sans-serif' }}>No features yet</p>
             : features.map(f => {
@@ -339,7 +366,18 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
         </div>
 
         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1e1e2e', borderRadius: '8px', padding: '14px 18px' }}>
-          <p style={{ color: '#3d3d52', fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 600, letterSpacing: '0.08em', margin: '0 0 10px', textTransform: 'uppercase' }}>Team</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <p style={{ color: '#3d3d52', fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 600, letterSpacing: '0.08em', margin: 0, textTransform: 'uppercase' }}>Team</p>
+            {isOwnerOrManager && (
+              <button onClick={() => setShowInvite(true)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3d3d52', padding: '2px', display: 'flex', alignItems: 'center', borderRadius: '4px' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#7c3aed' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3d3d52' }}
+                title="Add team member">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              </button>
+            )}
+          </div>
           {members.length === 0
             ? <p style={{ color: '#2a2a3d', fontSize: '13px', fontFamily: 'Inter, sans-serif' }}>No members yet</p>
             : members.map((m, i) => {
@@ -429,6 +467,8 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
         {headerSection}
         {bodySection}
         <style>{`@keyframes pdSpin { to { transform: rotate(360deg); } }`}</style>
+        {showAddFeature && <AddFeatureModal projectId={projectId} onAdded={fetchAll} onClose={() => setShowAddFeature(false)} />}
+        {showInvite && <InviteMemberModal projectId={projectId} onInvited={fetchAll} onClose={() => setShowInvite(false)} />}
       </div>
     )
   }
@@ -441,6 +481,8 @@ export default function ProjectDashboard({ projectId, projectName, userId, onClo
         {bodySection}
         <style>{`@keyframes pdSpin { to { transform: rotate(360deg); } }`}</style>
       </div>
+      {showAddFeature && <AddFeatureModal projectId={projectId} onAdded={fetchAll} onClose={() => setShowAddFeature(false)} />}
+      {showInvite && <InviteMemberModal projectId={projectId} onInvited={fetchAll} onClose={() => setShowInvite(false)} />}
     </div>
   )
 }

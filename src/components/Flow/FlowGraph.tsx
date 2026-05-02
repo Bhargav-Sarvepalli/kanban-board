@@ -82,9 +82,16 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     const totalBranchWidth = branches.reduce((sum, b) =>
       sum + Math.max(b.tasks.length * NODE_SPACING + 200, BRANCH_GAP), 0)
     const minSvgWidth = Math.max(totalBranchWidth + 500, 1200)
-    const svgWidth = minSvgWidth
-    const nowX = svgWidth * 0.35
-    const BRANCH_ZONE_START = nowX + 120
+    const svgWidth    = minSvgWidth
+    const nowX        = svgWidth * 0.35
+
+    // Calculate where the last milestone node sits so branches never overlap it.
+    // Milestones are spaced evenly across the full SVG width.
+    const milestoneCount  = milestones.length > 0 ? milestones.length : 2
+    const msSpacing       = Math.max(160, Math.floor((svgWidth - 200) / Math.max(milestoneCount - 1, 1)))
+    const lastMilestoneX  = 80 + (milestoneCount - 1) * msSpacing
+    // Branches always start at least 200px after the last milestone node
+    const BRANCH_ZONE_START = Math.max(nowX + 120, lastMilestoneX + 200)
     let x = BRANCH_ZONE_START
 
     const result: BranchLayout[] = []
@@ -101,7 +108,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       x += Math.max(branch.tasks.length * NODE_SPACING + 200, BRANCH_GAP)
     })
     return { branches: result, svgWidth, nowX }
-  }, [branches, TRUNK_Y])
+  }, [branches, milestones, TRUNK_Y])
 
   useEffect(() => {
     if (!layout || !scrollRef.current) return
@@ -135,13 +142,30 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     </div>
   )
   if (!layout) return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '12px' }}>
-      <p style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'Space Mono', fontSize: '11px', letterSpacing: '0.2em' }}>NO BRANCHES YET</p>
-      <p style={{ color: 'rgba(255,255,255,0.25)', fontFamily: 'Space Grotesk', fontSize: '13px', textAlign: 'center', maxWidth: '360px' }}>
-        {projectId
-          ? 'Toggle "Show on Flow" on tasks and assign them to features to see the execution map.'
-          : 'Assign tasks to members to see the execution map.'}
-      </p>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '16px', padding: '40px' }}>
+      <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>⚡</div>
+      <div style={{ textAlign: 'center', maxWidth: '360px' }}>
+        <p style={{ color: '#e2e2e8', fontSize: '15px', fontFamily: 'Inter, sans-serif', fontWeight: 500, margin: '0 0 8px' }}>Nothing on the flow yet</p>
+        <p style={{ color: '#3d3d52', fontSize: '13px', fontFamily: 'Inter, sans-serif', lineHeight: 1.6, margin: 0 }}>
+          {projectId
+            ? 'To see tasks here: open a task, assign it to a feature, then toggle "Show on Flow" on.'
+            : 'Assign tasks to team members to see their work on the execution map.'}
+        </p>
+      </div>
+      {projectId && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: '320px' }}>
+          {[
+            { n: '1', text: 'Go to Dashboard → add a feature if none exist' },
+            { n: '2', text: 'Open a task → assign it to a feature' },
+            { n: '3', text: 'Toggle "Show on Flow" in the task detail panel' },
+          ].map(s => (
+            <div key={s.n} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid #1e1e2e', borderRadius: '7px' }}>
+              <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#a78bfa', fontFamily: 'Inter, sans-serif', fontWeight: 600, flexShrink: 0 }}>{s.n}</div>
+              <span style={{ color: '#6b6b7b', fontSize: '12px', fontFamily: 'Inter, sans-serif', lineHeight: 1.4 }}>{s.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 
