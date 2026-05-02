@@ -13,9 +13,8 @@ const NODE_R          = 20
 const TRUNK_NODE_R    = 24
 const BRANCH_OFFSET   = 180
 const NODE_SPACING    = 160
-const BRANCH_START_X  = 360  // pushed right so first branch clears trunk milestone nodes
-const BRANCH_GAP      = 400  // wider gap between branches
-const FORK_OFFSET     = 80   // branch line starts further right of originX
+const BRANCH_GAP      = 400
+const FORK_OFFSET     = 80
 const LABEL_CLEARANCE = 58
 
 function statusFill(s: string) {
@@ -71,22 +70,32 @@ export default function FlowGraph({ workspaceId, onBranchClick, projectId }: Flo
 
   const layout = useMemo<{ branches: BranchLayout[]; svgWidth: number; nowX: number } | null>(() => {
     if (!branches.length) return null
-    let x = BRANCH_START_X
+
+    // Calculate minimum SVG width needed for branches
+    const totalBranchWidth = branches.reduce((sum, b) =>
+      sum + Math.max(b.tasks.length * NODE_SPACING + 200, BRANCH_GAP), 0)
+    const minSvgWidth = Math.max(totalBranchWidth + 500, 1200)
+    const svgWidth = minSvgWidth
+    const nowX = svgWidth * 0.35  // NOW sits at 35% — branches start after this
+
+    // Branches always start AFTER nowX so they never overlap the NOW divider
+    const BRANCH_ZONE_START = nowX + 120
+    let x = BRANCH_ZONE_START
+
     const result: BranchLayout[] = []
     branches.forEach((branch, idx) => {
       const above   = idx % 2 === 0
       const branchY = above ? TRUNK_Y - BRANCH_OFFSET : TRUNK_Y + BRANCH_OFFSET
-      const originX = x + 80
+      const originX = x
       const lineX   = originX + FORK_OFFSET
       const nodes: NodeLayout[] = branch.tasks.map((task, i) => ({
         task, x: lineX + i * NODE_SPACING, y: branchY,
       }))
-      const endX = nodes.length > 0 ? nodes[nodes.length - 1].x : lineX
+      const endX = nodes.length > 0 ? nodes[nodes.length - 1].x : lineX + 80
       result.push({ branch, above, originX, branchY, nodes, endX })
       x += Math.max(branch.tasks.length * NODE_SPACING + 200, BRANCH_GAP)
     })
-    const svgWidth = x + 240
-    const nowX     = svgWidth * 0.44
+
     return { branches: result, svgWidth, nowX }
   }, [branches, TRUNK_Y])
 
@@ -349,26 +358,27 @@ export default function FlowGraph({ workspaceId, onBranchClick, projectId }: Flo
                     y2={above ? branchY - 6 : branchY + 6}
                     stroke={branch.color} strokeWidth={3} strokeOpacity={0.65} strokeLinecap="round"
                   />
-                  <foreignObject x={lineX + 8} y={chipY} width={200} height={36} style={{ overflow: 'visible', pointerEvents: 'none' }}>
+                  <foreignObject x={lineX - 4} y={chipY} width={220} height={40} style={{ overflow: 'visible', pointerEvents: 'none' }}>
                     <div style={{
                       display: 'inline-flex', alignItems: 'center', gap: '7px',
                       background: `${branch.color}20`,
                       border: `1.5px solid ${branch.color}${isHov ? 'cc' : '60'}`,
-                      borderRadius: '20px', padding: '4px 12px 4px 5px',
+                      borderRadius: '20px', padding: '5px 14px 5px 6px',
                       backdropFilter: 'blur(12px)',
                       boxShadow: isHov ? `0 0 16px ${branch.color}40` : 'none',
                       transition: 'all 0.2s', whiteSpace: 'nowrap',
                     }}>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', border: `2px solid ${branch.color}`, overflow: 'hidden', flexShrink: 0 }}>
+                      {/* Avatar — for features shows colored initials, for people shows photo */}
+                      <div style={{ width: '26px', height: '26px', borderRadius: '50%', border: `2px solid ${branch.color}`, overflow: 'hidden', flexShrink: 0, background: `linear-gradient(135deg, ${branch.color}, ${branch.color}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {branch.avatar_url
                           ? <img src={branch.avatar_url} alt={branch.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div style={{ width: '100%', height: '100%', background: `linear-gradient(135deg, ${branch.color}, ${branch.color}66)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 800, color: 'white' }}>
+                          : <span style={{ fontSize: '9px', fontWeight: 800, color: 'white', fontFamily: 'Space Grotesk' }}>
                               {branch.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                            </div>
+                            </span>
                         }
                       </div>
                       <span style={{ color: 'white', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 700 }}>
-                        {branch.name.split(' ')[0].slice(0, 12)}
+                        {branch.name.length > 14 ? branch.name.slice(0, 13) + '…' : branch.name}
                       </span>
                       <span style={{ color: branch.color, fontSize: '10px', fontFamily: 'Space Mono', fontWeight: 700 }}>
                         {branch.progress}%
