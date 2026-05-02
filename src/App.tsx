@@ -395,6 +395,8 @@ function App() {
               projectName={currentProject.name}
               userId={userId ?? ''}
               onClose={() => setView('board')}
+              onProjectRenamed={newName => setCurrentProject(p => p ? { ...p, name: newName } : p)}
+              onProjectDeleted={() => { setCurrentProject(null); setView('today'); refetchProjects() }}
               onFeatureClick={(featureId, featureName) => {
                 setBranchFilter({ id: featureId, name: featureName, mode: 'feature' })
                 setView('board')
