@@ -89,17 +89,17 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     if (!branches.length) return null
     const totalBranchWidth = branches.reduce((sum, b) =>
       sum + Math.max(b.tasks.length * NODE_SPACING + 200, BRANCH_GAP), 0)
-    const minSvgWidth = Math.max(totalBranchWidth + 500, 1200)
+    const minSvgWidth = Math.max(totalBranchWidth + 900, 1400)
     const svgWidth    = minSvgWidth
-    const nowX        = svgWidth * 0.35
+    const nowX        = 360
 
-    // Calculate where the last milestone node sits so branches never overlap it.
-    // Milestones are spaced evenly across the full SVG width.
+    // Keep phases near the left side, then start feature branches in the first viewport.
+    // The old layout spaced milestones across the full SVG, which pushed branches off-screen.
     const milestoneCount  = milestones.length > 0 ? milestones.length : 2
-    const msSpacing       = Math.max(160, Math.floor((svgWidth - 200) / Math.max(milestoneCount - 1, 1)))
+    const phaseSpan       = Math.min(560, Math.max(220, milestoneCount * 130))
+    const msSpacing       = Math.max(120, Math.floor(phaseSpan / Math.max(milestoneCount - 1, 1)))
     const lastMilestoneX  = 80 + (milestoneCount - 1) * msSpacing
-    // Branches always start at least 200px after the last milestone node
-    const BRANCH_ZONE_START = Math.max(nowX + 120, lastMilestoneX + 200)
+    const BRANCH_ZONE_START = Math.max(520, lastMilestoneX + 160)
     let x = BRANCH_ZONE_START
 
     const result: BranchLayout[] = []
@@ -120,7 +120,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
 
   useEffect(() => {
     if (!layout || !scrollRef.current) return
-    scrollRef.current.scrollLeft = Math.max(0, layout.nowX - scrollRef.current.clientWidth / 2)
+    scrollRef.current.scrollLeft = 0
   }, [layout])
 
   const h  = overallHealth(branches)
@@ -421,13 +421,13 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             {(() => {
               const nodes = milestones.length > 0
                 ? milestones.map((m, i) => {
-                    const totalSpan = layout.svgWidth - 200
-                    const spacing = Math.max(160, Math.floor(totalSpan / Math.max(milestones.length - 1, 1)))
+                    const phaseSpan = Math.min(560, Math.max(220, milestones.length * 130))
+                    const spacing = Math.max(120, Math.floor(phaseSpan / Math.max(milestones.length - 1, 1)))
                     return { label: m.name, x: 80 + i * spacing }
                   })
                 : [
                     { label: 'Start', x: 80 },
-                    { label: 'End',   x: layout.svgWidth - 120 },
+                    { label: 'End',   x: 360 },
                   ]
 
               return nodes.map(({ label, x }) => {
