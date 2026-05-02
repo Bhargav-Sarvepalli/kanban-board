@@ -324,19 +324,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
               ))}
             </defs>
 
-            {/* Zone tints */}
-            <rect x={0}     y={0} width={pastX}                  height={svgH} fill="rgba(34,197,94,0.03)" />
-            <rect x={pastX} y={0} width={nowX - pastX}           height={svgH} fill="rgba(139,92,246,0.04)" />
-            <rect x={nowX}  y={0} width={layout.svgWidth - nowX} height={svgH} fill="rgba(255,255,255,0.01)" />
-
-            {/* Zone dividers */}
-            <line x1={pastX} y1={0} x2={pastX} y2={svgH} stroke="rgba(255,255,255,0.12)" strokeWidth={1} strokeDasharray="6 5" />
-            <line x1={nowX}  y1={0} x2={nowX}  y2={svgH} stroke="rgba(167,139,250,0.4)"  strokeWidth={1} strokeDasharray="6 5" />
-
-            {/* Zone labels */}
-            <text x={pastX - 60} y={22} fill="rgba(255,255,255,0.5)"   fontSize={10} fontFamily="Space Mono" fontWeight="bold" letterSpacing="2" textAnchor="middle">PAST</text>
-            <text x={(pastX + nowX) / 2} y={22} fill="rgba(167,139,250,0.8)" fontSize={10} fontFamily="Space Mono" fontWeight="bold" letterSpacing="2" textAnchor="middle">NOW</text>
-            <text x={nowX + 80} y={22} fill="rgba(167,139,250,0.4)"    fontSize={10} fontFamily="Space Mono" letterSpacing="2">UPCOMING →</text>
+            {/* Single subtle NOW marker — just a thin line, no labels */}
+            <line x1={nowX} y1={0} x2={nowX} y2={svgH} stroke="rgba(167,139,250,0.2)" strokeWidth={1} strokeDasharray="4 6" />
 
             {/* ── TRUNK ── */}
             <line x1={60}    y1={TRUNK_Y} x2={trunkEnd} y2={TRUNK_Y} stroke="#7c3aed" strokeWidth={32} strokeLinecap="round" opacity={0.08} />
@@ -389,12 +378,12 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             {layout.branches.map(({ branch, above, originX, branchY, nodes, endX }) => {
               const isHov      = hovBranch === branch.id
               const isMyBranch = myBranchIds.has(branch.id)
-              // In myTasksOnly mode, dim branches that don't belong to current user
               const dimmed     = myTasksOnly && !isMyBranch
               const lineX      = originX + FORK_OFFSET
-              // Chip sits ABOVE the branch line if branch is above, BELOW if branch is below
-              // Anchored at lineX (fork start) so it's clearly connected to its branch
-              const chipY      = above ? branchY - 52 : branchY + 14
+              // Chip anchors at first task node, not at lineX, so it never
+              // overlaps the milestone node at originX
+              const chipStartX = nodes.length > 0 ? nodes[0].x - NODE_R : lineX + 40
+              const chipY      = above ? branchY - 50 : branchY + 12
               const titleY     = (y: number) => above ? y - NODE_R - 12 : y + NODE_R + 16
               const dateY      = (y: number) => above ? y - NODE_R - 25 : y + NODE_R + 29
               const bh         = branchHealth(branch)
@@ -434,7 +423,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                   />
 
                   {/* ── Branch chip — anchored at fork, never floating ── */}
-                  <foreignObject x={lineX - 4} y={chipY} width={230} height={44} style={{ overflow: 'visible', pointerEvents: 'none' }}>
+                  <foreignObject x={chipStartX} y={chipY} width={230} height={44} style={{ overflow: 'visible', pointerEvents: 'none' }}>
                     <div style={{
                       display: 'inline-flex', alignItems: 'center', gap: '7px',
                       background: `${branch.color}1a`,
@@ -581,19 +570,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       </div>
 
       {/* ── FOOTER ── */}
-      <div style={{
-        display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '24px',
-        padding: '7px 24px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0,
-      }}>
-        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.1em' }}>← DRAG TO EXPLORE →</span>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {[{ l: 'PAST', c: '#4ade80' }, { l: 'NOW', c: '#a78bfa' }, { l: 'UPCOMING', c: 'rgba(255,255,255,0.3)' }].map(s => (
-            <div key={s.l} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <div style={{ width: '18px', height: '2px', background: s.c, borderRadius: '1px' }} />
-              <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '9px', fontFamily: 'Space Mono' }}>{s.l}</span>
-            </div>
-          ))}
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 24px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+        <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px', fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em' }}>← drag to explore →</span>
       </div>
 
       <style>{`
