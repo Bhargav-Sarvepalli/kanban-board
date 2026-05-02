@@ -17,6 +17,7 @@ export interface FlowBranch {
   name: string
   avatar_url: string | null
   color: string
+  milestone_id?: string | null
   tasks: FlowTask[]
   total: number
   done: number
@@ -52,7 +53,7 @@ function colorForIndex(i: number): string {
 }
 
 function buildBranches(
-  groups: Map<string, { name: string; avatar_url: string | null; tasks: FlowTask[]; color?: string }>,
+  groups: Map<string, { name: string; avatar_url: string | null; tasks: FlowTask[]; color?: string; milestone_id?: string | null }>,
   unassignedKey = 'unassigned',
   includeUnassigned = true,
   unassignedColor = '#6b7280',
@@ -66,6 +67,7 @@ function buildBranches(
     result.push({
       id, name: data.name, avatar_url: data.avatar_url,
       color: data.color ?? colorForIndex(colorIndex++),
+      milestone_id: data.milestone_id ?? null,
       tasks: data.tasks, total: data.tasks.length, done,
       progress: data.tasks.length > 0 ? Math.round((done / data.tasks.length) * 100) : 0,
     })
@@ -152,7 +154,7 @@ export function useFlowData(
 
         // Build a map seeded with every feature (empty task list by default)
         const featureMap = new Map<string, {
-          name: string; avatar_url: string | null; tasks: FlowTask[]; color?: string
+          name: string; avatar_url: string | null; tasks: FlowTask[]; color?: string; milestone_id?: string | null
         }>()
 
         features.forEach((f, idx) => {
@@ -164,6 +166,7 @@ export function useFlowData(
             avatar_url: null,
             tasks:      [],
             color,
+            milestone_id: f.milestone_id ?? null,
           })
         })
 
