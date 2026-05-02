@@ -108,15 +108,16 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
     if (!nexPrompt.trim()) return
     setNexLoading(true)
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 300,
-          messages: [{ role: 'user', content: `You are a project planning assistant. Given this project description: "${nexPrompt}", suggest 4-6 milestone names. Return ONLY a JSON array of strings, nothing else. Example: ["Kickoff","Design","Development","Testing","Launch"]` }]
-        })
-      })
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nex-generate`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: `You are a project planning assistant. Given this project description: "${nexPrompt}", suggest 4-6 milestone names. Return ONLY a JSON array of strings, nothing else. Example: ["Kickoff","Design","Development","Testing","Launch"]`
+          })
+        }
+      )
       const data = await res.json()
       const text = data.content?.[0]?.text ?? '[]'
       const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
@@ -126,12 +127,19 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
   }
 
   const handleStep3 = async () => {
-    if (!createdProject) return setStep(3)
+    if (!createdProject) { setStep(3); return }
     setLoading(true)
     try {
-      await supabase.from('project_milestones').insert(
-        milestones.map((m, i) => ({ project_id: createdProject.id, name: m.name, position: i }))
-      )
+      // Check if milestones already inserted (user went back/forward)
+      const { data: existing } = await supabase
+        .from('project_milestones')
+        .select('id')
+        .eq('project_id', createdProject.id)
+      if (!existing || existing.length === 0) {
+        await supabase.from('project_milestones').insert(
+          milestones.map((m, i) => ({ project_id: createdProject.id, name: m.name, position: i }))
+        )
+      }
     } finally { setLoading(false); setStep(3) }
   }
 

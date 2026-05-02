@@ -9,14 +9,14 @@ interface FlowGraphProps {
   projectId?: string | null
 }
 
-const NODE_R          = 20    // task node radius
-const TRUNK_NODE_R    = 24    // milestone node radius
-const BRANCH_OFFSET   = 180  // vertical distance trunk → branch line
-const NODE_SPACING    = 160  // horizontal space between task nodes
-const BRANCH_START_X  = 260  // first branch starts here
-const BRANCH_GAP      = 380  // minimum gap between branches
-const FORK_OFFSET     = 60   // branch line starts this far right of originX
-const LABEL_CLEARANCE = 58   // chip sits this far from branch line
+const NODE_R          = 20
+const TRUNK_NODE_R    = 24
+const BRANCH_OFFSET   = 180
+const NODE_SPACING    = 160
+const BRANCH_START_X  = 360  // pushed right so first branch clears trunk milestone nodes
+const BRANCH_GAP      = 400  // wider gap between branches
+const FORK_OFFSET     = 80   // branch line starts further right of originX
+const LABEL_CLEARANCE = 58
 
 function statusFill(s: string) {
   return s === 'done' ? '#22c55e' : s === 'in_progress' ? '#3b82f6' : s === 'review' ? '#f59e0b' : 'transparent'
@@ -275,10 +275,12 @@ export default function FlowGraph({ workspaceId, onBranchClick, projectId }: Flo
             {(() => {
               // In project mode use real milestones; in workspace mode show 2 generic markers
               const nodes = milestones.length > 0
-                ? milestones.map((m, i) => ({
-                    label: m.name,
-                    x: 80 + i * Math.floor((layout.svgWidth - 200) / Math.max(milestones.length - 1, 1)),
-                  }))
+                ? milestones.map((m, i) => {
+                    const totalSpan = layout.svgWidth - 200
+                    const minSpacing = 160
+                    const spacing = Math.max(minSpacing, Math.floor(totalSpan / Math.max(milestones.length - 1, 1)))
+                    return { label: m.name, x: 80 + i * spacing }
+                  })
                 : [
                     { label: 'Start', x: 80 },
                     { label: 'End',   x: layout.svgWidth - 120 },
