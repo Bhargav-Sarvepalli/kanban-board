@@ -118,7 +118,7 @@ export function useFlowData(
             .order('created_at', { ascending: true }),
           supabase
             .from('project_features')
-            .select('id, name, color')
+            .select('id, name, color, milestone_id')
             .eq('project_id', projectId),
         ])
 
@@ -136,17 +136,34 @@ export function useFlowData(
           setBranches([]); setTotalTasks(0); setTotalDone(0); setLoading(false); return
         }
 
+        // Phase color palette — matches Dashboard exactly
+        const PHASE_PALETTE = [
+          '#4ade80', // position 0 — Kickoff
+          '#7c3aed', // position 1 — Designing
+          '#2563eb', // position 2 — Phase 1
+          '#d97706', // position 3 — Review
+          '#dc2626', // position 4 — Delivery
+          '#0891b2', '#db2777', '#65a30d',
+        ]
+
+        // Build milestone position map for color lookup
+        const msPosMap: Record<string, number> = {}
+        msRes.data?.forEach(m => { msPosMap[m.id] = m.position })
+
         // Build a map seeded with every feature (empty task list by default)
         const featureMap = new Map<string, {
           name: string; avatar_url: string | null; tasks: FlowTask[]; color?: string
         }>()
 
-        features.forEach(f => {
+        features.forEach((f, idx) => {
+          // Color = phase palette color based on milestone position, fallback to stored color
+          const msPos  = f.milestone_id ? (msPosMap[f.milestone_id] ?? idx) : idx
+          const color  = PHASE_PALETTE[msPos % PHASE_PALETTE.length]
           featureMap.set(f.id, {
             name:       f.name,
             avatar_url: null,
             tasks:      [],
-            color:      f.color ?? undefined,
+            color,
           })
         })
 

@@ -3,6 +3,7 @@ import { supabase } from '../../supabase'
 import Avatar from '../Avatar'
 import LogoUpload from '../LogoUpload'
 import AddFeatureModal from './AddFeatureModal'
+import EditFeatureModal from './EditFeatureModal'
 import InviteMemberModal from './InviteMemberModal'
 
 interface Props {
@@ -145,9 +146,10 @@ export default function ProjectDashboard({
   const [saving,      setSaving]      = useState(false)
 
   // Modals
-  const [showAddFeature, setShowAddFeature] = useState(false)
-  const [showInvite,     setShowInvite]     = useState(false)
-  const [showSettings,   setShowSettings]   = useState(false)
+  const [showAddFeature,  setShowAddFeature]  = useState(false)
+  const [showInvite,      setShowInvite]      = useState(false)
+  const [showSettings,    setShowSettings]    = useState(false)
+  const [editingFeature,  setEditingFeature]  = useState<Feature | null>(null)
 
   // Phase editing
   const [editingPhase, setEditingPhase] = useState<string | null>(null)
@@ -584,38 +586,97 @@ export default function ProjectDashboard({
             )}
           </div>
 
-          {/* Features */}
-          <div style={{ padding: inline ? '16px 24px' : '16px 28px', flex:1 }}>
+          {/* Features — grouped by phase, color auto-assigned by phase position */}
+          <div style={{ padding: inline ? '16px 24px' : '16px 28px', flex:1, overflowY:'auto' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
               <p style={{ color:C.muted, fontSize:'10px', fontFamily:'Inter, sans-serif', fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase', margin:0 }}>Features</p>
               {isOwnerOrManager && <Btn onClick={() => setShowAddFeature(true)} title="Add feature"><PlusIcon /></Btn>}
             </div>
             {features.length === 0
               ? <p style={{ color:C.faint, fontSize:'13px', fontFamily:'Inter, sans-serif', margin:0 }}>No features yet — click + to add one</p>
-              : features.map(f => {
-                  const hc  = HEALTH[f.health]
-                  const pct = f.totalTasks ? Math.round((f.doneTasks / f.totalTasks) * 100) : 0
-                  const ms  = milestones.find(m => m.id === f.milestone_id)
+              : (() => {
+                  // Phase color palette — one distinct color per phase position
+                  const PHASE_PALETTE = [
+                    '#4ade80', // Kickoff — green (done)
+                    '#7c3aed', // Designing — violet (current)
+                    '#2563eb', // Phase 1 — blue
+                    '#d97706', // Review — amber
+                    '#dc2626', // Delivery — red
+                    '#0891b2', // extra
+                    '#db2777', // extra
+                    '#65a30d', // extra
+                  ]
+
+                  // Group features by milestone
+                  const unphased = features.filter(f => !f.milestone_id)
+                  const grouped = milestones.map(m => ({
+                    milestone: m,
+                    phaseColor: PHASE_PALETTE[m.position] ?? PHASE_PALETTE[m.position % PHASE_PALETTE.length],
+                    features: features.filter(f => f.milestone_id === m.id),
+                  })).filter(g => g.features.length > 0)
+
+                  const renderFeatureRow = (f: Feature, phaseColor: string) => {
+                    const hc  = HEALTH[f.health]
+                    const pct = f.totalTasks ? Math.round((f.doneTasks / f.totalTasks) * 100) : 0
+                    const displayColor = phaseColor // use phase color, ignore stored color
+                    return (
+                      <div key={f.id}
+                        style={{ display:'flex', alignItems:'center', gap:'9px', padding:'7px 10px', background:'rgba(255,255,255,0.02)', border:`1px solid ${C.border}`, borderRadius:'7px', marginBottom:'5px', transition:'border-color 0.15s' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = displayColor+'50' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = C.border }}>
+                        <div style={{ width:'7px', height:'7px', borderRadius:'50%', background:displayColor, flexShrink:0 }} />
+                        <div style={{ flex:1, minWidth:0, cursor:'pointer' }} onClick={() => onFeatureClick(f.id, f.name)}>
+                          <p style={{ color:C.text, fontSize:'13px', fontFamily:'Inter, sans-serif', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name}</p>
+                        </div>
+                        <div style={{ width:'44px', height:'2px', background:C.border, borderRadius:'1px', flexShrink:0 }}>
+                          <div style={{ width:`${pct}%`, height:'100%', background:displayColor, borderRadius:'1px' }} />
+                        </div>
+                        <span style={{ color:C.muted, fontSize:'10px', fontFamily:'JetBrains Mono, monospace', minWidth:'24px', textAlign:'right' }}>{pct}%</span>
+                        <div style={{ background:hc.bg, border:`1px solid ${hc.border}`, borderRadius:'4px', padding:'1px 6px', flexShrink:0 }}>
+                          <span style={{ color:hc.color, fontSize:'9px', fontFamily:'Inter, sans-serif', fontWeight:600 }}>{hc.label}</span>
+                        </div>
+                        {isOwnerOrManager && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setEditingFeature(f) }}
+                            title="Edit feature"
+                            style={{ background:'none', border:'none', cursor:'pointer', color:C.muted, padding:'4px', borderRadius:'5px', display:'flex', alignItems:'center', flexShrink:0 }}
+                            onMouseEnter={e2 => { (e2.currentTarget as HTMLElement).style.color = C.accentLt }}
+                            onMouseLeave={e2 => { (e2.currentTarget as HTMLElement).style.color = C.muted }}>
+                            <EditIcon />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  }
+
                   return (
-                    <div key={f.id} onClick={() => onFeatureClick(f.id, f.name)}
-                      style={{ display:'flex', alignItems:'center', gap:'9px', padding:'8px 10px', background:'rgba(255,255,255,0.02)', border:`1px solid ${C.border}`, borderRadius:'7px', cursor:'pointer', marginBottom:'6px', transition:'border-color 0.15s' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = f.color+'60' }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = C.border }}>
-                      <div style={{ width:'7px', height:'7px', borderRadius:'50%', background:f.color, flexShrink:0 }} />
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <p style={{ color:C.text, fontSize:'13px', fontFamily:'Inter, sans-serif', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name}</p>
-                        {ms && <p style={{ color:C.muted, fontSize:'10px', fontFamily:'Inter, sans-serif', margin:0 }}>{ms.name}</p>}
-                      </div>
-                      <div style={{ width:'44px', height:'2px', background:C.border, borderRadius:'1px', flexShrink:0 }}>
-                        <div style={{ width:`${pct}%`, height:'100%', background:f.color, borderRadius:'1px' }} />
-                      </div>
-                      <span style={{ color:C.muted, fontSize:'10px', fontFamily:'JetBrains Mono, monospace', minWidth:'26px', textAlign:'right' }}>{pct}%</span>
-                      <div style={{ background:hc.bg, border:`1px solid ${hc.border}`, borderRadius:'4px', padding:'1px 6px', flexShrink:0 }}>
-                        <span style={{ color:hc.color, fontSize:'9px', fontFamily:'Inter, sans-serif', fontWeight:600 }}>{hc.label}</span>
-                      </div>
-                    </div>
+                    <>
+                      {grouped.map(({ milestone: m, phaseColor, features: mFeatures }) => (
+                        <div key={m.id} style={{ marginBottom:'14px' }}>
+                          {/* Phase header */}
+                          <div style={{ display:'flex', alignItems:'center', gap:'7px', marginBottom:'6px' }}>
+                            <div style={{ width:'6px', height:'6px', borderRadius:'50%', background:phaseColor, flexShrink:0 }} />
+                            <span style={{ color:phaseColor, fontSize:'10px', fontFamily:'Inter, sans-serif', fontWeight:600, letterSpacing:'0.05em', textTransform:'uppercase' }}>{m.name}</span>
+                            <div style={{ flex:1, height:'1px', background:C.border }} />
+                            <span style={{ color:C.faint, fontSize:'10px', fontFamily:'JetBrains Mono, monospace' }}>{mFeatures.length}</span>
+                          </div>
+                          {mFeatures.map(f => renderFeatureRow(f, phaseColor))}
+                        </div>
+                      ))}
+                      {unphased.length > 0 && (
+                        <div style={{ marginBottom:'14px' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:'7px', marginBottom:'6px' }}>
+                            <div style={{ width:'6px', height:'6px', borderRadius:'50%', background:C.faint, flexShrink:0 }} />
+                            <span style={{ color:C.faint, fontSize:'10px', fontFamily:'Inter, sans-serif', fontWeight:600, letterSpacing:'0.05em', textTransform:'uppercase' }}>No phase</span>
+                            <div style={{ flex:1, height:'1px', background:C.border }} />
+                            <span style={{ color:C.faint, fontSize:'10px', fontFamily:'JetBrains Mono, monospace' }}>{unphased.length}</span>
+                          </div>
+                          {unphased.map(f => renderFeatureRow(f, C.faint))}
+                        </div>
+                      )}
+                    </>
                   )
-                })
+                })()
             }
           </div>
         </div>
@@ -729,7 +790,16 @@ export default function ProjectDashboard({
   const modals = (
     <>
       {showAddFeature && <AddFeatureModal projectId={projectId} onAdded={fetchAll} onClose={() => setShowAddFeature(false)} />}
-      {showInvite    && <InviteMemberModal projectId={projectId} onInvited={fetchAll} onClose={() => setShowInvite(false)} />}
+      {showInvite     && <InviteMemberModal projectId={projectId} onInvited={fetchAll} onClose={() => setShowInvite(false)} />}
+      {editingFeature && (
+        <EditFeatureModal
+          feature={editingFeature}
+          projectId={projectId}
+          onSaved={fetchAll}
+          onDeleted={fetchAll}
+          onClose={() => setEditingFeature(null)}
+        />
+      )}
       <style>{`@keyframes pdSpin { to { transform:rotate(360deg); } }`}</style>
     </>
   )
