@@ -15,8 +15,8 @@ const NODE_R        = 20
 const TRUNK_NODE_R  = 24
 const NODE_SPACING  = 160
 const PHASE_START_X = 100
-const PHASE_SPACING = 340
-const BRANCH_CARD_W = 250
+const PHASE_SPACING = 520
+const BRANCH_CARD_W = 330
 
 function statusFill(s: string) {
   return s === 'done' ? '#22c55e' : s === 'in_progress' ? '#3b82f6' : s === 'in_review' ? '#f59e0b' : 'transparent'
@@ -69,6 +69,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const [hovNode,    setHovNode]    = useState<string | null>(null)
   const [tooltip,    setTooltip]    = useState<{ x: number; y: number; task: FlowTask; branch: FlowBranch } | null>(null)
   const [myTasksOnly, setMyTasksOnly] = useState(false)
+  const [showTaskPaths, setShowTaskPaths] = useState(false)
   const [dragging,   setDragging]   = useState(false)
   const [drag0,      setDrag0]      = useState({ x: 0, scroll: 0 })
   const [svgH,       setSvgH]       = useState(500)
@@ -84,7 +85,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     return () => ro.disconnect()
   }, [])
 
-  const TRUNK_Y = Math.round(svgH * 0.46)
+  const canvasH = Math.max(svgH, 780)
+  const TRUNK_Y = canvasH - 120
 
   const layout = useMemo<{ branches: BranchLayout[]; svgWidth: number; nowX: number; milestoneNodes: MilestoneLayout[] } | null>(() => {
     if (!branches.length) return null
@@ -95,8 +97,10 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
           { id: 'end',   label: 'End',   x: PHASE_START_X + PHASE_SPACING },
         ]
     const lastPhaseX = milestoneNodes[milestoneNodes.length - 1].x
-    const maxTaskRun = branches.reduce((max, b) => Math.max(max, Math.max(b.tasks.length - 1, 0) * NODE_SPACING + BRANCH_CARD_W), 0)
-    const svgWidth   = Math.max(lastPhaseX + maxTaskRun + 460, 1500)
+    const maxTaskRun = showTaskPaths
+      ? branches.reduce((max, b) => Math.max(max, Math.max(b.tasks.length - 1, 0) * NODE_SPACING + BRANCH_CARD_W), 0)
+      : 0
+    const svgWidth   = Math.max(lastPhaseX + maxTaskRun + 760, 2400)
     const nowX       = milestoneNodes[Math.min(1, milestoneNodes.length - 1)]?.x ?? 360
 
     const milestoneIndex = new Map(milestoneNodes.map((m, i) => [m.id, i]))
@@ -114,21 +118,14 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       const intervalStart = milestoneNodes[phaseIndex].x
       const intervalEnd = milestoneNodes[phaseIndex + 1]?.x ?? intervalStart + PHASE_SPACING
       const intervalWidth = intervalEnd - intervalStart
-      const aboveCount = Math.ceil(bucket.length / 2)
-      const belowCount = Math.floor(bucket.length / 2)
-      const topStart = 46
-      const aboveStep = Math.min(54, Math.max(44, (TRUNK_Y - topStart - 44) / Math.max(aboveCount, 1)))
-      const belowStart = TRUNK_Y + 94
-      const belowStep = Math.min(54, Math.max(44, (svgH - belowStart - 50) / Math.max(belowCount, 1)))
+      const topStart = 62
+      const rowStep = 58
       bucket.forEach((branch, slot) => {
-        const above = slot < aboveCount
-        const lane = above ? slot : slot - aboveCount
-        const branchY = above
-          ? topStart + lane * aboveStep
-          : Math.min(svgH - 58, belowStart + lane * belowStep)
+        const above = true
+        const branchY = topStart + slot * rowStep
         const slotRatio = (slot + 1) / (bucket.length + 1)
         const originX = intervalStart + intervalWidth * (0.16 + slotRatio * 0.68)
-        const cardX = intervalStart + intervalWidth / 2 - BRANCH_CARD_W / 2
+        const cardX = intervalStart + 92
         const taskStartX = cardX + BRANCH_CARD_W + 58
         const nodes: NodeLayout[] = branch.tasks.map((task, i) => ({
           task, x: taskStartX + i * NODE_SPACING, y: branchY + 20,
@@ -138,7 +135,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       })
     })
     return { branches: result, svgWidth, nowX, milestoneNodes }
-  }, [branches, milestones, TRUNK_Y, svgH])
+  }, [branches, milestones, showTaskPaths])
 
   useEffect(() => {
     if (!layout || !scrollRef.current) return
@@ -293,6 +290,13 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
 
         {/* Right: MY TASKS + STANDUP */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {projectId && (
+            <button onClick={() => setShowTaskPaths(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: showTaskPaths ? 'rgba(96,165,250,0.16)' : 'rgba(255,255,255,0.07)', border: `1px solid ${showTaskPaths ? 'rgba(96,165,250,0.45)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: showTaskPaths ? '#93c5fd' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: showTaskPaths ? '#60a5fa' : 'rgba(255,255,255,0.4)' }} />
+              TASK PATHS
+            </button>
+          )}
           {myBranchIds.size > 0 && (
             <button onClick={() => setMyTasksOnly(v => !v)}
               style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: myTasksOnly ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.07)', border: `1px solid ${myTasksOnly ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: myTasksOnly ? '#a78bfa' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
@@ -406,9 +410,9 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
           onMouseMove={e => { if (!dragging) return; e.preventDefault(); if (scrollRef.current) scrollRef.current.scrollLeft = drag0.scroll - (e.clientX - drag0.x) }}
           onMouseUp={() => setDragging(false)}
           onMouseLeave={() => { setDragging(false); setTooltip(null) }}
-          style={{ width: '100%', height: '100%', overflowX: 'auto', overflowY: 'hidden', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}
+          style={{ width: '100%', height: '100%', overflowX: 'auto', overflowY: 'auto', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}
         >
-          <svg width={layout.svgWidth} height={svgH} style={{ display: 'block' }}>
+          <svg width={layout.svgWidth} height={canvasH} style={{ display: 'block' }}>
             <defs>
               {layout.branches.map(({ branch }) => (
                 <linearGradient key={branch.id} id={`fg-bg-${branch.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
@@ -429,14 +433,14 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             </defs>
 
             {/* Single subtle NOW marker — just a thin line, no labels */}
-            <line x1={nowX} y1={0} x2={nowX} y2={svgH} stroke="rgba(167,139,250,0.2)" strokeWidth={1} strokeDasharray="4 6" />
+            <line x1={nowX} y1={0} x2={nowX} y2={canvasH} stroke="rgba(167,139,250,0.2)" strokeWidth={1} strokeDasharray="4 6" />
 
             {layout.milestoneNodes.map((m, i) => {
               const nextX = layout.milestoneNodes[i + 1]?.x ?? m.x + PHASE_SPACING
               return (
                 <g key={`lane-${m.id}`}>
                   <rect
-                    x={m.x + 36} y={18} width={nextX - m.x - 72} height={svgH - 42}
+                    x={m.x + 36} y={18} width={nextX - m.x - 72} height={canvasH - 42}
                     rx={10}
                     fill={i % 2 === 0 ? 'rgba(255,255,255,0.018)' : 'rgba(124,58,237,0.025)'}
                     stroke="rgba(255,255,255,0.035)"
@@ -503,32 +507,41 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                   onMouseLeave={() => setHovBranch(null)}
                   onClick={() => !dragging && onBranchClick(branch)}
                 >
-                  {/* Stem from trunk to branch line */}
-                  <path
-                    d={`M ${originX} ${TRUNK_Y} C ${originX} ${(TRUNK_Y * 2 + connectorY) / 3}, ${cardX + 20} ${(TRUNK_Y + connectorY * 2) / 3}, ${cardX + 20} ${connectorY}`}
-                    fill="none" stroke={`url(#fg-bg-${branch.id})`}
-                    strokeOpacity={isHov ? 0.8 : 0.28}
-                    strokeWidth={isHov ? 2.5 : 1.5} style={{ transition: 'all 0.2s' }}
-                  />
-                  {/* Fork dot on trunk */}
-                  <circle cx={originX} cy={TRUNK_Y} r={isHov ? 7 : 5}
-                    fill={branch.color} opacity={isHov ? 1 : 0.72}
-                    filter={isHov ? `url(#fg-gf-${branch.id})` : undefined}
-                    style={{ transition: 'all 0.2s' }}
-                  />
-                  {/* Branch line */}
-                  <line x1={cardX + BRANCH_CARD_W} y1={connectorY} x2={endX} y2={connectorY}
-                    stroke={branch.color} strokeWidth={isHov ? 2.5 : 2}
-                    strokeOpacity={nodes.length > 0 ? (isHov ? 0.7 : 0.22) : 0}
-                    style={{ transition: 'all 0.2s' }}
-                  />
-                  {/* Progress overlay on branch line */}
-                  {nodes.length > 0 && (
+                  {showTaskPaths && (
+                    <>
+                      {/* Stem from trunk to branch line */}
+                      <path
+                        d={`M ${originX} ${TRUNK_Y} C ${originX} ${(TRUNK_Y * 2 + connectorY) / 3}, ${cardX + 20} ${(TRUNK_Y + connectorY * 2) / 3}, ${cardX + 20} ${connectorY}`}
+                        fill="none" stroke={`url(#fg-bg-${branch.id})`}
+                        strokeOpacity={isHov ? 0.8 : 0.22}
+                        strokeWidth={isHov ? 2.5 : 1.4} style={{ transition: 'all 0.2s' }}
+                      />
+                      {/* Fork dot on trunk */}
+                      <circle cx={originX} cy={TRUNK_Y} r={isHov ? 7 : 5}
+                        fill={branch.color} opacity={isHov ? 1 : 0.72}
+                        filter={isHov ? `url(#fg-gf-${branch.id})` : undefined}
+                        style={{ transition: 'all 0.2s' }}
+                      />
+                      {/* Branch line */}
+                      <line x1={cardX + BRANCH_CARD_W} y1={connectorY} x2={endX} y2={connectorY}
+                        stroke={branch.color} strokeWidth={isHov ? 2.5 : 2}
+                        strokeOpacity={nodes.length > 0 ? (isHov ? 0.7 : 0.18) : 0}
+                        style={{ transition: 'all 0.2s' }}
+                      />
+                      {nodes.length > 0 && (
+                        <line
+                          x1={cardX + BRANCH_CARD_W} y1={connectorY}
+                          x2={cardX + BRANCH_CARD_W + (endX - cardX - BRANCH_CARD_W) * (branch.progress / 100)}
+                          y2={connectorY}
+                          stroke={branch.color} strokeWidth={3} strokeOpacity={0.5} strokeLinecap="round"
+                        />
+                      )}
+                    </>
+                  )}
+                  {!showTaskPaths && (
                     <line
-                      x1={cardX + BRANCH_CARD_W} y1={connectorY}
-                      x2={cardX + BRANCH_CARD_W + (endX - cardX - BRANCH_CARD_W) * (branch.progress / 100)}
-                      y2={connectorY}
-                      stroke={branch.color} strokeWidth={3} strokeOpacity={0.55} strokeLinecap="round"
+                      x1={cardX + 12} y1={connectorY} x2={cardX + BRANCH_CARD_W - 12} y2={connectorY}
+                      stroke={branch.color} strokeWidth={2} strokeOpacity={0.1} strokeLinecap="round"
                     />
                   )}
 
@@ -577,7 +590,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                   </foreignObject>
 
                   {/* Task nodes */}
-                  {nodes.map(({ task, x, y }, ni) => {
+                  {showTaskPaths && nodes.map(({ task, x, y }, ni) => {
                     const od   = isOverdue(task)
                     const done = task.status === 'done'
                     const act  = task.status === 'in_progress'
