@@ -17,6 +17,7 @@ export default function InviteMemberModal({ projectId, onInvited, onClose }: Pro
   const [error,   setError]   = useState('')
   const [success, setSuccess] = useState(false)
   const [mode,    setMode]    = useState<InviteMode>('workspace')
+  const [alreadyHadAccess, setAlreadyHadAccess] = useState(false)
 
   const handleInvite = async () => {
     if (!email.trim()) { setError('Email is required'); return }
@@ -44,13 +45,17 @@ export default function InviteMemberModal({ projectId, onInvited, onClose }: Pro
     if (project?.workspace_id) {
       const { data: existingMember } = await supabase
         .from('workspace_members')
-        .select('id')
+        .select('id,user_id,email')
         .eq('workspace_id', project.workspace_id)
         .eq('email', normalizedEmail)
 
       if (existingMember && existingMember.length > 0) {
-        setError('This person already has access through the workspace.')
-        setSaving(false); return
+        setAlreadyHadAccess(true)
+        setMode('workspace')
+        setSuccess(true)
+        setSaving(false)
+        setTimeout(() => { onInvited(); onClose() }, 1200)
+        return
       }
 
       const { data: existingInvite } = await supabase
@@ -74,6 +79,7 @@ export default function InviteMemberModal({ projectId, onInvited, onClose }: Pro
 
       if (inviteErr) { setError(inviteErr.message); setSaving(false); return }
 
+      setAlreadyHadAccess(false)
       setMode('workspace')
       setSuccess(true)
       setSaving(false)
@@ -124,15 +130,15 @@ export default function InviteMemberModal({ projectId, onInvited, onClose }: Pro
       <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: '12px', padding: '24px', width: '380px', boxShadow: '0 24px 60px rgba(0,0,0,0.8)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <h3 style={{ color: '#e2e2e8', fontSize: '15px', fontFamily: 'Inter, sans-serif', fontWeight: 600, margin: 0 }}>Invite Team Member</h3>
-          <button onClick={onClose} aria-label="Close invite modal" style={{ background: 'none', border: 'none', color: '#3d3d52', cursor: 'pointer', fontSize: '18px' }}>×</button>
+          <button onClick={onClose} aria-label="Close invite modal" style={{ background: 'none', border: 'none', color: '#3d3d52', cursor: 'pointer', fontSize: '18px' }}>x</button>
         </div>
 
         {success ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '20px 0' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', color: '#22c55e' }}>✓</div>
-            <p style={{ color: '#e2e2e8', fontSize: '14px', fontFamily: 'Inter, sans-serif', margin: 0 }}>{mode === 'workspace' ? 'Invite sent' : 'Member added'}</p>
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800, color: '#22c55e' }}>OK</div>
+            <p style={{ color: '#e2e2e8', fontSize: '14px', fontFamily: 'Inter, sans-serif', margin: 0 }}>{alreadyHadAccess ? 'Already has access' : mode === 'workspace' ? 'Invite sent' : 'Member added'}</p>
             <p style={{ color: '#6b6b7b', fontSize: '12px', fontFamily: 'Inter, sans-serif', margin: 0, textAlign: 'center' }}>
-              {mode === 'workspace' ? 'They will appear here after accepting the workspace invite.' : 'They now have project access.'}
+              {alreadyHadAccess ? 'They should appear in the team through workspace access.' : mode === 'workspace' ? 'They will appear here after accepting the workspace invite.' : 'They now have project access.'}
             </p>
           </div>
         ) : (

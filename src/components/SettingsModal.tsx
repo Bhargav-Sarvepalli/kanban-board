@@ -17,6 +17,7 @@ interface Props {
   onToggleNex: () => void
   defaultView: DefaultView
   onDefaultViewChange: (view: DefaultView) => void
+  onReplayOnboarding: () => void
 }
 
 const tabs: { id: Tab; label: string }[] = [
@@ -117,6 +118,7 @@ export default function SettingsModal({
   onToggleNex,
   defaultView,
   onDefaultViewChange,
+  onReplayOnboarding,
 }: Props) {
   const [tab, setTab] = useState<Tab>('profile')
   const [selectedDefaultView, setSelectedDefaultView] = useState(defaultView)
@@ -411,6 +413,44 @@ export default function SettingsModal({
                       label="Nex Assistant"
                       description="Show the assistant orb for quick task and project help."
                     />
+                    <button
+                      type="button"
+                      onClick={onReplayOnboarding}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '16px',
+                        width: '100%',
+                        padding: '14px',
+                        borderRadius: '14px',
+                        border: '1px solid rgba(236,72,153,0.18)',
+                        background: 'linear-gradient(135deg, rgba(236,72,153,0.1), rgba(6,182,212,0.055))',
+                        color: 'white',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        fontFamily: 'Inter, system-ui, sans-serif',
+                      }}
+                    >
+                      <span>
+                        <strong style={{ display: 'block', fontSize: '13px', fontWeight: 780 }}>Replay onboarding</strong>
+                        <span style={{ display: 'block', marginTop: '3px', color: 'rgba(255,255,255,0.42)', fontSize: '12px', lineHeight: 1.35 }}>
+                          Open the quick product tour again.
+                        </span>
+                      </span>
+                      <span style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '9px',
+                        display: 'grid',
+                        placeItems: 'center',
+                        background: 'linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4)',
+                        color: 'white',
+                        fontSize: '12px',
+                        fontWeight: 900,
+                        flexShrink: 0,
+                      }}>N</span>
+                    </button>
                   </div>
                 </motion.div>
               )}

@@ -9,7 +9,7 @@ interface Props {
   onComplete: () => void
 }
 
-const ONBOARDING_VERSION = '2026-action-quickstart-v4'
+const ONBOARDING_VERSION = '2026-onboarding-clean-v5'
 
 const slides = [
   {

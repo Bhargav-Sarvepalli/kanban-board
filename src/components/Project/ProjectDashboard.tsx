@@ -24,6 +24,12 @@ interface Member {
   activeTaskCount: number
   doneTaskCount: number
 }
+interface ProfileLite {
+  id?: string
+  full_name: string | null
+  email: string
+  avatar_url: string | null
+}
 interface Feature {
   id: string; name: string; color: string; milestone_id: string | null
   totalTasks: number; doneTasks: number; overdueTasks: number
@@ -192,7 +198,7 @@ export default function ProjectDashboard({
         .eq('project_id', projectId),
       wsId
         ? supabase.from('workspace_members')
-            .select('user_id,role,profiles(full_name,email,avatar_url)')
+            .select('user_id,email,role')
             .eq('workspace_id', wsId)
         : Promise.resolve({ data: [] as unknown[], error: null }),
     ])
@@ -203,31 +209,64 @@ export default function ProjectDashboard({
     const tasks = tasksRes.data ?? []
     const now   = new Date()
 
-    // Merge project_members + workspace_members
-    // project_members take priority; ws_members fill in the rest
     type RawM = {
       user_id: string
       role: string
-      profiles: { full_name: string | null; email: string; avatar_url: string | null }
+      email?: string | null
+      profiles?: ProfileLite | ProfileLite[] | null
     }
+    const memberIds = [
+      ...((membersRes.data ?? []) as unknown as RawM[]).map(m => m.user_id),
+      ...((wsMembersRes.data ?? []) as unknown as RawM[]).map(m => m.user_id),
+      proj?.owner_id,
+    ].filter(Boolean) as string[]
+    const { data: fetchedProfiles } = memberIds.length
+      ? await supabase.from('profiles').select('id,full_name,email,avatar_url').in('id', [...new Set(memberIds)])
+      : { data: [] as ProfileLite[] }
+    const profileMap: Record<string, ProfileLite> = {}
+    for (const p of (fetchedProfiles ?? []) as ProfileLite[]) {
+      if (p.id) profileMap[p.id] = p
+    }
+    const profileFor = (m: RawM): ProfileLite => {
+      const joined = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
+      return joined ?? profileMap[m.user_id] ?? {
+        full_name: null,
+        email: m.email ?? 'Unknown member',
+        avatar_url: null,
+      }
+    }
+
+    // Merge project_members + workspace_members. Project roles take priority;
+    // workspace rows fill in the rest so project Team reflects real access.
     const seen = new Set<string>()
     const allRaw: (RawM & { sourceRole: 'owner'|'manager'|'member' })[] = []
 
     for (const m of (membersRes.data ?? []) as unknown as RawM[]) {
+      if (!m.user_id) continue
       seen.add(m.user_id)
       const r = (m.role === 'owner' || m.role === 'manager' || m.role === 'member') ? m.role as 'owner'|'manager'|'member' : 'member'
       allRaw.push({ ...m, sourceRole: r })
     }
     for (const m of (wsMembersRes.data ?? []) as unknown as RawM[]) {
+      if (!m.user_id) continue
       if (!seen.has(m.user_id)) {
+        seen.add(m.user_id)
         allRaw.push({ ...m, sourceRole: mapWsRole(m.role) })
       }
+    }
+    if (proj?.owner_id && !seen.has(proj.owner_id)) {
+      allRaw.unshift({
+        user_id: proj.owner_id,
+        role: 'owner',
+        profiles: profileMap[proj.owner_id] ?? null,
+        sourceRole: 'owner',
+      })
     }
 
     const built: Member[] = allRaw.map(m => ({
       user_id: m.user_id,
       role: m.sourceRole,
-      profile: m.profiles,
+      profile: profileFor(m),
       activeTaskCount: tasks.filter(t => t.assignee_id === m.user_id && t.status === 'in_progress').length,
       doneTaskCount:   tasks.filter(t => t.assignee_id === m.user_id && t.status === 'done').length,
     }))
@@ -255,7 +294,8 @@ export default function ProjectDashboard({
       .slice(0, 5)
     const mMap: Record<string, string> = {}
     for (const m of allRaw) {
-      mMap[m.user_id] = m.profiles?.full_name?.split(' ')[0] ?? m.profiles?.email ?? 'Someone'
+      const p = profileFor(m)
+      mMap[m.user_id] = p.full_name?.split(' ')[0] ?? p.email ?? 'Someone'
     }
     setActivity(recent.map(t => ({
       id: t.id, actor: mMap[t.last_edited_by ?? ''] ?? 'Someone',

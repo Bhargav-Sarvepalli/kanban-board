@@ -28,7 +28,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 type AppView = 'today' | 'board' | 'calendar' | 'flow' | 'dashboard' | 'pomodoro'
-const ONBOARDING_VERSION = '2026-action-quickstart-v4'
+const ONBOARDING_VERSION = '2026-onboarding-clean-v5'
 
 function isAppView(value: string | null): value is AppView {
   return value === 'today' || value === 'board' || value === 'calendar' || value === 'flow' || value === 'dashboard' || value === 'pomodoro'
@@ -562,6 +562,11 @@ function App() {
           <SettingsModal userId={userId} profile={profile} onClose={() => setShowSettings(false)}
             onProfileUpdated={setProfile} nexEnabled={nexEnabled} onToggleNex={toggleNex}
             defaultView={defaultViewPref === 'dashboard' || defaultViewPref === 'flow' ? 'board' : defaultViewPref}
+            onReplayOnboarding={() => {
+              try { localStorage.removeItem('nex_onboarding_version_seen') } catch { /* ignore */ }
+              setShowSettings(false)
+              setShowOnboarding(true)
+            }}
             onDefaultViewChange={v => {
               setDefaultViewPref(v)
               try { localStorage.setItem('nex_default_view', v) } catch { /* ignore */ }
