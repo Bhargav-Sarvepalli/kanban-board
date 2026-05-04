@@ -17,6 +17,7 @@ const NODE_SPACING  = 160
 const PHASE_START_X = 100
 const PHASE_SPACING = 720
 const BRANCH_CARD_W = 280
+const TRUNK_COLOR = '#2dd4bf'
 
 function statusFill(s: string) {
   return s === 'done' ? '#22c55e' : s === 'in_progress' ? '#3b82f6' : s === 'in_review' ? '#f59e0b' : 'transparent'
@@ -124,6 +125,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const [mergeError, setMergeError] = useState<string | null>(null)
   const [showBriefDetails, setShowBriefDetails] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const rootRef   = useRef<HTMLDivElement>(null)
   const wrapRef   = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -133,6 +135,21 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     m(); const ro = new ResizeObserver(m); ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  useEffect(() => {
+    const onFullscreenChange = () => setIsFullscreen(document.fullscreenElement === rootRef.current)
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
+  }, [])
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen()
+      else await rootRef.current?.requestFullscreen()
+    } catch {
+      setIsFullscreen(v => !v)
+    }
+  }
 
   const persistMergedBranch = useCallback((branchId: string) => {
     if (!projectId) return
@@ -316,15 +333,13 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const trunkPath = `M 60 ${TRUNK_Y} C ${layout.svgWidth * 0.26} ${TRUNK_Y - 18}, ${layout.svgWidth * 0.48} ${TRUNK_Y + 18}, ${layout.svgWidth * 0.7} ${TRUNK_Y - 8} S ${layout.svgWidth - 220} ${TRUNK_Y + 12}, ${trunkEnd} ${TRUNK_Y}`
 
   return (
-    <div style={{
+    <div ref={rootRef} style={{
       width: isFullscreen ? '100vw' : '100%',
       height: isFullscreen ? '100vh' : '100%',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
-      position: isFullscreen ? 'fixed' : 'relative',
-      inset: isFullscreen ? 0 : undefined,
-      zIndex: isFullscreen ? 2000 : undefined,
+      position: 'relative',
       background: '#0a0a0f',
     }}>
 
@@ -393,11 +408,6 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
 
         {/* Right: MY TASKS + STANDUP */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button onClick={() => setIsFullscreen(v => !v)}
-            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: isFullscreen ? 'rgba(139,92,246,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${isFullscreen ? 'rgba(139,92,246,0.46)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: isFullscreen ? '#c4b5fd' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
-            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: isFullscreen ? '#a78bfa' : 'rgba(255,255,255,0.4)' }} />
-            {isFullscreen ? 'EXIT FULL' : 'FULL SCREEN'}
-          </button>
           {projectId && (
             <button onClick={() => setAttentionOnly(v => !v)}
               style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: attentionOnly ? 'rgba(248,113,113,0.16)' : 'rgba(255,255,255,0.07)', border: `1px solid ${attentionOnly ? 'rgba(248,113,113,0.45)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: attentionOnly ? '#fca5a5' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
@@ -560,6 +570,37 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
 
       {/* ── SVG CANVAS ── */}
       <div ref={wrapRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
+        <button
+          onClick={toggleFullscreen}
+          title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          style={{
+            position: 'absolute',
+            top: '14px',
+            right: '18px',
+            zIndex: 20,
+            width: '36px',
+            height: '36px',
+            borderRadius: '9px',
+            border: '1px solid rgba(255,255,255,0.16)',
+            background: 'rgba(12,12,18,0.72)',
+            color: 'rgba(255,255,255,0.72)',
+            display: 'grid',
+            placeItems: 'center',
+            cursor: 'pointer',
+            backdropFilter: 'blur(10px)',
+          }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+            {isFullscreen ? (
+              <>
+                <path d="M6.6 2.8v3.8H2.8M11.4 15.2v-3.8h3.8M11.4 2.8v3.8h3.8M6.6 15.2v-3.8H2.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              </>
+            ) : (
+              <>
+                <path d="M6.6 2.8H2.8v3.8M11.4 2.8h3.8v3.8M6.6 15.2H2.8v-3.8M11.4 15.2h3.8v-3.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              </>
+            )}
+          </svg>
+        </button>
         <div ref={scrollRef}
           onMouseDown={e => { setDragging(true); setDrag0({ x: e.clientX, scroll: scrollRef.current?.scrollLeft ?? 0 }) }}
           onMouseMove={e => { if (!dragging) return; e.preventDefault(); if (scrollRef.current) scrollRef.current.scrollLeft = drag0.scroll - (e.clientX - drag0.x) }}
@@ -575,15 +616,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                   <stop offset="100%" stopColor={branch.color} stopOpacity="0.1" />
                 </linearGradient>
               ))}
-              <linearGradient id="fg-river" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#22c55e" />
-                <stop offset="42%" stopColor="#8b5cf6" />
-                <stop offset="72%" stopColor="#60a5fa" />
-                <stop offset="100%" stopColor="#c084fc" />
-                <animateTransform attributeName="gradientTransform" type="translate" from="-0.18 0" to="0.18 0" dur="4s" repeatCount="indefinite" />
-              </linearGradient>
               <filter id="fg-river-glow" x="-10%" y="-80%" width="120%" height="260%">
-                <feGaussianBlur stdDeviation="8" result="b" />
+                <feGaussianBlur stdDeviation="7" result="b" />
                 <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
               <filter id="fg-ms" x="-30%" y="-30%" width="160%" height="160%">
@@ -614,11 +648,10 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             })}
 
             {/* ── TRUNK ── */}
-            <path d={trunkPath} stroke="#7c3aed" strokeWidth={34} strokeLinecap="round" opacity={0.08} fill="none" />
-            <path d={trunkPath} stroke="url(#fg-river)" strokeWidth={8} strokeLinecap="round" fill="none" filter="url(#fg-river-glow)" />
-            <path d={trunkPath} stroke="rgba(255,255,255,0.36)" strokeWidth={2} strokeLinecap="round" fill="none" strokeDasharray="14 22" className="fg-river-flow" />
-            <polygon points={`${trunkEnd + 16},${TRUNK_Y} ${trunkEnd},${TRUNK_Y - 9} ${trunkEnd},${TRUNK_Y + 9}`} fill="rgba(255,255,255,0.4)" />
-            <circle cx={60}  cy={TRUNK_Y} r={6} fill="#4ade80" />
+            <path d={trunkPath} stroke={TRUNK_COLOR} strokeWidth={34} strokeLinecap="round" opacity={0.07} fill="none" />
+            <path d={trunkPath} stroke={TRUNK_COLOR} strokeWidth={7} strokeLinecap="round" strokeOpacity={0.76} fill="none" filter="url(#fg-river-glow)" />
+            <polygon points={`${trunkEnd + 16},${TRUNK_Y} ${trunkEnd},${TRUNK_Y - 9} ${trunkEnd},${TRUNK_Y + 9}`} fill={TRUNK_COLOR} opacity={0.72} />
+            <circle cx={60}  cy={TRUNK_Y} r={6} fill={TRUNK_COLOR} />
 
             {/* ── MILESTONES ── */}
             {layout.milestoneNodes.map(({ label, x }) => {
@@ -896,10 +929,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       <style>{`
         @keyframes fgSpin { to { transform: rotate(360deg); } }
         @keyframes fgRing { 0%,100% { stroke-opacity: 0.04; } 50% { stroke-opacity: 0.5; } }
-        @keyframes fgRiverFlow { to { stroke-dashoffset: -72; } }
         @keyframes fgAttentionFlow { to { stroke-dashoffset: -40; } }
         @keyframes fgMergeFlow { to { stroke-dashoffset: -96; } }
-        .fg-river-flow { animation: fgRiverFlow 7s linear infinite; opacity: 0.42; }
         .fg-attention-flow { animation: fgAttentionFlow 3.8s linear infinite; }
         .fg-merge-flow { animation: fgMergeFlow 0.75s linear infinite; }
       `}</style>

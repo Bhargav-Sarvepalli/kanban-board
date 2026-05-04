@@ -89,6 +89,7 @@ function App() {
   const updateAppUrl = (
     nextView: AppView,
     opts?: {
+      workspace?: Workspace | null
       project?: Project | null
       feature?: { id: string; name: string } | null
       replace?: boolean
@@ -96,6 +97,8 @@ function App() {
   ) => {
     const params = new URLSearchParams()
     params.set('view', nextView)
+    const workspaceForUrl = opts?.workspace !== undefined ? opts.workspace : currentWorkspace
+    if (workspaceForUrl) params.set('workspace', workspaceForUrl.id)
     const projectForUrl = opts?.project !== undefined ? opts.project : currentProject
     if (projectForUrl) params.set('project', projectForUrl.id)
     if (opts?.feature) {
@@ -112,12 +115,18 @@ function App() {
     if (location.pathname !== '/app') return
     const params = new URLSearchParams(location.search)
     const routeView = params.get('view')
+    const workspaceId = params.get('workspace')
     const projectId = params.get('project')
     const featureId = params.get('feature')
     const featureName = params.get('featureName')
 
     if (isAppView(routeView) && routeView !== view) {
       queueMicrotask(() => setView(routeView))
+    }
+
+    if (workspaceId && workspaces.length > 0 && currentWorkspace?.id !== workspaceId) {
+      const workspace = workspaces.find(ws => ws.id === workspaceId)
+      if (workspace) queueMicrotask(() => setCurrentWorkspace(workspace))
     }
 
     if (projectId && projects.length > 0 && currentProject?.id !== projectId) {
@@ -134,7 +143,7 @@ function App() {
     } else if (isAppView(routeView) && routeView !== 'board') {
       queueMicrotask(() => setBranchFilter(null))
     }
-  }, [location.pathname, location.search, projects, currentProject?.id, view])
+  }, [location.pathname, location.search, workspaces, projects, currentWorkspace?.id, currentProject?.id, view])
 
   const prevWsRef = useRef<string | undefined>(currentWorkspace?.id)
   if (prevWsRef.current !== currentWorkspace?.id) {
@@ -315,7 +324,13 @@ function App() {
         profile={profile}
         workspaces={workspaces}
         currentWorkspace={currentWorkspace}
-        onWorkspaceChange={ws => setCurrentWorkspace(ws)}
+        onWorkspaceChange={ws => {
+          setCurrentWorkspace(ws)
+          setCurrentProject(null)
+          setBranchFilter(null)
+          setView(ws ? 'board' : 'today')
+          updateAppUrl(ws ? 'board' : 'today', { workspace: ws, project: null, feature: null })
+        }}
         onOpenWorkspacePanel={() => setShowWorkspacePanel(true)}
         projects={projects}
         currentProject={currentProject}
@@ -492,7 +507,14 @@ function App() {
       <AnimatePresence>
         {showWorkspacePanel && userId && (
           <WorkspacePanel userId={userId} currentWorkspace={currentWorkspace}
-            onWorkspaceChange={ws => { setCurrentWorkspace(ws); fetchWorkspaces() }}
+            onWorkspaceChange={ws => {
+              setCurrentWorkspace(ws)
+              setCurrentProject(null)
+              setBranchFilter(null)
+              setView(ws ? 'board' : 'today')
+              updateAppUrl(ws ? 'board' : 'today', { workspace: ws, project: null, feature: null })
+              fetchWorkspaces()
+            }}
             onClose={() => setShowWorkspacePanel(false)} />
         )}
       </AnimatePresence>
