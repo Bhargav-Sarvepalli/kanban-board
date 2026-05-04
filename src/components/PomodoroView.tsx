@@ -80,6 +80,7 @@ export default function PomodoroView() {
   const [intention, setIntention] = useState(() => localStorage.getItem('nex_pomo_intention') ?? '')
   const rootRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<AudioContext | null>(null)
+  const beatTimerRef = useRef<number | null>(null)
 
   const display = mmss(seconds)
   const totalSeconds = MODES[mode].minutes * 60
@@ -100,22 +101,32 @@ export default function PomodoroView() {
     return audioRef.current
   }, [])
 
-  const playTone = useCallback((kind: 'tick' | 'start' | 'done', force = false) => {
+  const playTone = useCallback((kind: 'beat' | 'start' | 'done', force = false) => {
     if (!soundOn && !force) return
     const ctx = ensureAudio()
     if (!ctx) return
     const now = ctx.currentTime
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.type = kind === 'tick' ? 'sine' : 'triangle'
-    osc.frequency.setValueAtTime(kind === 'done' ? 740 : kind === 'start' ? 440 : 220, now)
-    gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.exponentialRampToValueAtTime(kind === 'tick' ? 0.085 : 0.16, now + 0.012)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + (kind === 'tick' ? 0.12 : 0.28))
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.start(now)
-    osc.stop(now + (kind === 'tick' ? 0.14 : 0.3))
+    const makeTone = (frequency: number, start: number, volume: number, duration: number, type: OscillatorType) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = type
+      osc.frequency.setValueAtTime(frequency, start)
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(volume, start + 0.01)
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(start)
+      osc.stop(start + duration + 0.02)
+    }
+
+    if (kind === 'beat') {
+      makeTone(1120, now, 0.18, 0.045, 'square')
+      makeTone(220, now, 0.055, 0.09, 'sine')
+      return
+    }
+
+    makeTone(kind === 'done' ? 740 : 440, now, 0.16, 0.28, 'triangle')
   }, [ensureAudio, soundOn])
 
   useEffect(() => {
@@ -146,8 +157,19 @@ export default function PomodoroView() {
   }, [running, mode, nextMode, playTone])
 
   useEffect(() => {
-    if (running) playTone('tick')
-  }, [seconds, running, playTone])
+    if (!running || !soundOn) {
+      if (beatTimerRef.current) window.clearInterval(beatTimerRef.current)
+      beatTimerRef.current = null
+      return
+    }
+
+    playTone('beat')
+    beatTimerRef.current = window.setInterval(() => playTone('beat'), 1000)
+    return () => {
+      if (beatTimerRef.current) window.clearInterval(beatTimerRef.current)
+      beatTimerRef.current = null
+    }
+  }, [running, soundOn, playTone])
 
   const chooseMode = (next: Mode) => {
     setMode(next)
@@ -309,7 +331,7 @@ export default function PomodoroView() {
               <SoftButton onClick={toggleRun} primary>{running ? 'Pause' : 'Start flow'}</SoftButton>
               <SoftButton onClick={reset}>Reset</SoftButton>
               <SoftButton onClick={() => chooseMode(nextMode)}>Skip</SoftButton>
-              <SoftButton onClick={toggleSound}>{soundOn ? 'Pulse on' : 'Pulse off'}</SoftButton>
+              <SoftButton onClick={toggleSound}>{soundOn ? 'Beats on' : 'Beats off'}</SoftButton>
             </div>
 
             <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -318,8 +340,8 @@ export default function PomodoroView() {
                 <span style={{ color: 'rgba(255,255,255,0.46)', fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em' }}>BLOCKS</span>
               </div>
               <div style={{ padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <p style={{ margin: 0, color: 'rgba(255,255,255,0.82)', fontSize: '14px', fontWeight: 850 }}>{MODES[nextMode].label}</p>
-                <span style={{ color: 'rgba(255,255,255,0.46)', fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em' }}>NEXT</span>
+                <p style={{ margin: 0, color: soundOn ? MODES[mode].tone : 'rgba(255,255,255,0.82)', fontSize: '14px', fontWeight: 850 }}>{soundOn ? '60 BPM' : MODES[nextMode].label}</p>
+                <span style={{ color: 'rgba(255,255,255,0.46)', fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em' }}>{soundOn ? 'FOCUS BEAT' : 'NEXT'}</span>
               </div>
             </div>
           </div>

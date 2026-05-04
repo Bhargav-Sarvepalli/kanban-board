@@ -1,9 +1,12 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import toast from 'react-hot-toast'
 import { supabase } from '../supabase'
 import type { Profile } from '../types'
 import Avatar from './Avatar'
-import toast from 'react-hot-toast'
+
+type DefaultView = 'today' | 'board' | 'calendar' | 'flow' | 'pomodoro'
+type Tab = 'profile' | 'preferences' | 'account'
 
 interface Props {
   userId: string
@@ -12,94 +15,178 @@ interface Props {
   onProfileUpdated: (profile: Profile) => void
   nexEnabled: boolean
   onToggleNex: () => void
-  defaultView: 'today' | 'board' | 'calendar' | 'flow' | 'pomodoro'
-  onDefaultViewChange: (view: 'today' | 'board' | 'calendar' | 'flow' | 'pomodoro') => void
+  defaultView: DefaultView
+  onDefaultViewChange: (view: DefaultView) => void
 }
 
-type Tab = 'profile' | 'preferences' | 'account'
-
-const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: 'profile',     label: 'Profile',      icon: '👤' },
-  { id: 'preferences', label: 'Preferences',  icon: '⚙' },
-  { id: 'account',     label: 'Account',      icon: '🔐' },
+const tabs: { id: Tab; label: string }[] = [
+  { id: 'profile', label: 'Profile' },
+  { id: 'preferences', label: 'Preferences' },
+  { id: 'account', label: 'Account' },
 ]
 
+const defaultViews: { id: DefaultView; label: string; desc: string }[] = [
+  { id: 'today', label: 'Today', desc: 'Daily focus' },
+  { id: 'board', label: 'Board', desc: 'Kanban work' },
+  { id: 'calendar', label: 'Calendar', desc: 'Schedule' },
+  { id: 'pomodoro', label: 'Timer', desc: 'Deep work' },
+]
+
+const panelLabel: React.CSSProperties = {
+  display: 'block',
+  color: 'rgba(255,255,255,0.46)',
+  fontSize: '11px',
+  fontWeight: 850,
+  letterSpacing: '0.12em',
+  marginBottom: '8px',
+  textTransform: 'uppercase',
+}
+
+const fieldStyle: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: '12px',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'white',
+  fontFamily: 'Inter, system-ui, sans-serif',
+  fontSize: '13px',
+  outline: 'none',
+  padding: '12px 14px',
+}
+
+function Toggle({ active, onClick, label, description }: {
+  active: boolean
+  onClick: () => void
+  label: string
+  description: string
+}) {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: '16px',
+      padding: '14px',
+      borderRadius: '14px',
+      border: '1px solid rgba(255,255,255,0.08)',
+      background: 'rgba(255,255,255,0.025)',
+    }}>
+      <div>
+        <p style={{ margin: 0, color: 'rgba(255,255,255,0.86)', fontSize: '13px', fontWeight: 760 }}>{label}</p>
+        <p style={{ margin: '3px 0 0', color: 'rgba(255,255,255,0.38)', fontSize: '12px', lineHeight: 1.35 }}>{description}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={active}
+        style={{
+          width: '44px',
+          height: '24px',
+          borderRadius: '999px',
+          border: active ? '1px solid rgba(139,92,246,0.72)' : '1px solid rgba(255,255,255,0.14)',
+          background: active ? 'rgba(139,92,246,0.72)' : 'rgba(255,255,255,0.08)',
+          cursor: 'pointer',
+          padding: 0,
+          position: 'relative',
+          flexShrink: 0,
+        }}
+      >
+        <span style={{
+          position: 'absolute',
+          top: '3px',
+          left: active ? '23px' : '3px',
+          width: '16px',
+          height: '16px',
+          borderRadius: '50%',
+          background: active ? 'white' : 'rgba(255,255,255,0.48)',
+          transition: 'left 0.18s ease',
+          boxShadow: active ? '0 0 14px rgba(255,255,255,0.5)' : 'none',
+        }} />
+      </button>
+    </div>
+  )
+}
+
 export default function SettingsModal({
-  userId, profile, onClose, onProfileUpdated,
-  nexEnabled, onToggleNex, defaultView, onDefaultViewChange,
+  userId,
+  profile,
+  onClose,
+  onProfileUpdated,
+  nexEnabled,
+  onToggleNex,
+  defaultView,
+  onDefaultViewChange,
 }: Props) {
   const [tab, setTab] = useState<Tab>('profile')
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url ?? null)
   const [savingProfile, setSavingProfile] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url ?? null)
-  const [memberSince, setMemberSince] = useState<string>('')
+  const [memberSince, setMemberSince] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    // Fetch account created date
     const fetchMeta = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (user?.created_at) {
-        setMemberSince(new Date(user.created_at).toLocaleDateString('en-US', {
-          month: 'long', day: 'numeric', year: 'numeric',
-        }))
-      }
+      if (!user?.created_at) return
+      setMemberSince(new Date(user.created_at).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }))
     }
     void fetchMeta()
   }, [])
 
-  const handleAvatarClick = () => fileRef.current?.click()
-
   const handleAvatarUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
-    // Validate
-    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return }
-    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return }
+    if (!file.type.startsWith('image/')) {
+      toast.error('Choose an image file')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5MB')
+      return
+    }
 
     setUploadingAvatar(true)
     try {
-      // Upload to Supabase Storage — path: userId/avatar.jpg
       const ext = file.name.split('.').pop() ?? 'jpg'
       const path = `${userId}/avatar.${ext}`
-
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(path, file, { upsert: true, contentType: file.type })
-
       if (uploadError) throw uploadError
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-      // Bust cache with timestamp
       const url = `${publicUrl}?t=${Date.now()}`
-
-      // Save to profiles
-      const { data, error: updateError } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update({ avatar_url: url })
         .eq('id', userId)
         .select()
         .single()
-
-      if (updateError) throw updateError
+      if (error) throw error
 
       setAvatarUrl(url)
       onProfileUpdated(data)
-      toast.success('Avatar updated!')
+      toast.success('Photo updated')
     } catch (err) {
       console.error('Avatar upload error:', err)
-      toast.error('Failed to upload avatar')
+      toast.error('Could not upload photo')
+    } finally {
+      setUploadingAvatar(false)
+      if (fileRef.current) fileRef.current.value = ''
     }
-    setUploadingAvatar(false)
-    // Reset input so same file can be re-selected
-    if (fileRef.current) fileRef.current.value = ''
   }, [userId, onProfileUpdated])
 
   const handleSaveProfile = async () => {
-    if (!fullName.trim()) { toast.error('Name cannot be empty'); return }
+    if (!fullName.trim()) {
+      toast.error('Name cannot be empty')
+      return
+    }
     setSavingProfile(true)
     const { data, error } = await supabase
       .from('profiles')
@@ -107,426 +194,248 @@ export default function SettingsModal({
       .eq('id', userId)
       .select()
       .single()
-    if (error) toast.error('Failed to save profile')
-    else { onProfileUpdated(data); toast.success('Profile updated!') }
     setSavingProfile(false)
-  }
-
-  const labelStyle = {
-    display: 'block' as const,
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: '10px', fontFamily: 'Space Mono, monospace',
-    letterSpacing: '0.18em', marginBottom: '8px',
-  }
-
-  const inputStyle = {
-    width: '100%',
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '10px', padding: '11px 14px',
-    color: 'white', fontSize: '13px',
-    fontFamily: 'Space Grotesk', outline: 'none',
-    boxSizing: 'border-box' as const,
-    transition: 'border-color 0.2s',
+    if (error) {
+      toast.error('Could not save profile')
+      return
+    }
+    onProfileUpdated(data)
+    toast.success('Profile saved')
   }
 
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         onClick={onClose}
         style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.65)',
-          backdropFilter: 'blur(6px)',
+          position: 'fixed',
+          inset: 0,
           zIndex: 200,
+          background: 'rgba(0,0,0,0.68)',
+          backdropFilter: 'blur(8px)',
+          fontFamily: 'Inter, system-ui, sans-serif',
         }}
       >
         <motion.div
-          initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 32, stiffness: 300 }}
           onClick={e => e.stopPropagation()}
           style={{
-            position: 'absolute', right: 0, top: 0, bottom: 0,
-            width: '100%', maxWidth: '480px',
-            background: '#070707',
-            borderLeft: '1px solid rgba(255,255,255,0.07)',
-            display: 'flex', flexDirection: 'column',
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: 'min(480px, 100vw)',
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#0b0c12',
+            borderLeft: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '-28px 0 80px rgba(0,0,0,0.48)',
             overflow: 'hidden',
           }}
         >
-          {/* Top accent */}
-          <div style={{ height: '2px', background: 'linear-gradient(90deg, #8b5cf6, #ec4899, #06b6d4)' }} />
-
-          {/* Header */}
-          <div style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <span style={{
-              color: 'rgba(255,255,255,0.4)', fontSize: '11px',
-              fontFamily: 'Space Mono', letterSpacing: '0.15em',
-            }}>
-              SETTINGS
-            </span>
+          <div style={{ padding: '20px 22px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ margin: 0, color: 'rgba(255,255,255,0.44)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>SETTINGS</p>
+              <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '18px', fontWeight: 820, letterSpacing: 0 }}>Workspace Preferences</h2>
+            </div>
             <button
+              type="button"
               onClick={onClose}
+              aria-label="Close settings"
               style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '11px',
+                border: '1px solid rgba(255,255,255,0.1)',
                 background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '8px', color: 'rgba(255,255,255,0.4)',
-                cursor: 'pointer', width: '32px', height: '32px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '14px',
+                color: 'rgba(255,255,255,0.62)',
+                cursor: 'pointer',
+                fontSize: '18px',
+                lineHeight: 1,
               }}
-            >✕</button>
+            >
+              x
+            </button>
           </div>
 
-          {/* Tab bar */}
-          <div style={{
-            display: 'flex', gap: '2px',
-            padding: '8px 16px',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-          }}>
-            {tabs.map(t => (
+          <div style={{ display: 'flex', gap: '6px', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            {tabs.map(item => (
               <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
+                key={item.id}
+                type="button"
+                onClick={() => setTab(item.id)}
                 style={{
-                  flex: 1, padding: '8px 4px', borderRadius: '8px', border: 'none',
-                  background: tab === t.id ? 'rgba(139,92,246,0.18)' : 'transparent',
-                  color: tab === t.id ? '#a78bfa' : 'rgba(255,255,255,0.35)',
-                  cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk',
-                  fontWeight: tab === t.id ? 600 : 400, transition: 'all 0.15s',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  flex: 1,
+                  height: '36px',
+                  borderRadius: '11px',
+                  border: tab === item.id ? '1px solid rgba(139,92,246,0.42)' : '1px solid transparent',
+                  background: tab === item.id ? 'rgba(139,92,246,0.16)' : 'transparent',
+                  color: tab === item.id ? '#c4b5fd' : 'rgba(255,255,255,0.46)',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 760,
+                  fontFamily: 'Inter, system-ui, sans-serif',
                 }}
               >
-                <span style={{ fontSize: '13px' }}>{t.icon}</span>
-                {t.label}
+                {item.label}
               </button>
             ))}
           </div>
 
-          {/* Scrollable content */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '28px 24px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '24px 22px' }}>
             <AnimatePresence mode="wait">
-
-              {/* ── PROFILE TAB ── */}
               {tab === 'profile' && (
-                <motion.div
-                  key="profile"
-                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.18 }}
-                >
-                  {/* Avatar */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
-                    <div style={{ position: 'relative', marginBottom: '12px' }}>
-                      <div
-                        onClick={handleAvatarClick}
-                        style={{ cursor: 'pointer', borderRadius: '50%', position: 'relative' }}
-                      >
-                        <Avatar
-                          name={fullName || profile?.email || 'User'}
-                          avatarUrl={avatarUrl}
-                          size={88}
-                        />
-                        {/* Upload overlay */}
-                        <div style={{
-                          position: 'absolute', inset: 0, borderRadius: '50%',
-                          background: 'rgba(0,0,0,0.55)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          opacity: 0, transition: 'opacity 0.2s',
-                          fontSize: '22px',
-                        }}
-                          onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                          onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
-                        >
-                          {uploadingAvatar ? '⟳' : '📷'}
-                        </div>
-                      </div>
-
-                      {/* Purple ring glow */}
-                      <div style={{
-                        position: 'absolute', inset: '-3px', borderRadius: '50%',
-                        border: '2px solid rgba(139,92,246,0.4)',
-                        pointerEvents: 'none',
-                      }} />
-                    </div>
-
+                <motion.div key="profile" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
                     <button
-                      onClick={handleAvatarClick}
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
                       disabled={uploadingAvatar}
-                      style={{
-                        background: 'rgba(139,92,246,0.1)',
-                        border: '1px solid rgba(139,92,246,0.25)',
-                        borderRadius: '8px', padding: '6px 16px',
-                        color: '#a78bfa', cursor: 'pointer',
-                        fontSize: '12px', fontFamily: 'Space Grotesk',
-                        transition: 'all 0.15s',
-                      }}
+                      style={{ border: 'none', background: 'transparent', padding: 0, cursor: uploadingAvatar ? 'wait' : 'pointer' }}
                     >
-                      {uploadingAvatar ? '⟳ Uploading...' : '📷 Change photo'}
+                      <Avatar name={fullName || profile?.email || 'User'} avatarUrl={avatarUrl} size={76} />
                     </button>
-                    <p style={{
-                      color: 'rgba(255,255,255,0.2)', fontSize: '11px',
-                      fontFamily: 'Space Grotesk', margin: '6px 0 0',
-                    }}>
-                      JPG, PNG or GIF · max 5MB
-                    </p>
-
-                    {/* Hidden file input */}
-                    <input
-                      ref={fileRef} type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      onChange={handleAvatarUpload}
-                      style={{ display: 'none' }}
-                    />
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => fileRef.current?.click()}
+                        disabled={uploadingAvatar}
+                        style={{
+                          height: '34px',
+                          padding: '0 14px',
+                          borderRadius: '10px',
+                          border: '1px solid rgba(139,92,246,0.3)',
+                          background: 'rgba(139,92,246,0.12)',
+                          color: '#c4b5fd',
+                          cursor: uploadingAvatar ? 'wait' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 760,
+                        }}
+                      >
+                        {uploadingAvatar ? 'Uploading...' : 'Change photo'}
+                      </button>
+                      <p style={{ margin: '7px 0 0', color: 'rgba(255,255,255,0.36)', fontSize: '12px' }}>JPG, PNG, GIF or WebP under 5MB.</p>
+                    </div>
+                    <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleAvatarUpload} style={{ display: 'none' }} />
                   </div>
 
-                  {/* Full name */}
-                  <div style={{ marginBottom: '20px' }}>
-                    <label style={labelStyle}>FULL NAME</label>
+                  <div style={{ marginBottom: '18px' }}>
+                    <label style={panelLabel}>Full Name</label>
                     <input
                       value={fullName}
                       onChange={e => setFullName(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleSaveProfile()}
-                      placeholder="Your full name"
-                      style={inputStyle}
-                      onFocus={e => e.target.style.borderColor = 'rgba(139,92,246,0.5)'}
-                      onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+                      onKeyDown={e => { if (e.key === 'Enter') void handleSaveProfile() }}
+                      placeholder="Your name"
+                      style={fieldStyle}
                     />
                   </div>
 
-                  {/* Email — read only */}
-                  <div style={{ marginBottom: '28px' }}>
-                    <label style={labelStyle}>EMAIL</label>
-                    <div style={{
-                      ...inputStyle, display: 'flex', alignItems: 'center',
-                      color: 'rgba(255,255,255,0.35)', cursor: 'default',
-                      padding: '11px 14px',
-                    }}>
-                      <span style={{ flex: 1 }}>{profile?.email ?? '—'}</span>
-                      <span style={{
-                        fontSize: '9px', fontFamily: 'Space Mono',
-                        padding: '2px 7px', borderRadius: '4px',
-                        background: 'rgba(255,255,255,0.06)',
-                        color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em',
-                      }}>
-                        READ ONLY
-                      </span>
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={panelLabel}>Email</label>
+                    <div style={{ ...fieldStyle, color: 'rgba(255,255,255,0.55)', display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.email ?? '-'}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.32)', fontSize: '11px', flexShrink: 0 }}>Read only</span>
                     </div>
                   </div>
 
-                  {/* Save */}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                    onClick={handleSaveProfile} disabled={savingProfile}
+                  <button
+                    type="button"
+                    onClick={handleSaveProfile}
+                    disabled={savingProfile}
                     style={{
                       width: '100%',
-                      background: savingProfile ? 'rgba(139,92,246,0.3)' : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                      border: 'none', borderRadius: '10px', padding: '12px',
-                      color: 'white', cursor: savingProfile ? 'not-allowed' : 'pointer',
-                      fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700,
-                      boxShadow: savingProfile ? 'none' : '0 0 20px rgba(139,92,246,0.3)',
+                      height: '44px',
+                      border: '1px solid rgba(255,255,255,0.14)',
+                      borderRadius: '12px',
+                      background: savingProfile ? 'rgba(139,92,246,0.28)' : 'linear-gradient(180deg, #9f7aea, #7c3aed)',
+                      color: 'white',
+                      cursor: savingProfile ? 'wait' : 'pointer',
+                      fontSize: '13px',
+                      fontWeight: 820,
+                      boxShadow: savingProfile ? 'none' : '0 16px 36px rgba(124,58,237,0.32)',
                     }}
                   >
-                    {savingProfile ? '⟳ Saving...' : 'Save Profile →'}
-                  </motion.button>
+                    {savingProfile ? 'Saving...' : 'Save profile'}
+                  </button>
                 </motion.div>
               )}
 
-              {/* ── PREFERENCES TAB ── */}
               {tab === 'preferences' && (
-                <motion.div
-                  key="preferences"
-                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.18 }}
-                >
-                  {/* Default view */}
-                  <div style={{ marginBottom: '28px' }}>
-                    <label style={labelStyle}>DEFAULT VIEW ON OPEN</label>
-                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: '0 0 12px' }}>
-                      Which view loads first when you open NexTask
-                    </p>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {([
-                        { id: 'today',    label: '☀ Today',    desc: 'Daily focus' },
-                        { id: 'board',    label: '⊞ Board',    desc: 'Kanban view' },
-                        { id: 'calendar', label: '⊟ Calendar', desc: 'Month view'  },
-                        { id: 'pomodoro', label: '◷ Timer', desc: 'Deep work' },
-                      ] as const).map(v => (
+                <motion.div key="preferences" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.16 }}>
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={panelLabel}>Default View</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      {defaultViews.map(item => (
                         <button
-                          key={v.id}
-                          onClick={() => onDefaultViewChange(v.id)}
+                          key={item.id}
+                          type="button"
+                          onClick={() => onDefaultViewChange(item.id)}
                           style={{
-                            flex: 1, padding: '12px 8px', borderRadius: '10px',
-                            border: `1px solid ${defaultView === v.id ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.08)'}`,
-                            background: defaultView === v.id ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.02)',
-                            color: defaultView === v.id ? '#a78bfa' : 'rgba(255,255,255,0.4)',
-                            cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk',
-                            fontWeight: defaultView === v.id ? 600 : 400,
-                            transition: 'all 0.15s', textAlign: 'center' as const,
+                            minHeight: '72px',
+                            padding: '12px',
+                            textAlign: 'left',
+                            borderRadius: '14px',
+                            border: defaultView === item.id ? '1px solid rgba(139,92,246,0.55)' : '1px solid rgba(255,255,255,0.08)',
+                            background: defaultView === item.id ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.025)',
+                            color: defaultView === item.id ? '#ddd6fe' : 'rgba(255,255,255,0.74)',
+                            cursor: 'pointer',
+                            fontFamily: 'Inter, system-ui, sans-serif',
                           }}
                         >
-                          <div style={{ fontSize: '13px', marginBottom: '2px' }}>{v.label}</div>
-                          <div style={{ fontSize: '10px', opacity: 0.6, fontFamily: 'Space Mono' }}>{v.desc}</div>
+                          <strong style={{ display: 'block', fontSize: '13px', marginBottom: '4px' }}>{item.label}</strong>
+                          <span style={{ color: 'rgba(255,255,255,0.42)', fontSize: '12px' }}>{item.desc}</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Nex Assistant toggle */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={labelStyle}>NEX AI ASSISTANT</label>
-                    <div style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '14px 16px', borderRadius: '12px',
-                      background: 'rgba(255,255,255,0.02)',
-                      border: '1px solid rgba(255,255,255,0.07)',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        {/* Mini orb */}
-                        <div style={{
-                          width: '32px', height: '32px', borderRadius: '50%',
-                          background: nexEnabled
-                            ? 'radial-gradient(circle at 35% 30%, #ede9fe, #8b5cf6 40%, #4c1d95 80%)'
-                            : 'rgba(255,255,255,0.08)',
-                          boxShadow: nexEnabled ? '0 0 12px rgba(139,92,246,0.5)' : 'none',
-                          transition: 'all 0.3s ease', flexShrink: 0,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          {!nexEnabled && <span style={{ fontSize: '14px', opacity: 0.4 }}>◉</span>}
-                        </div>
-                        <div>
-                          <p style={{ color: nexEnabled ? '#c084fc' : 'rgba(255,255,255,0.5)', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0, transition: 'color 0.3s' }}>
-                            Nex Assistant
-                          </p>
-                          <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>
-                            Voice AI — click the orb or press Space
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Toggle */}
-                      <button
-                        onClick={onToggleNex}
-                        style={{
-                          width: '44px', height: '24px', borderRadius: '12px',
-                          background: nexEnabled ? 'rgba(139,92,246,0.6)' : 'rgba(255,255,255,0.1)',
-                          border: nexEnabled ? '1px solid rgba(139,92,246,0.7)' : '1px solid rgba(255,255,255,0.15)',
-                          cursor: 'pointer', position: 'relative', transition: 'all 0.25s ease', outline: 'none',
-                          padding: 0,
-                        }}
-                      >
-                        <span style={{
-                          position: 'absolute', top: '3px',
-                          left: nexEnabled ? '22px' : '3px',
-                          width: '16px', height: '16px', borderRadius: '50%',
-                          background: nexEnabled ? '#c084fc' : 'rgba(255,255,255,0.4)',
-                          boxShadow: nexEnabled ? '0 0 8px rgba(192,132,252,0.8)' : 'none',
-                          transition: 'all 0.25s ease',
-                        }} />
-                      </button>
-                    </div>
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    <Toggle
+                      active={nexEnabled}
+                      onClick={onToggleNex}
+                      label="Nex Assistant"
+                      description="Show the assistant orb for quick task and project help."
+                    />
                   </div>
                 </motion.div>
               )}
 
-              {/* ── ACCOUNT TAB ── */}
               {tab === 'account' && (
-                <motion.div
-                  key="account"
-                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.18 }}
-                >
-                  {/* Plan */}
-                  <div style={{ marginBottom: '24px' }}>
-                    <label style={labelStyle}>PLAN</label>
-                    <div style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '14px 16px', borderRadius: '12px',
-                      background: 'rgba(139,92,246,0.06)',
-                      border: '1px solid rgba(139,92,246,0.2)',
-                    }}>
-                      <div>
-                        <p style={{ color: '#a78bfa', fontSize: '14px', fontWeight: 700, fontFamily: 'Space Grotesk', margin: 0 }}>Free Plan</p>
-                        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '3px 0 0' }}>
-                          Unlimited tasks · 5 AI uses/day · 1 workspace
-                        </p>
-                      </div>
-                      <span style={{
-                        fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em',
-                        padding: '4px 10px', borderRadius: '6px',
-                        background: 'rgba(139,92,246,0.15)',
-                        border: '1px solid rgba(139,92,246,0.3)',
-                        color: '#a78bfa', fontFamily: 'Space Mono',
+                <motion.div key="account" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.16 }}>
+                  <label style={panelLabel}>Account Details</label>
+                  <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', overflow: 'hidden', background: 'rgba(255,255,255,0.025)' }}>
+                    {[
+                      { label: 'Email', value: profile?.email ?? '-' },
+                      { label: 'Member since', value: memberSince || '-' },
+                      { label: 'User ID', value: `${userId.slice(0, 8)}...` },
+                    ].map((row, index) => (
+                      <div key={row.label} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: '16px',
+                        padding: '13px 14px',
+                        borderBottom: index < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none',
                       }}>
-                        FREE
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Account info */}
-                  <div style={{ marginBottom: '24px' }}>
-                    <label style={labelStyle}>ACCOUNT INFO</label>
-                    <div style={{
-                      borderRadius: '12px', overflow: 'hidden',
-                      border: '1px solid rgba(255,255,255,0.07)',
-                    }}>
-                      {[
-                        { label: 'Email', value: profile?.email ?? '—' },
-                        { label: 'Member since', value: memberSince || '—' },
-                        { label: 'User ID', value: userId.slice(0, 8) + '...' },
-                      ].map((row, i, arr) => (
-                        <div key={row.label} style={{
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          padding: '12px 16px',
-                          background: 'rgba(255,255,255,0.02)',
-                          borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                        }}>
-                          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '12px', fontFamily: 'Space Grotesk' }}>{row.label}</span>
-                          <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '12px', fontFamily: 'Space Mono' }}>{row.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Danger zone */}
-                  <div>
-                    <label style={{ ...labelStyle, color: 'rgba(239,68,68,0.5)' }}>DANGER ZONE</label>
-                    <div style={{
-                      padding: '14px 16px', borderRadius: '12px',
-                      background: 'rgba(239,68,68,0.04)',
-                      border: '1px solid rgba(239,68,68,0.15)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    }}>
-                      <div>
-                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', fontFamily: 'Space Grotesk', margin: 0 }}>
-                          Delete account
-                        </p>
-                        <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>
-                          Permanently remove all your data
-                        </p>
+                        <span style={{ color: 'rgba(255,255,255,0.42)', fontSize: '12px' }}>{row.label}</span>
+                        <span style={{ color: 'rgba(255,255,255,0.78)', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.value}</span>
                       </div>
-                      <button
-                        disabled
-                        style={{
-                          background: 'rgba(239,68,68,0.08)',
-                          border: '1px solid rgba(239,68,68,0.2)',
-                          borderRadius: '8px', padding: '6px 14px',
-                          color: 'rgba(239,68,68,0.4)',
-                          fontSize: '12px', fontFamily: 'Space Grotesk',
-                          cursor: 'not-allowed',
-                        }}
-                      >
-                        Coming soon
-                      </button>
-                    </div>
+                    ))}
+                  </div>
+
+                  <div style={{ marginTop: '18px', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.025)' }}>
+                    <p style={{ margin: 0, color: 'rgba(255,255,255,0.78)', fontSize: '13px', fontWeight: 760 }}>Privacy-first workspace</p>
+                    <p style={{ margin: '5px 0 0', color: 'rgba(255,255,255,0.38)', fontSize: '12px', lineHeight: 1.45 }}>
+                      Profile settings are kept here. Workspace members, invites, projects, and task data stay inside their own app surfaces.
+                    </p>
                   </div>
                 </motion.div>
               )}
-
             </AnimatePresence>
           </div>
         </motion.div>
