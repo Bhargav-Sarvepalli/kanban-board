@@ -390,7 +390,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: h.color, boxShadow: `0 0 10px ${h.color}` }} />
             <span style={{ color: h.color, fontSize: '12px', fontFamily: 'Space Mono', fontWeight: 700, letterSpacing: '0.1em' }}>{h.label}</span>
             {(h.label === 'AT RISK' || h.label === 'BEHIND') && (
-              <button onClick={() => setShowRiskInfo(v => !v)} title="Why this status?" style={{ width: '18px', height: '18px', borderRadius: '50%', border: `1px solid ${h.color}80`, background: 'rgba(0,0,0,0.18)', color: h.color, cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 900, lineHeight: '16px', padding: 0 }}>
+              <button onClick={() => setShowRiskInfo(v => !v)} title="Why this status?" style={{ width: '14px', height: '14px', borderRadius: '50%', border: `1px solid ${h.color}80`, background: 'rgba(0,0,0,0.18)', color: h.color, cursor: 'pointer', fontSize: '9px', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 900, lineHeight: '12px', padding: 0 }}>
                 i
               </button>
             )}
