@@ -146,20 +146,18 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
       const trySpeak = () => {
         const voices = window.speechSynthesis.getVoices()
         const preferred =
-          voices.find(v => v.name === 'Microsoft Aria Online (Natural) - English (United States)') ??
           voices.find(v => v.name === 'Microsoft Jenny Online (Natural) - English (United States)') ??
+          voices.find(v => v.name === 'Microsoft Aria Online (Natural) - English (United States)') ??
+          voices.find(v => v.name === 'Microsoft Sonia Online (Natural) - English (United Kingdom)') ??
+          voices.find(v => v.name === 'Google UK English Female') ??
           voices.find(v => v.name === 'Google US English') ??
           voices.find(v => v.name.toLowerCase().includes('natural') && v.lang.startsWith('en')) ??
-          voices.find(v => v.name === 'Google UK English Male') ??
-          voices.find(v => v.name === 'Microsoft Ryan Online (Natural) - English (United Kingdom)') ??
-          voices.find(v => v.name === 'Microsoft Guy Online (Natural) - English (United States)') ??
-          voices.find(v => v.lang === 'en-GB' && v.name.toLowerCase().includes('male')) ??
-          voices.find(v => v.name === 'Google UK English Female') ??
           voices.find(v => v.name === 'Samantha') ??
           voices.find(v => v.name === 'Karen') ??
+          voices.find(v => v.lang.startsWith('en') && !v.name.toLowerCase().includes('compact')) ??
           voices.find(v => v.lang.startsWith('en'))
         if (preferred) utter.voice = preferred
-        utter.rate = 1.16; utter.pitch = 0.96; utter.volume = 1
+        utter.rate = 1.08; utter.pitch = 1.04; utter.volume = 1
         utter.onstart = () => setGlobeState('speaking')
         utter.onend   = () => { setGlobeState('idle'); onDone?.() }
         utter.onerror = () => { setGlobeState('idle'); onDone?.() }

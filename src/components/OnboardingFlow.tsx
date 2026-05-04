@@ -17,8 +17,8 @@ const slides = [
     title: 'Choose where work lives',
     caption: 'Personal is private. Workspaces are for teams. Projects unlock Flow, board, calendar, and Nex.',
     visual: 'command',
-    action: 'Select Workspace',
-    done: 'Workspace selected',
+    action: 'Try it',
+    done: 'Done',
     chips: ['Personal', 'Workspace', 'Project'],
   },
   {
@@ -26,8 +26,8 @@ const slides = [
     title: 'Move work once it changes',
     caption: 'Drag cards through the board. Progress updates from what is actually done, not what someone promised.',
     visual: 'board',
-    action: 'Move card to Review',
-    done: 'Card moved',
+    action: 'Try it',
+    done: 'Moved',
     chips: ['Todo', 'Doing', 'Review', 'Done'],
   },
   {
@@ -35,7 +35,7 @@ const slides = [
     title: 'Read the project in standup',
     caption: 'Flow shows phases as the trunk and features as branches. Open a branch, clear blockers, merge when complete.',
     visual: 'flow',
-    action: 'Open Flow brief',
+    action: 'Try it',
     done: 'Brief ready',
     chips: ['Risks', 'Branches', 'Merge'],
   },
@@ -44,8 +44,8 @@ const slides = [
     title: 'Ask Nex to operate',
     caption: 'Nex can brief the manager, create tasks, update details, move cards, and delete work when you ask clearly.',
     visual: 'nex',
-    action: 'Ask for standup',
-    done: 'Nex briefed',
+    action: 'Try it',
+    done: 'Briefed',
     chips: ['Create', 'Modify', 'Delete'],
   },
 ]
@@ -124,7 +124,10 @@ function Visual({ type, acted }: { type: string; acted: boolean }) {
   if (type === 'nex') {
     return (
       <div style={{ minHeight: '172px', display: 'grid', gridTemplateColumns: '132px 1fr', gap: '16px', alignItems: 'center' }}>
-        <div style={{ width: '116px', height: '116px', borderRadius: '50%', margin: '0 auto', background: 'radial-gradient(circle at 35% 30%, #fff, #a78bfa 24%, #7c3aed 54%, #111827 82%)', boxShadow: '0 0 70px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.5)' }} />
+        <div style={{ width: '116px', height: '116px', borderRadius: '50%', margin: '0 auto', background: 'radial-gradient(circle at 35% 30%, #fff, #a78bfa 24%, #7c3aed 54%, #111827 82%)', boxShadow: '0 0 70px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.5)', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '39px', top: '47px', width: '10px', height: '10px', borderRadius: '50%', background: 'rgba(255,255,255,0.72)', boxShadow: '0 0 18px rgba(255,255,255,0.55)' }} />
+          <span style={{ position: 'absolute', right: '39px', top: '47px', width: '10px', height: '10px', borderRadius: '50%', background: 'rgba(255,255,255,0.72)', boxShadow: '0 0 18px rgba(255,255,255,0.55)' }} />
+        </div>
         <div style={{ display: 'grid', gap: '9px' }}>
           {['Health: at risk', 'Attention: Flow Graph', acted ? 'Decision: move to review' : 'Ask: standup brief'].map((line, i) => (
             <div key={line} style={{ borderRadius: '13px', padding: '10px 12px', background: i === 1 ? 'rgba(236,72,153,0.12)' : 'rgba(255,255,255,0.055)', border: i === 1 ? '1px solid rgba(236,72,153,0.35)' : '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.84)', fontSize: '12px', fontWeight: 760 }}>{line}</div>
@@ -140,15 +143,15 @@ function Visual({ type, acted }: { type: string; acted: boolean }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: 'linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4)', display: 'grid', placeItems: 'center', color: 'white', fontWeight: 900 }}>N</div>
           <div>
-            <p style={{ margin: 0, color: 'white', fontSize: '14px', fontWeight: 850 }}>NexTask Launch</p>
+            <p style={{ margin: 0, color: 'white', fontSize: '14px', fontWeight: 850 }}>Product Launch</p>
             <p style={{ margin: '3px 0 0', color: 'rgba(255,255,255,0.54)', fontSize: '11px' }}>Team project</p>
           </div>
         </div>
-        <MiniLabel active={acted}>Workspace selected</MiniLabel>
+        <MiniLabel active={acted}>Team workspace</MiniLabel>
         <MiniLabel>Board + Flow ready</MiniLabel>
       </div>
       <div style={{ display: 'grid', gap: '10px' }}>
-        {['Personal', "Sree's Space", 'New project'].map((label, i) => (
+        {['Personal', 'Team Workspace', 'New project'].map((label, i) => (
           <div key={label} style={{ borderRadius: '15px', padding: '12px', background: i === 1 && acted ? 'rgba(139,92,246,0.22)' : 'rgba(255,255,255,0.045)', border: i === 1 && acted ? '1px solid rgba(139,92,246,0.5)' : '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.84)', fontSize: '12px', fontWeight: 800 }}>{label}</div>
         ))}
       </div>
@@ -231,8 +234,8 @@ export default function OnboardingFlow({ userId, userName, onComplete }: Props) 
                     {slide.chips.map(chip => <MiniLabel key={chip}>{chip}</MiniLabel>)}
                   </div>
                 </div>
-                <button type="button" onClick={runAction} style={{ height: '44px', padding: '0 17px', borderRadius: '14px', border: acted ? '1px solid rgba(34,197,94,0.45)' : '1px solid rgba(255,255,255,0.16)', background: acted ? 'rgba(34,197,94,0.14)' : 'linear-gradient(135deg, rgba(236,72,153,0.92), rgba(139,92,246,0.92), rgba(6,182,212,0.92))', color: 'white', cursor: 'pointer', fontWeight: 850, whiteSpace: 'nowrap', boxShadow: acted ? 'none' : '0 18px 42px rgba(139,92,246,0.3)' }}>
-                  {acted ? slide.done : slide.action}
+                <button type="button" onClick={runAction} aria-label={`${slide.action}: ${slide.title}`} style={{ width: '46px', height: '46px', borderRadius: '50%', border: acted ? '1px solid rgba(34,197,94,0.55)' : '1px solid rgba(255,255,255,0.18)', background: acted ? 'rgba(34,197,94,0.16)' : 'linear-gradient(135deg, rgba(236,72,153,0.94), rgba(139,92,246,0.94), rgba(6,182,212,0.94))', color: 'white', cursor: 'pointer', fontWeight: 900, fontSize: '18px', boxShadow: acted ? 'none' : '0 16px 34px rgba(139,92,246,0.26)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  {acted ? '✓' : '›'}
                 </button>
               </div>
             </motion.div>
