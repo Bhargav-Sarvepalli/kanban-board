@@ -112,7 +112,7 @@ function App() {
   }
 
   useEffect(() => {
-    if (location.pathname !== '/app') return
+    if (!location.pathname.startsWith('/app')) return
     const params = new URLSearchParams(location.search)
     const routeView = params.get('view')
     const workspaceId = params.get('workspace')
@@ -430,7 +430,7 @@ function App() {
             <div style={{ marginBottom: '14px' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '5px', padding: '3px 10px' }}>
                 <span style={{ color: '#a78bfa', fontSize: '12px' }}>
-                  {branchFilter.mode === 'feature' ? '🌿' : '👤'} {branchFilter.name}
+                  {branchFilter.mode === 'feature' ? 'Feature' : 'Owner'}: {branchFilter.name}
                 </span>
                 <button onClick={() => { setBranchFilter(null); updateAppUrl('board', { feature: null }) }} style={{ background: 'none', border: 'none', color: '#6b6b7b', cursor: 'pointer', fontSize: '12px', padding: 0 }}>✕</button>
               </div>

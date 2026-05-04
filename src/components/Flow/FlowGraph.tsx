@@ -161,7 +161,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     })
   }, [projectId])
 
-  const canvasH = Math.max(svgH, 920)
+  const canvasH = Math.max(svgH, 1040)
   const TRUNK_Y = Math.round(canvasH * 0.52)
 
   const layout = useMemo<{ branches: BranchLayout[]; svgWidth: number; nowX: number; milestoneNodes: MilestoneLayout[] } | null>(() => {
@@ -330,7 +330,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const trunkEnd = layout.svgWidth - 60
   const nowX     = layout.nowX
   const pastX    = nowX * 0.44
-  const trunkPath = `M 60 ${TRUNK_Y} C ${layout.svgWidth * 0.26} ${TRUNK_Y - 18}, ${layout.svgWidth * 0.48} ${TRUNK_Y + 18}, ${layout.svgWidth * 0.7} ${TRUNK_Y - 8} S ${layout.svgWidth - 220} ${TRUNK_Y + 12}, ${trunkEnd} ${TRUNK_Y}`
+  const trunkPath = `M 60 ${TRUNK_Y} L ${trunkEnd} ${TRUNK_Y}`
 
   return (
     <div ref={rootRef} style={{
@@ -406,20 +406,13 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
           </div>
         </div>
 
-        {/* Right: MY TASKS + STANDUP */}
+        {/* Right: manager actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {projectId && (
             <button onClick={() => setAttentionOnly(v => !v)}
               style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: attentionOnly ? 'rgba(248,113,113,0.16)' : 'rgba(255,255,255,0.07)', border: `1px solid ${attentionOnly ? 'rgba(248,113,113,0.45)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: attentionOnly ? '#fca5a5' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: attentionOnly ? '#f87171' : 'rgba(255,255,255,0.4)' }} />
               ATTENTION
-            </button>
-          )}
-          {projectId && (
-            <button onClick={() => setShowTaskPaths(v => !v)}
-              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: showTaskPaths ? 'rgba(96,165,250,0.16)' : 'rgba(255,255,255,0.07)', border: `1px solid ${showTaskPaths ? 'rgba(96,165,250,0.45)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: showTaskPaths ? '#93c5fd' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
-              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: showTaskPaths ? '#60a5fa' : 'rgba(255,255,255,0.4)' }} />
-              TASK PATHS
             </button>
           )}
           {myBranchIds.size > 0 && (
@@ -431,8 +424,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
           )}
           {branches.length > 0 && (
             <button onClick={() => onOpenStandup?.()}
-              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', color: '#f87171', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
-              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#ef4444' }} />
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.28)', borderRadius: '8px', color: '#c4b5fd', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#a78bfa' }} />
               STANDUP
             </button>
           )}
@@ -447,7 +440,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       }}>
         {projectId && (
           <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch', flexShrink: 0 }}>
-            <div style={{ width: showBriefDetails ? '430px' : '310px', padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)' }}>
+            <div style={{ width: showBriefDetails ? '430px' : '330px', padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '7px' }}>
                 <p style={{ margin: 0, color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>STANDUP BRIEF</p>
                 <button onClick={() => setShowBriefDetails(v => !v)}
@@ -601,6 +594,35 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             )}
           </svg>
         </button>
+        {projectId && (
+          <button
+            onClick={() => setShowTaskPaths(v => !v)}
+            title={showTaskPaths ? 'Hide task paths' : 'Show task paths'}
+            style={{
+              position: 'absolute',
+              top: '58px',
+              right: '18px',
+              zIndex: 20,
+              width: '36px',
+              height: '36px',
+              borderRadius: '9px',
+              border: `1px solid ${showTaskPaths ? 'rgba(96,165,250,0.42)' : 'rgba(255,255,255,0.16)'}`,
+              background: showTaskPaths ? 'rgba(37,99,235,0.34)' : 'rgba(12,12,18,0.72)',
+              color: showTaskPaths ? '#bfdbfe' : 'rgba(255,255,255,0.68)',
+              display: 'grid',
+              placeItems: 'center',
+              cursor: 'pointer',
+              backdropFilter: 'blur(10px)',
+            }}>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M3 5.2h5.2c1.5 0 2.3.8 2.3 2.2v3.2c0 1.4.8 2.2 2.3 2.2H15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              <path d="M3 12.8h3.4c1.2 0 1.9-.7 1.9-1.9V7.1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              <circle cx="3" cy="5.2" r="1.4" fill="currentColor" />
+              <circle cx="3" cy="12.8" r="1.4" fill="currentColor" />
+              <circle cx="15" cy="12.8" r="1.4" fill="currentColor" />
+            </svg>
+          </button>
+        )}
         <div ref={scrollRef}
           onMouseDown={e => { setDragging(true); setDrag0({ x: e.clientX, scroll: scrollRef.current?.scrollLeft ?? 0 }) }}
           onMouseMove={e => { if (!dragging) return; e.preventDefault(); if (scrollRef.current) scrollRef.current.scrollLeft = drag0.scroll - (e.clientX - drag0.x) }}
@@ -631,9 +653,6 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                 </filter>
               ))}
             </defs>
-
-            {/* Single subtle NOW marker — just a thin line, no labels */}
-            <line x1={nowX} y1={0} x2={nowX} y2={canvasH} stroke="rgba(167,139,250,0.2)" strokeWidth={1} strokeDasharray="4 6" />
 
             {layout.milestoneNodes.map((m, i) => {
               const nextX = layout.milestoneNodes[i + 1]?.x ?? m.x + PHASE_SPACING
@@ -695,9 +714,11 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
               const isMerged   = mergedBranchIds.has(branch.id)
               const canMerge   = projectId && branch.total > 0 && branch.done === branch.total && !isMerged
               const branchEndX = cardX + BRANCH_CARD_W
-              const forkPull = above ? -36 : 36
-              const branchPath = `M ${originX} ${TRUNK_Y} C ${originX + 28} ${TRUNK_Y + forkPull}, ${cardX - 96} ${connectorY}, ${cardX} ${connectorY}`
-              const returnPath = `M ${branchEndX} ${connectorY} C ${branchEndX + 86} ${connectorY}, ${mergeX - 78} ${TRUNK_Y}, ${mergeX} ${TRUNK_Y}`
+              const forkPull = above ? -42 : 42
+              const cardPull = above ? 18 : -18
+              const branchPath = `M ${originX} ${TRUNK_Y} C ${originX + 40} ${TRUNK_Y + forkPull}, ${cardX - 88} ${connectorY + cardPull}, ${cardX} ${connectorY}`
+              const returnPath = `M ${branchEndX} ${connectorY} C ${branchEndX + 74} ${connectorY}, ${mergeX - 70} ${TRUNK_Y}, ${mergeX} ${TRUNK_Y}`
+              const showMergePath = canMerge || mergingId === branch.id || (isMerged && isHov)
 
               return (
                 <g key={branch.id}
@@ -718,12 +739,12 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                     className={signals.atRisk ? 'fg-attention-flow' : undefined}
                     style={{ transition: 'all 0.2s' }}
                   />
-                  <circle cx={originX} cy={TRUNK_Y} r={isHov ? 7 : 5}
-                    fill={isMerged ? '#22c55e' : signals.atRisk ? '#f87171' : branch.color} opacity={isHov ? 1 : 0.78}
+                  <circle cx={originX} cy={TRUNK_Y} r={isHov ? 6 : 4}
+                    fill={isMerged ? '#22c55e' : signals.atRisk ? '#f87171' : branch.color} opacity={isHov ? 1 : 0.58}
                     filter={isHov ? `url(#fg-gf-${branch.id})` : undefined}
                     style={{ transition: 'all 0.2s' }}
                   />
-                  {(canMerge || isMerged || mergingId === branch.id) && (
+                  {showMergePath && (
                     <path
                       d={returnPath}
                       fill="none" stroke="#22c55e"
