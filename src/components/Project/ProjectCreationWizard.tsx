@@ -157,27 +157,43 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
     try {
       const uniqueEmails = [...new Set(invitedEmails.map(e => e.trim().toLowerCase()).filter(Boolean))]
       if (uniqueEmails.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id,email')
-          .in('email', uniqueEmails)
+        if (createdProject.workspace_id) {
+          const { data: existingInvites } = await supabase
+            .from('workspace_invites')
+            .select('email')
+            .eq('workspace_id', createdProject.workspace_id)
+            .eq('status', 'pending')
+            .in('email', uniqueEmails)
+          const pendingEmails = new Set((existingInvites ?? []).map(i => i.email))
+          const inviteRows = uniqueEmails
+            .filter(email => !pendingEmails.has(email))
+            .map(email => ({ workspace_id: createdProject.workspace_id, invited_by: userId, email, role: 'member' }))
+          if (inviteRows.length > 0) {
+            await supabase.from('workspace_invites').insert(inviteRows)
+          }
+        } else {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id,email')
+            .in('email', uniqueEmails)
 
-        const profileIds = (profiles ?? []).map(p => p.id).filter(id => id !== userId)
-        const { data: existingMembers } = profileIds.length > 0
-          ? await supabase
-              .from('project_members')
-              .select('user_id')
-              .eq('project_id', createdProject.id)
-              .in('user_id', profileIds)
-          : { data: [] }
+          const profileIds = (profiles ?? []).map(p => p.id).filter(id => id !== userId)
+          const { data: existingMembers } = profileIds.length > 0
+            ? await supabase
+                .from('project_members')
+                .select('user_id')
+                .eq('project_id', createdProject.id)
+                .in('user_id', profileIds)
+            : { data: [] }
 
-        const existingIds = new Set((existingMembers ?? []).map(m => m.user_id))
-        const memberRows = profileIds
-          .filter(id => !existingIds.has(id))
-          .map(id => ({ project_id: createdProject.id, user_id: id, role: 'member' }))
+          const existingIds = new Set((existingMembers ?? []).map(m => m.user_id))
+          const memberRows = profileIds
+            .filter(id => !existingIds.has(id))
+            .map(id => ({ project_id: createdProject.id, user_id: id, role: 'member' }))
 
-        if (memberRows.length > 0) {
-          await supabase.from('project_members').insert(memberRows)
+          if (memberRows.length > 0) {
+            await supabase.from('project_members').insert(memberRows)
+          }
         }
       }
 
