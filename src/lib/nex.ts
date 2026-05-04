@@ -3,10 +3,12 @@ import { supabase } from '../supabase'
 export type NexTool =
   | 'get_task_summary'
   | 'create_task'
+  | 'update_task'
   | 'update_task_status'
   | 'delete_task'
   | 'start_focus_session'
   | 'get_daily_briefing'
+  | 'get_standup_briefing'
   | 'suggest_next_task'
 
 export interface TaskContext {
@@ -17,6 +19,7 @@ export interface TaskContext {
     priority: string | null
     due_date: string | null
     description: string | null
+    feature_id?: string | null
   }[]
   workspaceName: string
   projectName?: string
@@ -67,19 +70,35 @@ const NEX_SYSTEM_PROMPT = (ctx: TaskContext) => {
   const now = new Date()
   const today = fmt(now)
   const tomorrow = fmt(new Date(now.getTime() + 86400000))
-  return `You are Nex, an AI assistant built into NexTask — a Kanban productivity system.
+  return `You are Nex, an AI assistant built into NexTask, a Kanban productivity system.
 
-Personality: Calm, precise, quietly intelligent. Like Jarvis — efficient, occasionally dry wit. Never verbose. No filler phrases.
+Personality: Calm, precise, quietly intelligent. Jarvis-like: efficient, occasionally dry wit. Never verbose. No filler phrases.
 
 Rules:
 - Plain text only. No asterisks, bullets, markdown. Output read aloud via TTS.
 - Never open with: Sure, Of course, Certainly, Great, Absolutely, Happy to.
 - Every response under 2 sentences unless a full briefing.
-- You have FULL conversation memory — you remember everything said in this session.
-- When user refers to "that task", "the one I just mentioned", "the overdue one" — use context from earlier in the conversation.
+- You have FULL conversation memory. You remember everything said in this session.
+- When user refers to "that task", "the one I just mentioned", "the overdue one", use context from earlier in the conversation.
 - Never say you don't remember something that was said in this conversation.
 - Today: ${today} | Tomorrow: ${tomorrow}
 - Time: ${now.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+
+NexTask product map:
+- Personal is private work. Workspace is shared team work.
+- Project Dashboard shows project health, links, features, and activity.
+- Board moves tasks through todo, in_progress, in_review, done.
+- Flow is the manager map: phases are the trunk, features are branches, and a branch is merge-ready when its tasks are done.
+- Calendar combines task dates and manual meeting entries.
+- Timer is a fullscreen focus clock with optional beats.
+- Standup mode should clarify risk, current progress, stale work, and decisions.
+
+Manager and standup behavior:
+- Speak like a chief of staff. Start with health, then risks, then decisions.
+- Do not list everything. Surface what needs attention.
+- High-priority or overdue unfinished tasks are risk items.
+- If asked for standup, briefing, project health, or what to tell the team, use get_standup_briefing.
+- If asked to create, modify, move, or delete work, use tools when intent is clear.
 
 When disambiguating tasks with the same name:
 - "the overdue one" = task with due_date < today
@@ -88,6 +107,8 @@ When disambiguating tasks with the same name:
 - Always confirm which specific task you're acting on before deleting
 
 Creating tasks: extract title (remove filler words), priority (urgent→high, default→normal), due_date (resolve relative dates).
+
+Modifying tasks: use update_task for title, priority, due date, or description. Use update_task_status for column movement.
 
 Board: ${ctx.projectName ? `${ctx.workspaceName} / ${ctx.projectName}` : ctx.isPersonal ? 'Personal' : ctx.workspaceName}
 Tasks (include IDs for precise operations):
@@ -98,7 +119,7 @@ ${ctx.tasks.length === 0
         const isOverdue = t.due_date && t.due_date < today2 && t.status !== 'done'
         const isDueToday = t.due_date === today2
         const flag = isOverdue ? ' [OVERDUE]' : isDueToday ? ' [DUE TODAY]' : ''
-        return `[ID:${t.id}] [${t.status}] ${t.title} — ${t.priority ?? 'normal'}${t.due_date ? ` — due ${t.due_date}${flag}` : ' — no date'}`
+        return `[ID:${t.id}] [${t.status}] ${t.title} - ${t.priority ?? 'normal'}${t.due_date ? ` - due ${t.due_date}${flag}` : ' - no date'}`
       }).join('\n')}`.trim()
 }
 
@@ -136,6 +157,22 @@ const NEX_TOOLS = [
     },
   },
   {
+    name: 'update_task',
+    description: 'Modify a task title, priority, due date, or description. Use exact task_id when possible.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        task_id:         { type: 'string', description: 'Exact task ID from context. Prefer this over title hint.' },
+        task_title_hint: { type: 'string', description: 'Partial title for fuzzy matching only if ID unknown.' },
+        title:           { type: 'string', description: 'New title if requested.' },
+        priority:        { type: 'string', enum: ['low', 'normal', 'high'], description: 'New priority if requested.' },
+        due_date:        { type: 'string', description: 'New relative or absolute date. Empty string clears date only if explicitly requested.' },
+        description:     { type: 'string', description: 'New description/details if requested.' },
+      },
+      required: [],
+    },
+  },
+  {
     name: 'delete_task',
     description: 'Permanently delete a task. Use exact task_id. When multiple tasks have the same name, use the ID of the specific one based on user description (overdue, due today, no date).',
     input_schema: {
@@ -161,7 +198,12 @@ const NEX_TOOLS = [
   },
   {
     name: 'get_daily_briefing',
-    description: 'Full status briefing — overdue, due today, in progress.',
+    description: 'Full status briefing: overdue, due today, in progress.',
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'get_standup_briefing',
+    description: 'Manager standup briefing with health, risks, active work, completed work, and decisions needed.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
@@ -226,10 +268,31 @@ export async function executeNexTool(
       const dueToday   = ctx.tasks.filter(t => t.due_date === today && t.status !== 'done')
       const inProgress = ctx.tasks.filter(t => t.status === 'in_progress')
       const parts: string[] = []
-      if (overdue.length)    parts.push(`${overdue.length} overdue — first: ${overdue[0].title}`)
+      if (overdue.length)    parts.push(`${overdue.length} overdue. First: ${overdue[0].title}`)
       if (dueToday.length)   parts.push(`${dueToday.length} due today`)
       if (inProgress.length) parts.push(`${inProgress.length} in progress`)
       return { result: parts.length ? parts.join('. ') + '.' : 'No urgent items. Board looks healthy.' }
+    }
+
+    case 'get_standup_briefing': {
+      const today = fmt(new Date())
+      const open = ctx.tasks.filter(t => t.status !== 'done')
+      const done = ctx.tasks.filter(t => t.status === 'done')
+      const overdue = open.filter(t => t.due_date && t.due_date < today)
+      const high = open.filter(t => t.priority === 'high')
+      const active = ctx.tasks.filter(t => t.status === 'in_progress')
+      const review = ctx.tasks.filter(t => t.status === 'in_review')
+      const health = overdue.length > 0 ? 'at risk' : review.length > 0 ? 'needs review' : active.length > 0 ? 'moving' : 'quiet'
+      const risks = overdue[0]?.title ?? high[0]?.title ?? null
+      const parts = [
+        `Health: ${health}`,
+        `${done.length}/${ctx.tasks.length} done`,
+        active.length ? `${active.length} active` : 'no active tasks',
+        review.length ? `${review.length} in review` : 'nothing waiting for review',
+      ]
+      if (risks) parts.push(`Attention: ${risks}`)
+      else parts.push('No immediate risk flagged')
+      return { result: parts.join('. ') + '.' }
     }
 
     case 'suggest_next_task': {
@@ -284,6 +347,31 @@ export async function executeNexTool(
       return { result: `Done. ${task?.title ?? 'Task'} is now ${newStatus.replace(/_/g, ' ')}.`, action: { type: 'update_task_status', data: { taskId, newStatus } } }
     }
 
+    case 'update_task': {
+      let taskId = input.task_id as string | undefined
+      if (!taskId && input.task_title_hint) {
+        const hint = (input.task_title_hint as string).toLowerCase()
+        const match = ctx.tasks.find(t => t.title.toLowerCase().includes(hint))
+        if (match) taskId = match.id
+      }
+      if (!taskId) return { result: "Couldn't identify that task. Be more specific." }
+
+      const patch: Record<string, unknown> = {
+        last_edited_by: userId,
+        last_edited_at: new Date().toISOString(),
+      }
+      if (typeof input.title === 'string' && input.title.trim()) patch.title = input.title.trim()
+      if (typeof input.priority === 'string') patch.priority = input.priority === 'medium' ? 'normal' : input.priority
+      if (typeof input.due_date === 'string') patch.due_date = input.due_date.trim() ? resolveDate(input.due_date) : null
+      if (typeof input.description === 'string') patch.description = input.description.trim() || null
+
+      if (Object.keys(patch).length <= 2) return { result: 'No change detected.' }
+      const { error } = await supabase.from('tasks').update(patch).eq('id', taskId)
+      if (error) return { result: `Update failed. ${error.message}` }
+      const task = ctx.tasks.find(t => t.id === taskId)
+      return { result: `Updated ${task?.title ?? 'task'}.`, action: { type: 'update_task', data: { taskId, patch } } }
+    }
+
     case 'delete_task': {
       let taskId = input.task_id as string | undefined
       if (!taskId && input.task_title_hint) {
@@ -309,7 +397,7 @@ export async function executeNexTool(
   }
 }
 
-// Multi-turn conversation — history passed in, new messages appended
+// Multi-turn conversation: history passed in, new messages appended
 export async function askNex(
   transcript: string,
   ctx: TaskContext,

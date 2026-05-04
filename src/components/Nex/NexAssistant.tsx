@@ -102,7 +102,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
 
   const loadContext = useCallback(async () => {
     if (!userId) return undefined
-    let q = supabase.from('tasks').select('id,title,status,priority,due_date,description')
+    let q = supabase.from('tasks').select('id,title,status,priority,due_date,description,feature_id')
     if (projectId) q = q.eq('project_id', projectId)
     else if (workspaceId) q = q.eq('workspace_id', workspaceId).is('project_id', null)
     else q = q.is('workspace_id', null).is('project_id', null).eq('user_id', userId)
@@ -146,13 +146,16 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
       const trySpeak = () => {
         const voices = window.speechSynthesis.getVoices()
         const preferred =
+          voices.find(v => v.name === 'Google UK English Male') ??
+          voices.find(v => v.name === 'Microsoft Ryan Online (Natural) - English (United Kingdom)') ??
+          voices.find(v => v.name === 'Microsoft Guy Online (Natural) - English (United States)') ??
+          voices.find(v => v.lang === 'en-GB' && v.name.toLowerCase().includes('male')) ??
           voices.find(v => v.name === 'Google UK English Female') ??
           voices.find(v => v.name === 'Samantha') ??
           voices.find(v => v.name === 'Karen') ??
-          voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('female')) ??
           voices.find(v => v.lang.startsWith('en'))
         if (preferred) utter.voice = preferred
-        utter.rate = 1.05; utter.pitch = 0.82; utter.volume = 1
+        utter.rate = 1.02; utter.pitch = 0.72; utter.volume = 1
         utter.onstart = () => setGlobeState('speaking')
         utter.onend   = () => { setGlobeState('idle'); onDone?.() }
         utter.onerror = () => { setGlobeState('idle'); onDone?.() }
@@ -165,7 +168,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
 
   const handleAction = useCallback((action: NexActionResult) => {
     void loadContext()
-    if (action.type === 'create_task' || action.type === 'delete_task' || action.type === 'update_task_status') {
+    if (action.type === 'create_task' || action.type === 'delete_task' || action.type === 'update_task_status' || action.type === 'update_task') {
       onTaskCreated?.()
     }
   }, [loadContext, onTaskCreated])
@@ -367,7 +370,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
             {isIdle && messages.length > 0 && (
               <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                 {[
-                  { label: 'Briefing',     cmd: 'Give me a daily briefing' },
+                  { label: 'Standup',      cmd: 'Give me a standup briefing' },
                   { label: "What's next?", cmd: 'What should I work on next?' },
                   { label: 'Add a task',   cmd: null },
                   { label: 'Mark done',    cmd: null },

@@ -28,7 +28,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 type AppView = 'today' | 'board' | 'calendar' | 'flow' | 'dashboard' | 'pomodoro'
-const ONBOARDING_VERSION = '2026-flow-productivity-v2'
+const ONBOARDING_VERSION = '2026-visual-quickstart-v3'
 
 function isAppView(value: string | null): value is AppView {
   return value === 'today' || value === 'board' || value === 'calendar' || value === 'flow' || value === 'dashboard' || value === 'pomodoro'
