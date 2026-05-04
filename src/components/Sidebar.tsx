@@ -163,16 +163,16 @@ export default function Sidebar({
   currentView, availableViews, onViewChange,
   onSettings, onLogout, onWorkspaceLogoUpdated,
 }: Props) {
-  const wsWithLogo = currentWorkspace
-  const [wsLogoUrl,      setWsLogoUrl]      = useState(wsWithLogo?.logo_url ?? null)
+  const [logoOverrides,  setLogoOverrides]  = useState<Record<string, string>>({})
   const [collapsed,      setCollapsed]      = useState(false)
   const [showWorkspaces, setShowWorkspaces] = useState(false)
   const [showProjects,   setShowProjects]   = useState(true)
 
   const visibleNav = NAV_ITEMS.filter(n => (availableViews as string[]).includes(n.id))
+  const wsLogoUrl = currentWorkspace ? logoOverrides[currentWorkspace.id] ?? currentWorkspace.logo_url ?? null : null
 
   const handleWorkspaceLogoUploaded = (url: string) => {
-    setWsLogoUrl(url)
+    if (currentWorkspace) setLogoOverrides(prev => ({ ...prev, [currentWorkspace.id]: url }))
     onWorkspaceLogoUpdated(url)
   }
 

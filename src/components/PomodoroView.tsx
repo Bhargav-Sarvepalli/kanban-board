@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type Mode = 'focus' | 'short' | 'long'
+type BrowserAudioContext = typeof AudioContext
 
 const MODES: Record<Mode, { label: string; minutes: number; tone: string; sub: string }> = {
   focus: { label: 'Focus', minutes: 25, tone: '#8b5cf6', sub: 'Deep work' },
@@ -92,7 +93,9 @@ export default function PomodoroView() {
   }, [mode, focusCount])
 
   const ensureAudio = useCallback(() => {
-    if (!audioRef.current) audioRef.current = new AudioContext()
+    const AudioCtor = window.AudioContext || (window as Window & { webkitAudioContext?: BrowserAudioContext }).webkitAudioContext
+    if (!AudioCtor) return null
+    if (!audioRef.current) audioRef.current = new AudioCtor()
     if (audioRef.current.state === 'suspended') void audioRef.current.resume()
     return audioRef.current
   }, [])
@@ -100,18 +103,19 @@ export default function PomodoroView() {
   const playTone = useCallback((kind: 'tick' | 'start' | 'done', force = false) => {
     if (!soundOn && !force) return
     const ctx = ensureAudio()
+    if (!ctx) return
     const now = ctx.currentTime
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     osc.type = kind === 'tick' ? 'sine' : 'triangle'
-    osc.frequency.setValueAtTime(kind === 'done' ? 660 : kind === 'start' ? 392 : 196, now)
+    osc.frequency.setValueAtTime(kind === 'done' ? 740 : kind === 'start' ? 440 : 220, now)
     gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.exponentialRampToValueAtTime(kind === 'tick' ? 0.026 : 0.08, now + 0.015)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + (kind === 'tick' ? 0.08 : 0.22))
+    gain.gain.exponentialRampToValueAtTime(kind === 'tick' ? 0.085 : 0.16, now + 0.012)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + (kind === 'tick' ? 0.12 : 0.28))
     osc.connect(gain)
     gain.connect(ctx.destination)
     osc.start(now)
-    osc.stop(now + (kind === 'tick' ? 0.1 : 0.24))
+    osc.stop(now + (kind === 'tick' ? 0.14 : 0.3))
   }, [ensureAudio, soundOn])
 
   useEffect(() => {
@@ -154,7 +158,7 @@ export default function PomodoroView() {
   const toggleRun = () => {
     if (!running) {
       if (soundOn) playTone('start')
-      else if (audioRef.current?.state === 'suspended') void audioRef.current.resume()
+      else void ensureAudio()?.resume()
     }
     setRunning(r => !r)
   }
@@ -191,13 +195,18 @@ export default function PomodoroView() {
       placeItems: 'center',
       position: 'relative',
       overflow: 'hidden',
+      padding: isFullscreen ? 'clamp(24px, 4vh, 54px)' : 0,
       background: 'radial-gradient(circle at 50% 18%, rgba(139,92,246,0.16), transparent 36%), radial-gradient(circle at 30% 80%, rgba(45,212,191,0.08), transparent 32%), #07080d',
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
       <section style={{
-        width: 'min(980px, calc(100vw - 72px))',
-        borderRadius: '36px',
-        padding: '26px',
+        width: isFullscreen ? 'min(1280px, 100%)' : 'min(980px, calc(100vw - 72px))',
+        minHeight: isFullscreen ? '100%' : undefined,
+        boxSizing: 'border-box',
+        borderRadius: isFullscreen ? '42px' : '36px',
+        padding: isFullscreen ? 'clamp(30px, 4vw, 56px)' : '26px',
+        display: isFullscreen ? 'flex' : undefined,
+        flexDirection: isFullscreen ? 'column' : undefined,
         background: 'linear-gradient(180deg, rgba(34,37,50,0.97), rgba(14,16,25,0.99))',
         border: '1px solid rgba(255,255,255,0.11)',
         boxShadow: '0 38px 110px rgba(0,0,0,0.66), inset 0 1px 0 rgba(255,255,255,0.08)',
@@ -247,11 +256,11 @@ export default function PomodoroView() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 1fr) 286px', gap: '32px', alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isFullscreen ? 'minmax(560px, 1fr) 340px' : 'minmax(420px, 1fr) 286px', gap: isFullscreen ? '54px' : '32px', alignItems: 'center', flex: isFullscreen ? 1 : undefined }}>
           <div style={{ display: 'grid', placeItems: 'center' }}>
             <div style={{
-              width: '430px',
-              height: '430px',
+              width: isFullscreen ? 'min(58vh, 560px)' : '430px',
+              height: isFullscreen ? 'min(58vh, 560px)' : '430px',
               borderRadius: '50%',
               position: 'relative',
               display: 'grid',
@@ -268,7 +277,7 @@ export default function PomodoroView() {
                   boxShadow: `0 0 36px ${MODES[mode].tone}22`,
                 }} />
               )}
-              <svg width="430" height="430" viewBox="0 0 430 430" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
+              <svg width="100%" height="100%" viewBox="0 0 430 430" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
                 <circle cx="215" cy="215" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="18" />
                 <circle cx="215" cy="215" r={radius} fill="none" stroke={MODES[mode].tone} strokeWidth="18" strokeLinecap="round"
                   strokeDasharray={circumference} strokeDashoffset={circumference * (1 - progress)}

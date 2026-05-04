@@ -125,12 +125,23 @@ function App() {
       queueMicrotask(() => setView(routeView))
     }
 
-    if (workspaceId && workspaces.length > 0 && currentWorkspace?.id !== workspaceId) {
+    if (!workspaceId && currentWorkspace) {
+      queueMicrotask(() => {
+        setCurrentWorkspace(null)
+        setCurrentProject(null)
+        setBranchFilter(null)
+      })
+    } else if (workspaceId && workspaces.length > 0 && currentWorkspace?.id !== workspaceId) {
       const workspace = workspaces.find(ws => ws.id === workspaceId)
       if (workspace) queueMicrotask(() => setCurrentWorkspace(workspace))
     }
 
-    if (projectId && projects.length > 0 && currentProject?.id !== projectId) {
+    if (!projectId && currentProject) {
+      queueMicrotask(() => {
+        setCurrentProject(null)
+        setBranchFilter(null)
+      })
+    } else if (projectId && projects.length > 0 && currentProject?.id !== projectId) {
       const project = projects.find(p => p.id === projectId)
       if (project) queueMicrotask(() => setCurrentProject(project))
     }
@@ -144,14 +155,18 @@ function App() {
     } else if (isAppView(routeView) && routeView !== 'board') {
       queueMicrotask(() => setBranchFilter(null))
     }
-  }, [location.pathname, location.search, workspaces, projects, currentWorkspace?.id, currentProject?.id, view])
+  }, [location.pathname, location.search, workspaces, projects, currentWorkspace, currentWorkspace?.id, currentProject, currentProject?.id, view])
 
   const prevWsRef = useRef<string | undefined>(currentWorkspace?.id)
-  if (prevWsRef.current !== currentWorkspace?.id) {
+  useEffect(() => {
+    if (prevWsRef.current === currentWorkspace?.id) return
     prevWsRef.current = currentWorkspace?.id
-    if (currentProject !== null) setCurrentProject(null)
-    if (view === 'flow' || view === 'dashboard') setView('board')
-  }
+    queueMicrotask(() => {
+      setCurrentProject(null)
+      setBranchFilter(null)
+      if (view === 'flow' || view === 'dashboard') setView(currentWorkspace ? 'board' : 'today')
+    })
+  }, [currentWorkspace, currentWorkspace?.id, view])
 
   const toggleNex = () => {
     setNexEnabled(prev => {
