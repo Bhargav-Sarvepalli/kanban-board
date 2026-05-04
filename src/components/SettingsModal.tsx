@@ -5,7 +5,7 @@ import { supabase } from '../supabase'
 import type { Profile } from '../types'
 import Avatar from './Avatar'
 
-type DefaultView = 'today' | 'board' | 'calendar' | 'flow' | 'pomodoro'
+type DefaultView = 'today' | 'board' | 'calendar' | 'pomodoro'
 type Tab = 'profile' | 'preferences' | 'account'
 
 interface Props {
@@ -119,6 +119,7 @@ export default function SettingsModal({
   onDefaultViewChange,
 }: Props) {
   const [tab, setTab] = useState<Tab>('profile')
+  const [selectedDefaultView, setSelectedDefaultView] = useState(defaultView)
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url ?? null)
   const [savingProfile, setSavingProfile] = useState(false)
@@ -138,6 +139,10 @@ export default function SettingsModal({
     }
     void fetchMeta()
   }, [])
+
+  useEffect(() => {
+    setSelectedDefaultView(defaultView)
+  }, [defaultView])
 
   const handleAvatarUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -375,15 +380,19 @@ export default function SettingsModal({
                         <button
                           key={item.id}
                           type="button"
-                          onClick={() => onDefaultViewChange(item.id)}
+                          onClick={() => {
+                            setSelectedDefaultView(item.id)
+                            onDefaultViewChange(item.id)
+                            toast.success(`${item.label} set as default`)
+                          }}
                           style={{
                             minHeight: '72px',
                             padding: '12px',
                             textAlign: 'left',
                             borderRadius: '14px',
-                            border: defaultView === item.id ? '1px solid rgba(139,92,246,0.55)' : '1px solid rgba(255,255,255,0.08)',
-                            background: defaultView === item.id ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.025)',
-                            color: defaultView === item.id ? '#ddd6fe' : 'rgba(255,255,255,0.74)',
+                            border: selectedDefaultView === item.id ? '1px solid rgba(139,92,246,0.55)' : '1px solid rgba(255,255,255,0.08)',
+                            background: selectedDefaultView === item.id ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.025)',
+                            color: selectedDefaultView === item.id ? '#ddd6fe' : 'rgba(255,255,255,0.74)',
                             cursor: 'pointer',
                             fontFamily: 'Inter, system-ui, sans-serif',
                           }}

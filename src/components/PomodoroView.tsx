@@ -47,29 +47,6 @@ function SoftButton({
   )
 }
 
-function FlipTile({ value, label }: { value: string; label: string }) {
-  return (
-    <div style={{ display: 'grid', gap: '10px', justifyItems: 'center' }}>
-      <div style={{
-        width: '138px',
-        height: '124px',
-        borderRadius: '24px',
-        display: 'grid',
-        placeItems: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-        background: 'linear-gradient(180deg, #fbfdff 0%, #eef3f9 49.5%, #d7e0ec 50%, #fbfdff 100%)',
-        boxShadow: '0 24px 52px rgba(0,0,0,0.48), inset 0 2px 0 rgba(255,255,255,0.95), inset 0 -18px 34px rgba(148,163,184,0.22)',
-      }}>
-        <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', background: 'rgba(15,23,42,0.16)' }} />
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '46%', background: 'linear-gradient(180deg, rgba(255,255,255,0.72), transparent)' }} />
-        <span style={{ color: '#0f172a', fontSize: '68px', lineHeight: 1, fontWeight: 900, letterSpacing: 0, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
-      </div>
-      <span style={{ color: 'rgba(255,255,255,0.42)', fontSize: '10px', fontWeight: 850, letterSpacing: '0.18em' }}>{label}</span>
-    </div>
-  )
-}
-
 export default function PomodoroView() {
   const [mode, setMode] = useState<Mode>('focus')
   const [seconds, setSeconds] = useState(MODES.focus.minutes * 60)
@@ -85,8 +62,20 @@ export default function PomodoroView() {
   const display = mmss(seconds)
   const totalSeconds = MODES[mode].minutes * 60
   const progress = 1 - seconds / totalSeconds
-  const radius = 150
-  const circumference = 2 * Math.PI * radius
+  const segments = 96
+  const segmentList = useMemo(() => Array.from({ length: segments }, (_, i) => {
+    const angle = (i / segments) * Math.PI * 2 - Math.PI / 2
+    const inner = 168
+    const outer = 190
+    return {
+      id: i,
+      x1: 210 + Math.cos(angle) * inner,
+      y1: 210 + Math.sin(angle) * inner,
+      x2: 210 + Math.cos(angle) * outer,
+      y2: 210 + Math.sin(angle) * outer,
+      active: i / segments <= progress,
+    }
+  }), [progress])
 
   const nextMode = useMemo<Mode>(() => {
     if (mode !== 'focus') return 'focus'
@@ -218,22 +207,24 @@ export default function PomodoroView() {
       position: 'relative',
       overflow: 'hidden',
       padding: isFullscreen ? 'clamp(24px, 4vh, 54px)' : 0,
-      background: 'radial-gradient(circle at 50% 18%, rgba(139,92,246,0.16), transparent 36%), radial-gradient(circle at 30% 80%, rgba(45,212,191,0.08), transparent 32%), #07080d',
+      background: isFullscreen
+        ? '#05060a'
+        : 'radial-gradient(circle at 50% 18%, rgba(139,92,246,0.14), transparent 36%), #07080d',
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
       <section style={{
-        width: isFullscreen ? 'min(1280px, 100%)' : 'min(980px, calc(100vw - 72px))',
+        width: isFullscreen ? 'min(1040px, 100%)' : 'min(980px, calc(100vw - 72px))',
         minHeight: isFullscreen ? '100%' : undefined,
         boxSizing: 'border-box',
-        borderRadius: isFullscreen ? '42px' : '36px',
-        padding: isFullscreen ? 'clamp(30px, 4vw, 56px)' : '26px',
+        borderRadius: isFullscreen ? '0' : '36px',
+        padding: isFullscreen ? 'clamp(22px, 4vw, 52px)' : '26px',
         display: isFullscreen ? 'flex' : undefined,
         flexDirection: isFullscreen ? 'column' : undefined,
-        background: 'linear-gradient(180deg, rgba(34,37,50,0.97), rgba(14,16,25,0.99))',
-        border: '1px solid rgba(255,255,255,0.11)',
-        boxShadow: '0 38px 110px rgba(0,0,0,0.66), inset 0 1px 0 rgba(255,255,255,0.08)',
+        background: isFullscreen ? 'transparent' : 'linear-gradient(180deg, rgba(24,27,39,0.96), rgba(11,13,20,0.98))',
+        border: isFullscreen ? 'none' : '1px solid rgba(255,255,255,0.1)',
+        boxShadow: isFullscreen ? 'none' : '0 38px 110px rgba(0,0,0,0.66), inset 0 1px 0 rgba(255,255,255,0.08)',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', marginBottom: '18px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', marginBottom: isFullscreen ? '0' : '18px', opacity: isFullscreen ? 0.72 : 1 }}>
           <div>
             <p style={{ margin: 0, color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.16em' }}>NEX FOCUS</p>
             <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '22px', fontWeight: 850, letterSpacing: 0 }}>{MODES[mode].label}</h2>
@@ -278,63 +269,93 @@ export default function PomodoroView() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: isFullscreen ? 'minmax(560px, 1fr) 340px' : 'minmax(420px, 1fr) 286px', gap: isFullscreen ? '54px' : '32px', alignItems: 'center', flex: isFullscreen ? 1 : undefined }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isFullscreen ? '1fr' : 'minmax(420px, 1fr) 286px',
+          gap: isFullscreen ? '30px' : '32px',
+          alignItems: 'center',
+          justifyItems: isFullscreen ? 'center' : undefined,
+          flex: isFullscreen ? 1 : undefined,
+        }}>
           <div style={{ display: 'grid', placeItems: 'center' }}>
             <div style={{
-              width: isFullscreen ? 'min(58vh, 560px)' : '430px',
-              height: isFullscreen ? 'min(58vh, 560px)' : '430px',
+              width: isFullscreen ? 'min(72vh, 640px)' : '430px',
+              height: isFullscreen ? 'min(72vh, 640px)' : '430px',
               borderRadius: '50%',
               position: 'relative',
               display: 'grid',
               placeItems: 'center',
-              background: `radial-gradient(circle at 50% 38%, ${MODES[mode].tone}18, rgba(255,255,255,0.026) 44%, rgba(0,0,0,0.34) 72%)`,
-              boxShadow: '0 34px 82px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -28px 68px rgba(0,0,0,0.36)',
+              background: isFullscreen
+                ? `radial-gradient(circle at 50% 50%, ${MODES[mode].tone}10, rgba(255,255,255,0.015) 48%, transparent 72%)`
+                : `radial-gradient(circle at 50% 50%, ${MODES[mode].tone}16, rgba(255,255,255,0.02) 50%, rgba(0,0,0,0.28) 72%)`,
+              boxShadow: isFullscreen ? 'none' : '0 34px 82px rgba(0,0,0,0.58), inset 0 1px 0 rgba(255,255,255,0.1)',
             }}>
               {soundOn && (
                 <div style={{
                   position: 'absolute',
-                  inset: '34px',
+                  inset: isFullscreen ? '8%' : '34px',
                   borderRadius: '50%',
-                  border: `1px solid ${MODES[mode].tone}55`,
-                  boxShadow: `0 0 36px ${MODES[mode].tone}22`,
+                  border: `1px solid ${MODES[mode].tone}44`,
+                  boxShadow: `0 0 42px ${MODES[mode].tone}20`,
                 }} />
               )}
-              <svg width="100%" height="100%" viewBox="0 0 430 430" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
-                <circle cx="215" cy="215" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="18" />
-                <circle cx="215" cy="215" r={radius} fill="none" stroke={MODES[mode].tone} strokeWidth="18" strokeLinecap="round"
-                  strokeDasharray={circumference} strokeDashoffset={circumference * (1 - progress)}
-                  style={{ filter: `drop-shadow(0 0 18px ${MODES[mode].tone}70)`, transition: 'stroke-dashoffset 0.35s linear' }} />
+              <svg width="100%" height="100%" viewBox="0 0 420 420" style={{ position: 'absolute', inset: 0 }}>
+                <circle cx="210" cy="210" r="142" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="2" />
+                {segmentList.map(seg => (
+                  <line
+                    key={seg.id}
+                    x1={seg.x1}
+                    y1={seg.y1}
+                    x2={seg.x2}
+                    y2={seg.y2}
+                    stroke={seg.active ? '#f8fbff' : 'rgba(255,255,255,0.12)'}
+                    strokeWidth={seg.active ? 4 : 3}
+                    strokeLinecap="round"
+                    style={{
+                      filter: seg.active ? `drop-shadow(0 0 7px ${MODES[mode].tone})` : 'none',
+                      transition: 'stroke 0.25s linear, opacity 0.25s linear',
+                    }}
+                  />
+                ))}
               </svg>
               <div style={{
-                display: 'flex',
-                gap: '18px',
-                alignItems: 'center',
-                justifyContent: 'center',
+                display: 'grid',
+                gap: '8px',
+                justifyItems: 'center',
+                zIndex: 1,
               }}>
-                <FlipTile value={display.minutes} label="MIN" />
-                <span style={{ color: MODES[mode].tone, fontSize: '52px', lineHeight: 1, fontWeight: 900, transform: 'translateY(-10px)' }}>:</span>
-                <FlipTile value={display.seconds} label="SEC" />
+                <span style={{
+                  color: '#f8fafc',
+                  fontSize: isFullscreen ? 'clamp(82px, 12vw, 148px)' : '82px',
+                  lineHeight: 0.95,
+                  fontWeight: 760,
+                  letterSpacing: 0,
+                  fontVariantNumeric: 'tabular-nums',
+                  textShadow: `0 0 34px ${MODES[mode].tone}44`,
+                }}>
+                  {display.minutes}:{display.seconds}
+                </span>
+                <span style={{ color: running ? '#f8fafc' : 'rgba(255,255,255,0.56)', fontSize: isFullscreen ? '18px' : '13px', fontWeight: 720 }}>
+                  {running ? 'Focus' : 'Ready'}
+                </span>
               </div>
-              <p style={{ position: 'absolute', bottom: '56px', margin: 0, color: running ? MODES[mode].tone : 'rgba(255,255,255,0.44)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.16em' }}>
-                {running ? 'IN FLOW' : 'READY'}
-              </p>
             </div>
           </div>
 
-          <div>
-            <label style={{ color: 'rgba(255,255,255,0.48)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>INTENTION</label>
+          <div style={{ width: isFullscreen ? 'min(520px, 100%)' : undefined, opacity: isFullscreen ? 0.82 : 1 }}>
+            {!isFullscreen && <label style={{ color: 'rgba(255,255,255,0.48)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>INTENTION</label>}
             <textarea value={intention} onChange={e => { setIntention(e.target.value); localStorage.setItem('nex_pomo_intention', e.target.value) }}
               placeholder="One outcome for this session"
-              style={{ marginTop: '8px', width: '100%', minHeight: '78px', resize: 'none', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(5,7,12,0.45)', color: 'white', outline: 'none', padding: '12px', fontSize: '13px', fontFamily: 'Inter, system-ui, sans-serif' }} />
+              style={{ display: isFullscreen ? 'none' : 'block', marginTop: '8px', width: '100%', minHeight: '78px', resize: 'none', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(5,7,12,0.45)', color: 'white', outline: 'none', padding: '12px', fontSize: '13px', fontFamily: 'Inter, system-ui, sans-serif' }} />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isFullscreen ? 'repeat(4, 1fr)' : '1fr 1fr', gap: '10px', marginTop: isFullscreen ? 0 : '14px' }}>
               <SoftButton onClick={toggleRun} primary>{running ? 'Pause' : 'Start flow'}</SoftButton>
               <SoftButton onClick={reset}>Reset</SoftButton>
               <SoftButton onClick={() => chooseMode(nextMode)}>Skip</SoftButton>
               <SoftButton onClick={toggleSound}>{soundOn ? 'Beats on' : 'Beats off'}</SoftButton>
             </div>
 
-            <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ marginTop: '16px', display: isFullscreen ? 'none' : 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div style={{ padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <p style={{ margin: 0, color: MODES[mode].tone, fontSize: '22px', fontWeight: 900, letterSpacing: 0 }}>{focusCount}</p>
                 <span style={{ color: 'rgba(255,255,255,0.46)', fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em' }}>BLOCKS</span>

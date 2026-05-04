@@ -73,13 +73,16 @@ function App() {
     ? (['dashboard', 'board', 'flow', 'calendar', 'pomodoro'] as const)
     : (['today', 'board', 'calendar', 'pomodoro'] as const)
 
-  const [view, setView] = useState<AppView>(() => {
+  const getSavedDefaultView = (): AppView => {
     try {
       const saved = localStorage.getItem('nex_default_view')
-      if (saved === 'board' || saved === 'calendar' || saved === 'today' || saved === 'flow' || saved === 'pomodoro') return saved
+      if (saved === 'board' || saved === 'calendar' || saved === 'today' || saved === 'pomodoro') return saved
     } catch { /* ignore */ }
     return 'today'
-  })
+  }
+
+  const [defaultViewPref, setDefaultViewPref] = useState<AppView>(getSavedDefaultView)
+  const [view, setView] = useState<AppView>(defaultViewPref)
 
   const effectiveView = (view === 'flow' && !currentProject) ? 'board'
     : (view === 'dashboard' && !currentProject) ? 'today'
@@ -552,8 +555,11 @@ function App() {
         {showSettings && userId && (
           <SettingsModal userId={userId} profile={profile} onClose={() => setShowSettings(false)}
             onProfileUpdated={setProfile} nexEnabled={nexEnabled} onToggleNex={toggleNex}
-            defaultView={effectiveView === 'dashboard' ? 'board' : effectiveView}
-            onDefaultViewChange={v => { setView(v); try { localStorage.setItem('nex_default_view', v) } catch { /* ignore */ } }} />
+            defaultView={defaultViewPref === 'dashboard' || defaultViewPref === 'flow' ? 'board' : defaultViewPref}
+            onDefaultViewChange={v => {
+              setDefaultViewPref(v)
+              try { localStorage.setItem('nex_default_view', v) } catch { /* ignore */ }
+            }} />
         )}
       </AnimatePresence>
       {showStandup && currentProject && (
