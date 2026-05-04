@@ -28,6 +28,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 type AppView = 'today' | 'board' | 'calendar' | 'flow' | 'dashboard' | 'pomodoro'
+const ONBOARDING_VERSION = '2026-flow-productivity-v2'
 
 function isAppView(value: string | null): value is AppView {
   return value === 'today' || value === 'board' || value === 'calendar' || value === 'flow' || value === 'dashboard' || value === 'pomodoro'
@@ -183,7 +184,12 @@ function App() {
 
   const fetchProfile = async (uid: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', uid).single()
-    if (data) { setProfile(data); if (!data.onboarding_completed) setShowOnboarding(true) }
+    if (data) {
+      setProfile(data)
+      let hasSeenCurrentOnboarding = false
+      try { hasSeenCurrentOnboarding = localStorage.getItem('nex_onboarding_version_seen') === ONBOARDING_VERSION } catch { /* ignore */ }
+      if (!data.onboarding_completed || !hasSeenCurrentOnboarding) setShowOnboarding(true)
+    }
   }
 
   const fetchProfiles = async (userIds: string[]) => {

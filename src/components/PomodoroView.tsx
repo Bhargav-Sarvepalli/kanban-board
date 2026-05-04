@@ -5,8 +5,8 @@ type BrowserAudioContext = typeof AudioContext
 
 const MODES: Record<Mode, { label: string; minutes: number; tone: string; sub: string }> = {
   focus: { label: 'Focus', minutes: 25, tone: '#8b5cf6', sub: 'Deep work' },
-  short: { label: 'Break', minutes: 5, tone: '#2dd4bf', sub: 'Reset' },
-  long:  { label: 'Long', minutes: 15, tone: '#60a5fa', sub: 'Recover' },
+  short: { label: 'Break', minutes: 5, tone: '#2dd4bf', sub: 'Short break' },
+  long:  { label: 'Long', minutes: 15, tone: '#60a5fa', sub: 'Long break' },
 }
 
 function mmss(seconds: number) {

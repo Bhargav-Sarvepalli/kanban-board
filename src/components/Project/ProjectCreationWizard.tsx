@@ -21,8 +21,8 @@ export interface Project {
   created_at: string
 }
 
-const STEPS = ['Create Project', 'Add Team', 'Plan Flow', 'Create Features']
-const FEATURE_COLORS = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#db2777', '#0891b2', '#65a30d']
+const STEPS = ['Project', 'Team', 'Flow', 'Features']
+const FEATURE_COLORS = ['#ec4899', '#8b5cf6', '#06b6d4', '#2563eb', '#059669', '#db2777', '#0891b2', '#65a30d']
 
 export default function ProjectCreationWizard({ userId, workspaceId, onCreated, onComplete, onClose }: Props) {
   const finish = (p: Project) => { onCreated(p); onComplete?.(p) }
@@ -204,32 +204,35 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       <motion.div initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
-        style={{ background: '#0d0d14', border: '1px solid rgba(139,92,246,0.25)', borderRadius: '20px', width: '100%', maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,0.8)' }}>
+        style={{ background: '#0d0d14', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '22px', width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 34px 100px rgba(0,0,0,0.82)' }}>
 
         {/* Header */}
         <div style={{ padding: '28px 32px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
-            <h2 style={{ color: 'white', fontSize: '22px', fontFamily: 'Space Grotesk', fontWeight: 800, margin: 0 }}>Create New Project</h2>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+            <div>
+              <p style={{ margin: '0 0 4px', color: '#67e8f9', fontSize: '11px', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 850, letterSpacing: '0.14em' }}>PROJECT SETUP</p>
+              <h2 style={{ color: 'white', fontSize: '22px', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 850, margin: 0 }}>Create New Project</h2>
+            </div>
+            <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: 'rgba(255,255,255,0.55)', cursor: 'pointer', fontSize: '16px', width: '34px', height: '34px' }}>x</button>
           </div>
 
           {/* Step indicators */}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
             {STEPS.map((s, i) => (
               <div key={s} style={{ display: 'flex', alignItems: 'center', flex: i < STEPS.length - 1 ? 1 : 'none' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0, background: i <= step ? '#8b5cf6' : 'rgba(255,255,255,0.08)', border: i === step ? '2px solid #a78bfa' : '2px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: i === step ? '0 0 16px rgba(139,92,246,0.5)' : 'none', transition: 'all 0.3s' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0, background: i <= step ? 'linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4)' : 'rgba(255,255,255,0.08)', border: i === step ? '2px solid rgba(255,255,255,0.55)' : '2px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: i === step ? '0 0 18px rgba(139,92,246,0.45)' : 'none', transition: 'all 0.3s' }}>
                   {i < step
                     ? <span style={{ color: 'white', fontSize: '14px' }}>✓</span>
                     : <span style={{ color: i === step ? 'white' : 'rgba(255,255,255,0.3)', fontSize: '13px', fontFamily: 'Space Mono', fontWeight: 700 }}>{i + 1}</span>
                   }
                 </div>
-                {i < STEPS.length - 1 && <div style={{ flex: 1, height: '2px', background: i < step ? '#8b5cf6' : 'rgba(255,255,255,0.08)', margin: '0 8px', transition: 'background 0.3s' }} />}
+                {i < STEPS.length - 1 && <div style={{ flex: 1, height: '2px', background: i < step ? 'linear-gradient(90deg, #ec4899, #8b5cf6, #06b6d4)' : 'rgba(255,255,255,0.08)', margin: '0 8px', transition: 'background 0.3s' }} />}
               </div>
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '28px' }}>
             {STEPS.map((s, i) => (
-              <span key={s} style={{ color: i === step ? '#a78bfa' : 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono', flex: 1, textAlign: i === 0 ? 'left' : i === STEPS.length - 1 ? 'right' : 'center' }}>
+              <span key={s} style={{ color: i === step ? '#c4b5fd' : 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, letterSpacing: '0.08em', flex: 1, textAlign: i === 0 ? 'left' : i === STEPS.length - 1 ? 'right' : 'center' }}>
                 {s.toUpperCase()}
               </span>
             ))}
