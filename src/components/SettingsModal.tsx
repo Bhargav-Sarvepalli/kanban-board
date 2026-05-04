@@ -12,8 +12,8 @@ interface Props {
   onProfileUpdated: (profile: Profile) => void
   nexEnabled: boolean
   onToggleNex: () => void
-  defaultView: 'today' | 'board' | 'calendar' | 'flow'
-  onDefaultViewChange: (view: 'today' | 'board' | 'calendar' | 'flow') => void
+  defaultView: 'today' | 'board' | 'calendar' | 'flow' | 'pomodoro'
+  onDefaultViewChange: (view: 'today' | 'board' | 'calendar' | 'flow' | 'pomodoro') => void
 }
 
 type Tab = 'profile' | 'preferences' | 'account'
@@ -354,6 +354,7 @@ export default function SettingsModal({
                         { id: 'today',    label: '☀ Today',    desc: 'Daily focus' },
                         { id: 'board',    label: '⊞ Board',    desc: 'Kanban view' },
                         { id: 'calendar', label: '⊟ Calendar', desc: 'Month view'  },
+                        { id: 'pomodoro', label: '◷ Timer', desc: 'Deep work' },
                       ] as const).map(v => (
                         <button
                           key={v.id}

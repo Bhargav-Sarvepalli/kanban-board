@@ -21,14 +21,14 @@ interface Props {
   // Navigation
   currentView: string
   availableViews: readonly string[]
-  onViewChange: (v: 'today' | 'board' | 'calendar' | 'flow' | 'dashboard') => void
+  onViewChange: (v: 'today' | 'board' | 'calendar' | 'flow' | 'dashboard' | 'pomodoro') => void
   // Actions
   onSettings: () => void
   onLogout: () => void
   onWorkspaceLogoUpdated: (url: string) => void
 }
 
-const NAV_ITEMS: { id: 'dashboard' | 'today' | 'board' | 'calendar' | 'flow'; label: string; icon: (active: boolean) => React.ReactNode }[] = [
+const NAV_ITEMS: { id: 'dashboard' | 'today' | 'board' | 'calendar' | 'flow' | 'pomodoro'; label: string; icon: (active: boolean) => React.ReactNode }[] = [
   {
     id: 'dashboard',
     label: 'Dashboard',
@@ -85,6 +85,16 @@ const NAV_ITEMS: { id: 'dashboard' | 'today' | 'board' | 'calendar' | 'flow'; la
         <rect x="4" y="9" width="2" height="2" rx="0.5" fill={a ? '#7c3aed' : '#6b6b7b'}/>
         <rect x="7" y="9" width="2" height="2" rx="0.5" fill={a ? '#7c3aed' : '#6b6b7b'}/>
         <rect x="10" y="9" width="2" height="2" rx="0.5" fill={a ? '#7c3aed' : '#6b6b7b'}/>
+      </svg>
+    ),
+  },
+  {
+    id: 'pomodoro',
+    label: 'Timer',
+    icon: (a) => (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8.5" r="5.5" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
+        <path d="M8 5.5v3.2l2.1 1.2M6 1.5h4" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
   },

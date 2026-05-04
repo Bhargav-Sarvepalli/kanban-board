@@ -125,6 +125,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const [mergeError, setMergeError] = useState<string | null>(null)
   const [showBriefDetails, setShowBriefDetails] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showRiskInfo, setShowRiskInfo] = useState(false)
   const rootRef   = useRef<HTMLDivElement>(null)
   const wrapRef   = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -384,9 +385,23 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             display: 'flex', alignItems: 'center', gap: '7px',
             background: `${h.color}20`, border: `1px solid ${h.color}60`,
             borderRadius: '8px', padding: '5px 14px',
+            position: 'relative',
           }}>
             <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: h.color, boxShadow: `0 0 10px ${h.color}` }} />
             <span style={{ color: h.color, fontSize: '12px', fontFamily: 'Space Mono', fontWeight: 700, letterSpacing: '0.1em' }}>{h.label}</span>
+            {(h.label === 'AT RISK' || h.label === 'BEHIND') && (
+              <button onClick={() => setShowRiskInfo(v => !v)} title="Why this status?" style={{ width: '18px', height: '18px', borderRadius: '50%', border: `1px solid ${h.color}80`, background: 'rgba(0,0,0,0.18)', color: h.color, cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 900, lineHeight: '16px', padding: 0 }}>
+                i
+              </button>
+            )}
+            {showRiskInfo && (
+              <div style={{ position: 'absolute', top: '34px', left: 0, width: '300px', zIndex: 40, padding: '12px 14px', borderRadius: '10px', background: 'rgba(10,10,15,0.98)', border: `1px solid ${h.color}55`, boxShadow: '0 18px 50px rgba(0,0,0,0.6)' }}>
+                <p style={{ margin: '0 0 7px', color: 'white', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 750 }}>Why Flow is {h.label.toLowerCase()}</p>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.66)', fontSize: '11px', fontFamily: 'Space Grotesk', lineHeight: 1.45 }}>
+                  Risk increases when features are blocked, overdue, stale for 48h, or when overall completion stays below the healthy threshold. Use Attention to isolate the branches that need a standup decision.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Stats — meaningful to managers (blocked), leads (active), all (overdue) */}
@@ -410,7 +425,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {projectId && (
             <button onClick={() => setAttentionOnly(v => !v)}
-              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: attentionOnly ? 'rgba(248,113,113,0.16)' : 'rgba(255,255,255,0.07)', border: `1px solid ${attentionOnly ? 'rgba(248,113,113,0.45)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: attentionOnly ? '#fca5a5' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: attentionOnly ? 'rgba(248,113,113,0.16)' : 'rgba(255,255,255,0.09)', border: `1px solid ${attentionOnly ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: '8px', color: attentionOnly ? '#fecaca' : 'rgba(255,255,255,0.78)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 700, transition: 'all 0.2s' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: attentionOnly ? '#f87171' : 'rgba(255,255,255,0.4)' }} />
               ATTENTION
             </button>
@@ -424,7 +439,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
           )}
           {branches.length > 0 && (
             <button onClick={() => onOpenStandup?.()}
-              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.28)', borderRadius: '8px', color: '#c4b5fd', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: 'rgba(139,92,246,0.16)', border: '1px solid rgba(139,92,246,0.4)', borderRadius: '8px', color: '#ddd6fe', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 750, transition: 'all 0.2s' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#a78bfa' }} />
               STANDUP
             </button>
@@ -667,9 +682,9 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             })}
 
             {/* ── TRUNK ── */}
-            <path d={trunkPath} stroke={TRUNK_COLOR} strokeWidth={34} strokeLinecap="round" opacity={0.07} fill="none" />
-            <path d={trunkPath} stroke={TRUNK_COLOR} strokeWidth={7} strokeLinecap="round" strokeOpacity={0.76} fill="none" filter="url(#fg-river-glow)" />
-            <polygon points={`${trunkEnd + 16},${TRUNK_Y} ${trunkEnd},${TRUNK_Y - 9} ${trunkEnd},${TRUNK_Y + 9}`} fill={TRUNK_COLOR} opacity={0.72} />
+            <path d={trunkPath} stroke={TRUNK_COLOR} strokeWidth={38} strokeLinecap="round" opacity={0.13} fill="none" />
+            <path d={trunkPath} stroke={TRUNK_COLOR} strokeWidth={10} strokeLinecap="round" strokeOpacity={0.92} fill="none" filter="url(#fg-river-glow)" />
+            <polygon points={`${trunkEnd + 16},${TRUNK_Y} ${trunkEnd},${TRUNK_Y - 9} ${trunkEnd},${TRUNK_Y + 9}`} fill={TRUNK_COLOR} opacity={0.9} />
             <circle cx={60}  cy={TRUNK_Y} r={6} fill={TRUNK_COLOR} />
 
             {/* ── MILESTONES ── */}
@@ -718,7 +733,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
               const cardPull = above ? 18 : -18
               const branchPath = `M ${originX} ${TRUNK_Y} C ${originX + 40} ${TRUNK_Y + forkPull}, ${cardX - 88} ${connectorY + cardPull}, ${cardX} ${connectorY}`
               const returnPath = `M ${branchEndX} ${connectorY} C ${branchEndX + 74} ${connectorY}, ${mergeX - 70} ${TRUNK_Y}, ${mergeX} ${TRUNK_Y}`
-              const showMergePath = canMerge || mergingId === branch.id || (isMerged && isHov)
+              const showMergePath = canMerge || isMerged || mergingId === branch.id
 
               return (
                 <g key={branch.id}
@@ -731,8 +746,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                   <path
                     d={branchPath}
                     fill="none" stroke={isMerged ? '#22c55e' : signals.atRisk ? '#f87171' : branch.color}
-                    strokeOpacity={isHov ? 0.82 : isMerged ? 0.42 : signals.atRisk ? 0.56 : 0.24}
-                    strokeWidth={isHov ? 2.8 : isMerged ? 2.2 : signals.atRisk ? 2.2 : 1.5}
+                    strokeOpacity={isHov ? 0.88 : isMerged ? 0.58 : signals.atRisk ? 0.66 : 0.32}
+                    strokeWidth={isHov ? 3 : isMerged ? 2.5 : signals.atRisk ? 2.4 : 1.8}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeDasharray={signals.atRisk ? '12 12' : undefined}
@@ -748,8 +763,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                     <path
                       d={returnPath}
                       fill="none" stroke="#22c55e"
-                      strokeOpacity={mergingId === branch.id ? 0.9 : isMerged ? 0.46 : 0.3}
-                      strokeWidth={mergingId === branch.id ? 3 : isMerged ? 2.3 : 1.8}
+                      strokeOpacity={mergingId === branch.id ? 0.92 : isMerged ? 0.58 : 0.42}
+                      strokeWidth={mergingId === branch.id ? 3.2 : isMerged ? 2.5 : 2}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeDasharray={mergingId === branch.id ? '14 10' : isMerged ? undefined : '5 8'}
@@ -794,7 +809,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                       </div>
                       {/* Name */}
                       <span style={{
-                        color: 'white', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 700,
+                        color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 800,
                         minWidth: 0, maxWidth: '145px', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>
                         {branch.name}
@@ -805,7 +820,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                       <span style={{ color: branch.color, fontSize: '10px', fontFamily: 'Space Mono', fontWeight: 700 }}>
                         {branch.progress}%
                       </span>
-                      <span style={{ gridColumn: '2 / -1', color: signals.stale ? '#f59e0b' : 'rgba(255,255,255,0.38)', fontSize: '8px', fontFamily: 'Space Mono', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ gridColumn: '2 / -1', color: signals.stale ? '#fbbf24' : 'rgba(255,255,255,0.52)', fontSize: '8px', fontFamily: 'Space Mono', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {isMerged ? 'Merged into trunk' : signals.empty ? 'No flow tasks' : `${signals.blocked} blocked · ${relativeUpdate(signals.quietHours)}`}
                       </span>
                       {projectId && (canMerge || isMerged || mergingId === branch.id) && (

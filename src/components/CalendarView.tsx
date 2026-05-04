@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   format,
   startOfMonth,
@@ -18,6 +18,16 @@ import type { Task } from '../types'
 interface Props {
   tasks: Task[]
   onOpenTask: (task: Task) => void
+  contextKey: string
+}
+
+interface CalendarEntry {
+  id: string
+  title: string
+  date: string
+  time: string
+  type: 'meeting' | 'focus' | 'personal'
+  notes: string
 }
 
 const priorityColors = {
@@ -33,9 +43,30 @@ const parseDate = (dateStr: string) => {
   return new Date(y, m - 1, d)
 }
 
-function CalendarView({ tasks, onOpenTask }: Props) {
+function CalendarView({ tasks, onOpenTask, contextKey }: Props) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
+  const [entries, setEntries] = useState<CalendarEntry[]>([])
+  const [entryTitle, setEntryTitle] = useState('')
+  const [entryTime, setEntryTime] = useState('09:00')
+  const [entryType, setEntryType] = useState<CalendarEntry['type']>('meeting')
+  const [entryNotes, setEntryNotes] = useState('')
+
+  const storageKey = `nex-calendar:${contextKey}`
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(storageKey)
+      queueMicrotask(() => setEntries(stored ? JSON.parse(stored) as CalendarEntry[] : []))
+    } catch {
+      queueMicrotask(() => setEntries([]))
+    }
+  }, [storageKey])
+
+  const saveEntries = (next: CalendarEntry[]) => {
+    setEntries(next)
+    localStorage.setItem(storageKey, JSON.stringify(next))
+  }
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd   = endOfMonth(currentMonth)
@@ -44,12 +75,34 @@ function CalendarView({ tasks, onOpenTask }: Props) {
   const days       = eachDayOfInterval({ start: calStart, end: calEnd })
 
   const getTasksForDay   = (day: Date) => tasks.filter(t => t.due_date && isSameDay(parseDate(t.due_date), day))
+  const getEntriesForDay = (day: Date) => entries.filter(e => isSameDay(parseDate(e.date), day)).sort((a, b) => a.time.localeCompare(b.time))
   const getTasksForMonth = ()           => tasks.filter(t => t.due_date && isSameMonth(parseDate(t.due_date), currentMonth))
 
   const selectedDayTasks = selectedDay ? getTasksForDay(selectedDay) : []
+  const selectedDayEntries = selectedDay ? getEntriesForDay(selectedDay) : []
   const weekDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 
   const today = new Date(new Date().setHours(0, 0, 0, 0))
+
+  const addEntry = () => {
+    if (!selectedDay || !entryTitle.trim()) return
+    const next: CalendarEntry = {
+      id: crypto.randomUUID(),
+      title: entryTitle.trim(),
+      date: format(selectedDay, 'yyyy-MM-dd'),
+      time: entryTime,
+      type: entryType,
+      notes: entryNotes.trim(),
+    }
+    saveEntries([...entries, next])
+    setEntryTitle('')
+    setEntryNotes('')
+  }
+
+  const removeEntry = (id: string) => {
+    if (!window.confirm('Remove this calendar entry? This deletes it from this browser.')) return
+    saveEntries(entries.filter(e => e.id !== id))
+  }
 
   return (
     <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
@@ -108,6 +161,7 @@ function CalendarView({ tasks, onOpenTask }: Props) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
           {days.map(day => {
             const dayTasks       = getTasksForDay(day)
+            const dayEntries     = getEntriesForDay(day)
             const isCurrentMonth = isSameMonth(day, currentMonth)
             const isSelected     = selectedDay ? isSameDay(day, selectedDay) : false
             const isTodayDate    = isToday(day)
@@ -149,9 +203,9 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                   }}>
                     {format(day, 'd')}
                   </span>
-                  {dayTasks.length > 0 && (
+                  {(dayTasks.length + dayEntries.length) > 0 && (
                     <span style={{ fontSize: '9px', fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.4)' }}>
-                      {dayTasks.length}
+                      {dayTasks.length + dayEntries.length}
                     </span>
                   )}
                 </div>
@@ -194,6 +248,11 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                       +{dayTasks.length - 3} more
                     </div>
                   )}
+                  {dayEntries.slice(0, Math.max(0, 3 - dayTasks.length)).map(entry => (
+                    <div key={entry.id} title={`${entry.time} ${entry.title}`} style={{ background: 'rgba(45,212,191,0.12)', border: '1px solid rgba(45,212,191,0.28)', borderRadius: '4px', padding: '2px 5px', fontSize: '9px', fontFamily: 'Space Grotesk', color: '#7dd3fc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {entry.time} {entry.title}
+                    </div>
+                  ))}
                 </div>
               </motion.div>
             )
@@ -223,12 +282,22 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                 </p>
               </div>
 
-              {selectedDayTasks.length === 0 ? (
+              {selectedDayTasks.length === 0 && selectedDayEntries.length === 0 ? (
                 <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '12px', fontFamily: 'Space Mono', textAlign: 'center', padding: '20px 0' }}>
                   NO TASKS
                 </p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {selectedDayEntries.map(entry => (
+                    <motion.div key={entry.id} whileHover={{ scale: 1.02 }} style={{ background: 'rgba(45,212,191,0.08)', border: '1px solid rgba(45,212,191,0.24)', borderRadius: '10px', padding: '10px 12px', borderLeft: '2px solid #2dd4bf' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                        <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: 650, margin: 0, fontFamily: 'Space Grotesk' }}>{entry.title}</p>
+                        <button onClick={() => removeEntry(entry.id)} title="Remove entry" style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', fontSize: '12px' }}>x</button>
+                      </div>
+                      <p style={{ color: '#2dd4bf', fontSize: '9px', fontFamily: 'Space Mono', margin: '5px 0 0' }}>{entry.time} · {entry.type.toUpperCase()}</p>
+                      {entry.notes && <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', margin: '6px 0 0', fontFamily: 'Space Grotesk' }}>{entry.notes}</p>}
+                    </motion.div>
+                  ))}
                   {selectedDayTasks.map(task => {
                     const p    = getPriority(task.priority)
                     const done = task.status === 'done'
@@ -268,6 +337,22 @@ function CalendarView({ tasks, onOpenTask }: Props) {
                   })}
                 </div>
               )}
+              <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <p style={{ color: 'rgba(255,255,255,0.52)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.14em', margin: '0 0 10px' }}>ADD ENTRY</p>
+                <input value={entryTitle} onChange={e => setEntryTitle(e.target.value)} placeholder="Meeting, reminder, focus block" style={{ width: '100%', boxSizing: 'border-box', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'white', padding: '9px 10px', outline: 'none', fontSize: '12px', fontFamily: 'Space Grotesk' }} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
+                  <input type="time" value={entryTime} onChange={e => setEntryTime(e.target.value)} style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'white', padding: '8px', outline: 'none', fontSize: '12px', fontFamily: 'Space Mono' }} />
+                  <select value={entryType} onChange={e => setEntryType(e.target.value as CalendarEntry['type'])} style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: '#111118', color: 'white', padding: '8px', outline: 'none', fontSize: '12px', fontFamily: 'Space Grotesk' }}>
+                    <option value="meeting">Meeting</option>
+                    <option value="focus">Focus</option>
+                    <option value="personal">Personal</option>
+                  </select>
+                </div>
+                <textarea value={entryNotes} onChange={e => setEntryNotes(e.target.value)} placeholder="Optional notes" style={{ width: '100%', boxSizing: 'border-box', minHeight: '58px', marginTop: '8px', resize: 'none', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'white', padding: '9px 10px', outline: 'none', fontSize: '12px', fontFamily: 'Space Grotesk' }} />
+                <button onClick={addEntry} disabled={!entryTitle.trim()} style={{ width: '100%', height: '34px', marginTop: '8px', borderRadius: '8px', border: 'none', background: entryTitle.trim() ? '#7c3aed' : 'rgba(255,255,255,0.08)', color: entryTitle.trim() ? 'white' : 'rgba(255,255,255,0.32)', cursor: entryTitle.trim() ? 'pointer' : 'not-allowed', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 800 }}>
+                  ADD TO CALENDAR
+                </button>
+              </div>
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>

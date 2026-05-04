@@ -9,6 +9,7 @@ import CreateTaskModal from './components/CreateTaskModal'
 import TaskCard from './components/TaskCard'
 import TaskDetailPanel from './components/TaskDetailPanel'
 import CalendarView from './components/CalendarView'
+import PomodoroView from './components/PomodoroView'
 import TodayView from './components/TodayView'
 import WorkspacePanel from './components/WorkspacePanel'
 import NexAssistant from './components/Nex/NexAssistant'
@@ -26,10 +27,10 @@ import { useProjects } from './hooks/useProjects'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-type AppView = 'today' | 'board' | 'calendar' | 'flow' | 'dashboard'
+type AppView = 'today' | 'board' | 'calendar' | 'flow' | 'dashboard' | 'pomodoro'
 
 function isAppView(value: string | null): value is AppView {
-  return value === 'today' || value === 'board' || value === 'calendar' || value === 'flow' || value === 'dashboard'
+  return value === 'today' || value === 'board' || value === 'calendar' || value === 'flow' || value === 'dashboard' || value === 'pomodoro'
 }
 
 function App() {
@@ -69,13 +70,13 @@ function App() {
   })
 
   const availableTabs = currentProject
-    ? (['dashboard', 'board', 'flow', 'calendar'] as const)
-    : (['today', 'board', 'calendar'] as const)
+    ? (['dashboard', 'board', 'flow', 'calendar', 'pomodoro'] as const)
+    : (['today', 'board', 'calendar', 'pomodoro'] as const)
 
   const [view, setView] = useState<AppView>(() => {
     try {
       const saved = localStorage.getItem('nex_default_view')
-      if (saved === 'board' || saved === 'calendar' || saved === 'today' || saved === 'flow') return saved
+      if (saved === 'board' || saved === 'calendar' || saved === 'today' || saved === 'flow' || saved === 'pomodoro') return saved
     } catch { /* ignore */ }
     return 'today'
   })
@@ -313,7 +314,8 @@ function App() {
 
   const isFlow      = effectiveView === 'flow'
   const isDashboard = effectiveView === 'dashboard'
-  const isFull      = isFlow || isDashboard
+  const isPomodoro  = effectiveView === 'pomodoro'
+  const isFull      = isFlow || isDashboard || isPomodoro
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#0a0a0f', fontFamily: 'Inter, -apple-system, sans-serif' }}>
@@ -466,13 +468,15 @@ function App() {
               </DragOverlay>
             </DndContext>
           ) : effectiveView === 'calendar' ? (
-            <CalendarView tasks={tasks} onOpenTask={setSelectedTask} />
+            <CalendarView tasks={tasks} onOpenTask={setSelectedTask} contextKey={currentProject?.id ?? currentWorkspace?.id ?? userId ?? 'personal'} />
           ) : effectiveView === 'flow' && currentProject ? (
             <div style={{ height: '100%' }}>
               <FlowGraph workspaceId={currentWorkspace?.id ?? ''} userId={userId}
                 onBranchClick={handleBranchClick} projectId={currentProject.id}
                 onOpenStandup={() => setShowStandup(true)} />
             </div>
+          ) : effectiveView === 'pomodoro' ? (
+            <PomodoroView />
           ) : effectiveView === 'dashboard' && currentProject ? (
             <ProjectDashboard
               projectId={currentProject.id}
