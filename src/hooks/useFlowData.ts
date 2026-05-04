@@ -9,6 +9,7 @@ export interface FlowTask {
   due_date: string | null
   pending_approval: boolean
   assignee_id: string | null
+  last_edited_at?: string | null
   feature_id?: string | null
 }
 
@@ -114,7 +115,7 @@ export function useFlowData(
             .order('position', { ascending: true }),
           supabase
             .from('tasks')
-            .select('id, title, status, priority, due_date, pending_approval, assignee_id, feature_id')
+            .select('id, title, status, priority, due_date, pending_approval, assignee_id, feature_id, last_edited_at')
             .eq('project_id', projectId)
             .eq('show_on_flow', true)
             .order('created_at', { ascending: true }),
@@ -182,6 +183,7 @@ export function useFlowData(
             due_date:         task.due_date,
             pending_approval: task.pending_approval ?? false,
             assignee_id:      task.assignee_id,
+            last_edited_at:   task.last_edited_at,
             feature_id:       task.feature_id,
           })
         }
@@ -201,7 +203,7 @@ export function useFlowData(
       const { data: tasks, error: tasksErr } = await supabase
         .from('tasks')
         .select(`
-          id, title, status, priority, due_date, pending_approval, assignee_id,
+          id, title, status, priority, due_date, pending_approval, assignee_id, last_edited_at,
           profiles:assignee_id ( id, full_name, avatar_url )
         `)
         .eq('workspace_id', workspaceId!)
@@ -231,6 +233,7 @@ export function useFlowData(
           due_date:         task.due_date,
           pending_approval: task.pending_approval ?? false,
           assignee_id:      task.assignee_id,
+          last_edited_at:   task.last_edited_at,
         })
       }
 

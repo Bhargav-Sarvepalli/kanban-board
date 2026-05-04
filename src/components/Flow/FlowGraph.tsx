@@ -46,6 +46,40 @@ function branchHealth(branch: FlowBranch): { label: string; color: string } {
   return { label: 'IN PROGRESS', color: '#60a5fa' }
 }
 
+function branchLastEdited(branch: FlowBranch): Date | null {
+  const latest = branch.tasks
+    .map(t => t.last_edited_at ? new Date(t.last_edited_at).getTime() : 0)
+    .filter(Boolean)
+    .sort((a, b) => b - a)[0]
+  return latest ? new Date(latest) : null
+}
+
+function hoursSince(date: Date | null): number | null {
+  if (!date) return null
+  return Math.floor((Date.now() - date.getTime()) / 36e5)
+}
+
+function branchSignals(branch: FlowBranch) {
+  const overdue = branch.tasks.filter(t => isOverdue(t)).length
+  const blocked = branch.tasks.filter(t => t.pending_approval || (t.priority === 'high' && t.status === 'todo')).length
+  const active = branch.tasks.filter(t => t.status === 'in_progress').length
+  const review = branch.tasks.filter(t => t.status === 'in_review').length
+  const open = branch.tasks.filter(t => t.status !== 'done').length
+  const lastEdited = branchLastEdited(branch)
+  const quietHours = hoursSince(lastEdited)
+  const stale = branch.total > 0 && (quietHours === null || quietHours >= 48) && open > 0
+  const empty = branch.total === 0
+  const atRisk = overdue > 0 || blocked > 0 || stale || (branch.progress < 30 && branch.total > 2)
+  return { overdue, blocked, active, review, open, lastEdited, quietHours, stale, empty, atRisk }
+}
+
+function relativeUpdate(hours: number | null): string {
+  if (hours === null) return 'No update'
+  if (hours < 1) return 'Updated now'
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
 interface NodeLayout { task: FlowTask; x: number; y: number }
 interface MilestoneLayout { id: string; label: string; x: number }
 interface BranchLayout {
@@ -70,6 +104,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const [tooltip,    setTooltip]    = useState<{ x: number; y: number; task: FlowTask; branch: FlowBranch } | null>(null)
   const [myTasksOnly, setMyTasksOnly] = useState(false)
   const [showTaskPaths, setShowTaskPaths] = useState(false)
+  const [attentionOnly, setAttentionOnly] = useState(false)
+  const [focusBranchId, setFocusBranchId] = useState<string | null>(null)
   const [dragging,   setDragging]   = useState(false)
   const [drag0,      setDrag0]      = useState({ x: 0, scroll: 0 })
   const [svgH,       setSvgH]       = useState(500)
@@ -148,6 +184,29 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const overdueTasks = branches.reduce((s, b) => s + b.tasks.filter(t => isOverdue(t)).length, 0)
   const blockedCount = branches.filter(b => branchHealth(b).label === 'BLOCKED').length
   const mergedCount  = branches.filter(b => b.total > 0 && b.done === b.total).length
+  const branchSignalMap = useMemo(() => new Map(branches.map(b => [b.id, branchSignals(b)])), [branches])
+  const attentionBranches = useMemo(
+    () => branches.filter(b => branchSignalMap.get(b.id)?.atRisk || branchSignalMap.get(b.id)?.empty),
+    [branches, branchSignalMap],
+  )
+  const staleBranches = useMemo(
+    () => branches.filter(b => branchSignalMap.get(b.id)?.stale),
+    [branches, branchSignalMap],
+  )
+  const completedBranches = useMemo(
+    () => branches.filter(b => b.total > 0 && b.done === b.total),
+    [branches],
+  )
+  const focusBranch = branches.find(b => b.id === focusBranchId) ?? attentionBranches[0] ?? branches[0] ?? null
+  const focusSignals = focusBranch ? branchSignalMap.get(focusBranch.id) : null
+  const standupItems = useMemo(() => {
+    const items: { label: string; value: string; color: string }[] = []
+    if (attentionBranches.length) items.push({ label: 'Needs attention', value: `${attentionBranches.length} feature${attentionBranches.length === 1 ? '' : 's'}`, color: '#f87171' })
+    if (staleBranches.length) items.push({ label: 'No recent update', value: staleBranches.slice(0, 2).map(b => b.name).join(', '), color: '#f59e0b' })
+    if (completedBranches.length) items.push({ label: 'Ready to merge', value: completedBranches.slice(0, 2).map(b => b.name).join(', '), color: '#22c55e' })
+    if (!items.length) items.push({ label: 'Standup focus', value: 'No urgent blockers in Flow', color: '#60a5fa' })
+    return items.slice(0, 3)
+  }, [attentionBranches, staleBranches, completedBranches])
 
   // My tasks: branches where at least one task belongs to the current user
   const myBranchIds = userId
@@ -291,6 +350,13 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
         {/* Right: MY TASKS + STANDUP */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {projectId && (
+            <button onClick={() => setAttentionOnly(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: attentionOnly ? 'rgba(248,113,113,0.16)' : 'rgba(255,255,255,0.07)', border: `1px solid ${attentionOnly ? 'rgba(248,113,113,0.45)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: attentionOnly ? '#fca5a5' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: attentionOnly ? '#f87171' : 'rgba(255,255,255,0.4)' }} />
+              ATTENTION
+            </button>
+          )}
+          {projectId && (
             <button onClick={() => setShowTaskPaths(v => !v)}
               style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: showTaskPaths ? 'rgba(96,165,250,0.16)' : 'rgba(255,255,255,0.07)', border: `1px solid ${showTaskPaths ? 'rgba(96,165,250,0.45)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: showTaskPaths ? '#93c5fd' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: showTaskPaths ? '#60a5fa' : 'rgba(255,255,255,0.4)' }} />
@@ -320,6 +386,40 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         overflowX: 'auto', flexShrink: 0, alignItems: 'center',
       }}>
+        {projectId && (
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch', flexShrink: 0 }}>
+            <div style={{ width: '220px', padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)' }}>
+              <p style={{ margin: '0 0 7px', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>STANDUP BRIEF</p>
+              {standupItems.map(item => (
+                <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '7px', marginTop: '5px' }}>
+                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: item.color, flexShrink: 0 }} />
+                  <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '10px', fontFamily: 'Space Mono', minWidth: '86px' }}>{item.label}</span>
+                  <span style={{ color: 'white', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 650, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '92px' }}>{item.value}</span>
+                </div>
+              ))}
+            </div>
+
+            {focusBranch && focusSignals && (
+              <div style={{ width: '300px', padding: '9px 12px', borderRadius: '8px', border: `1px solid ${focusSignals.atRisk ? 'rgba(248,113,113,0.24)' : 'rgba(255,255,255,0.1)'}`, background: focusSignals.atRisk ? 'rgba(248,113,113,0.055)' : 'rgba(255,255,255,0.035)' }}>
+                <p style={{ margin: '0 0 7px', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>FOCUS FEATURE</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: focusSignals.atRisk ? '#f87171' : focusBranch.color, flexShrink: 0 }} />
+                  <span style={{ color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 750, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{focusBranch.name}</span>
+                  <button onClick={() => onBranchClick(focusBranch)}
+                    style={{ marginLeft: 'auto', height: '22px', padding: '0 8px', borderRadius: '7px', border: '1px solid rgba(139,92,246,0.35)', background: 'rgba(139,92,246,0.12)', color: '#c4b5fd', fontSize: '9px', fontFamily: 'Space Mono', fontWeight: 700, cursor: 'pointer' }}>
+                    OPEN
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '8px', color: 'rgba(255,255,255,0.55)', fontSize: '10px', fontFamily: 'Space Mono' }}>
+                  <span>{focusBranch.done}/{focusBranch.total} tasks</span>
+                  <span>{focusSignals.blocked} blocked</span>
+                  <span>{focusSignals.overdue} overdue</span>
+                  <span>{relativeUpdate(focusSignals.quietHours)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {mergeError && (
           <div style={{ flexShrink: 0, padding: '5px 10px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5', fontSize: '11px', fontFamily: 'Space Grotesk' }}>
             {mergeError}
@@ -495,7 +595,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             {layout.branches.map(({ branch, above, originX, branchY, cardX, nodes, endX }) => {
               const isHov      = hovBranch === branch.id
               const isMyBranch = myBranchIds.has(branch.id)
-              const dimmed     = myTasksOnly && !isMyBranch
+              const signals    = branchSignalMap.get(branch.id) ?? branchSignals(branch)
+              const dimmed     = (myTasksOnly && !isMyBranch) || (attentionOnly && !signals.atRisk && !signals.empty)
               const chipWidth  = BRANCH_CARD_W
               const chipStartX = Math.max(8, cardX)
               const chipY      = branchY
@@ -513,21 +614,22 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                 <g key={branch.id}
                   opacity={dimmed ? 0.1 : 1}
                   style={{ transition: 'opacity 0.3s', cursor: dragging ? 'grabbing' : 'pointer' }}
-                  onMouseEnter={() => !dragging && setHovBranch(branch.id)}
+                  onMouseEnter={() => { if (!dragging) { setHovBranch(branch.id); setFocusBranchId(branch.id) } }}
                   onMouseLeave={() => setHovBranch(null)}
                   onClick={() => !dragging && onBranchClick(branch)}
                 >
                   <path
                     d={branchPath}
-                    fill="none" stroke={branch.color}
-                    strokeOpacity={isHov ? 0.92 : 0.48}
-                    strokeWidth={isHov ? 3.2 : 2.2}
+                    fill="none" stroke={signals.atRisk ? '#f87171' : branch.color}
+                    strokeOpacity={isHov ? 0.88 : signals.atRisk ? 0.72 : 0.34}
+                    strokeWidth={isHov ? 3 : signals.atRisk ? 2.6 : 1.8}
                     strokeLinecap="round"
-                    className="fg-branch-flow"
+                    strokeDasharray={signals.atRisk ? '10 10' : undefined}
+                    className={signals.atRisk ? 'fg-attention-flow' : undefined}
                     style={{ transition: 'all 0.2s' }}
                   />
                   <circle cx={originX} cy={TRUNK_Y} r={isHov ? 7 : 5}
-                    fill={branch.color} opacity={isHov ? 1 : 0.78}
+                    fill={signals.atRisk ? '#f87171' : branch.color} opacity={isHov ? 1 : 0.78}
                     filter={isHov ? `url(#fg-gf-${branch.id})` : undefined}
                     style={{ transition: 'all 0.2s' }}
                   />
@@ -551,11 +653,11 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                   )}
 
                   {/* ── Branch chip — anchored at fork, never floating ── */}
-                  <foreignObject x={chipStartX} y={chipY} width={chipWidth} height={72} style={{ overflow: 'visible', pointerEvents: 'auto' }}>
+                  <foreignObject x={chipStartX} y={chipY} width={chipWidth} height={92} style={{ overflow: 'visible', pointerEvents: 'auto' }}>
                     <div style={{
                       display: 'grid', gridTemplateColumns: '28px minmax(0, 1fr) auto auto', alignItems: 'center', columnGap: '7px',
-                      background: `${branch.color}1a`,
-                      border: `1.5px solid ${branch.color}${isHov ? 'cc' : '55'}`,
+                      background: signals.atRisk ? 'rgba(248,113,113,0.11)' : `${branch.color}1a`,
+                      border: `1.5px solid ${signals.atRisk ? '#f87171' : branch.color}${isHov ? 'cc' : '55'}`,
                       borderRadius: '10px', padding: '7px 10px 7px 7px',
                       backdropFilter: 'blur(12px)',
                       whiteSpace: 'nowrap',
@@ -566,7 +668,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                       {/* Avatar / initials */}
                       <div style={{
                         width: '26px', height: '26px', borderRadius: '50%',
-                        border: `2px solid ${branch.color}`,
+                        border: `2px solid ${signals.atRisk ? '#f87171' : branch.color}`,
                         overflow: 'hidden', flexShrink: 0,
                         background: `linear-gradient(135deg, ${branch.color}, ${branch.color}88)`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -586,10 +688,13 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                         {branch.name}
                       </span>
                       {/* Health dot — color-coded so managers can scan instantly */}
-                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: bh.color, flexShrink: 0 }} />
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: signals.stale ? '#f59e0b' : bh.color, flexShrink: 0 }} title={signals.stale ? 'No recent update' : bh.label} />
                       {/* Progress */}
                       <span style={{ color: branch.color, fontSize: '10px', fontFamily: 'Space Mono', fontWeight: 700 }}>
                         {branch.progress}%
+                      </span>
+                      <span style={{ gridColumn: '2 / -1', color: signals.stale ? '#f59e0b' : 'rgba(255,255,255,0.38)', fontSize: '8px', fontFamily: 'Space Mono', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {signals.empty ? 'No flow tasks' : `${signals.blocked} blocked · ${relativeUpdate(signals.quietHours)}`}
                       </span>
                       {projectId && (canMerge || mergingId === branch.id) && (
                         <button
@@ -734,10 +839,10 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
         @keyframes fgSpin { to { transform: rotate(360deg); } }
         @keyframes fgRing { 0%,100% { stroke-opacity: 0.04; } 50% { stroke-opacity: 0.5; } }
         @keyframes fgRiverFlow { to { stroke-dashoffset: -72; } }
-        @keyframes fgBranchFlow { to { stroke-dashoffset: -46; } }
+        @keyframes fgAttentionFlow { to { stroke-dashoffset: -40; } }
         @keyframes fgMergeFlow { to { stroke-dashoffset: -96; } }
-        .fg-river-flow { animation: fgRiverFlow 2.8s linear infinite; }
-        .fg-branch-flow { stroke-dasharray: 12 18; animation: fgBranchFlow 4.2s linear infinite; }
+        .fg-river-flow { animation: fgRiverFlow 7s linear infinite; opacity: 0.42; }
+        .fg-attention-flow { animation: fgAttentionFlow 3.8s linear infinite; }
         .fg-merge-flow { animation: fgMergeFlow 0.75s linear infinite; }
       `}</style>
     </div>
