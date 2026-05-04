@@ -17,36 +17,24 @@ const slides = [
     title: 'Choose where work lives',
     caption: 'Personal is private. Workspaces are for teams. Projects unlock Flow, board, calendar, and Nex.',
     visual: 'command',
-    action: 'Try it',
-    done: 'Done',
-    chips: ['Personal', 'Workspace', 'Project'],
   },
   {
     eyebrow: 'Board',
     title: 'Move work once it changes',
     caption: 'Drag cards through the board. Progress updates from what is actually done, not what someone promised.',
     visual: 'board',
-    action: 'Try it',
-    done: 'Moved',
-    chips: ['Todo', 'Doing', 'Review', 'Done'],
   },
   {
     eyebrow: 'Flow',
     title: 'Read the project in standup',
     caption: 'Flow shows phases as the trunk and features as branches. Open a branch, clear blockers, merge when complete.',
     visual: 'flow',
-    action: 'Try it',
-    done: 'Brief ready',
-    chips: ['Risks', 'Branches', 'Merge'],
   },
   {
     eyebrow: 'Nex',
     title: 'Ask Nex to operate',
     caption: 'Nex can brief the manager, create tasks, update details, move cards, and delete work when you ask clearly.',
     visual: 'nex',
-    action: 'Try it',
-    done: 'Briefed',
-    chips: ['Create', 'Modify', 'Delete'],
   },
 ]
 
@@ -65,6 +53,28 @@ function MiniLabel({ children, active = false }: { children: string; active?: bo
       fontWeight: 780,
       whiteSpace: 'nowrap',
     }}>{children}</span>
+  )
+}
+
+function NexOrb() {
+  return (
+    <div style={{ width: '116px', height: '116px', borderRadius: '50%', margin: '0 auto', background: 'radial-gradient(circle at 34% 24%, rgba(255,255,255,0.96), rgba(216,196,255,0.64) 10%, rgba(142,86,255,0.95) 38%, rgba(94,43,196,0.98) 72%, #27105b 100%)', boxShadow: '0 0 70px rgba(139,92,246,0.5), inset -18px -22px 42px rgba(18,8,55,0.34), inset 12px 14px 26px rgba(255,255,255,0.1)', position: 'relative', overflow: 'hidden' }}>
+      <motion.span
+        animate={{ x: [0, 5, -2, 0], y: [0, -2, 2, 0], opacity: [0.78, 1, 0.86, 0.78] }}
+        transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ position: 'absolute', left: '43px', top: '53px', width: '12px', height: '12px', borderRadius: '50%', background: 'rgba(255,255,255,0.8)', boxShadow: '0 0 18px rgba(255,255,255,0.6)' }}
+      />
+      <motion.span
+        animate={{ x: [0, -4, 2, 0], y: [0, 2, -1, 0], opacity: [0.7, 0.92, 0.8, 0.7] }}
+        transition={{ duration: 4.4, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ position: 'absolute', left: '72px', top: '53px', width: '12px', height: '12px', borderRadius: '50%', background: 'rgba(255,255,255,0.74)', boxShadow: '0 0 18px rgba(255,255,255,0.46)' }}
+      />
+      <motion.span
+        animate={{ x: [0, 8, -3, 0], y: [0, 5, -4, 0], scale: [1, 1.08, 0.96, 1] }}
+        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ position: 'absolute', left: '35px', top: '34px', width: '30px', height: '22px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', filter: 'blur(8px)' }}
+      />
+    </div>
   )
 }
 
@@ -124,10 +134,7 @@ function Visual({ type, acted }: { type: string; acted: boolean }) {
   if (type === 'nex') {
     return (
       <div style={{ minHeight: '172px', display: 'grid', gridTemplateColumns: '132px 1fr', gap: '16px', alignItems: 'center' }}>
-        <div style={{ width: '116px', height: '116px', borderRadius: '50%', margin: '0 auto', background: 'radial-gradient(circle at 35% 30%, #fff, #a78bfa 24%, #7c3aed 54%, #111827 82%)', boxShadow: '0 0 70px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.5)', position: 'relative' }}>
-          <span style={{ position: 'absolute', left: '39px', top: '47px', width: '10px', height: '10px', borderRadius: '50%', background: 'rgba(255,255,255,0.72)', boxShadow: '0 0 18px rgba(255,255,255,0.55)' }} />
-          <span style={{ position: 'absolute', right: '39px', top: '47px', width: '10px', height: '10px', borderRadius: '50%', background: 'rgba(255,255,255,0.72)', boxShadow: '0 0 18px rgba(255,255,255,0.55)' }} />
-        </div>
+        <NexOrb />
         <div style={{ display: 'grid', gap: '9px' }}>
           {['Health: at risk', 'Attention: Flow Graph', acted ? 'Decision: move to review' : 'Ask: standup brief'].map((line, i) => (
             <div key={line} style={{ borderRadius: '13px', padding: '10px 12px', background: i === 1 ? 'rgba(236,72,153,0.12)' : 'rgba(255,255,255,0.055)', border: i === 1 ? '1px solid rgba(236,72,153,0.35)' : '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.84)', fontSize: '12px', fontWeight: 760 }}>{line}</div>
@@ -162,11 +169,10 @@ function Visual({ type, acted }: { type: string; acted: boolean }) {
 export default function OnboardingFlow({ userId, userName, onComplete }: Props) {
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
-  const [completed, setCompleted] = useState<number[]>([])
   const firstName = userName.split(' ')[0] || 'there'
   const slide = slides[step]
   const isLast = step === slides.length - 1
-  const acted = completed.includes(step)
+  const acted = step > 0
 
   const complete = async () => {
     setSaving(true)
@@ -180,10 +186,6 @@ export default function OnboardingFlow({ userId, userName, onComplete }: Props) 
     } finally {
       setSaving(false)
     }
-  }
-
-  const runAction = () => {
-    setCompleted(prev => prev.includes(step) ? prev : [...prev, step])
   }
 
   return (
@@ -219,7 +221,7 @@ export default function OnboardingFlow({ userId, userName, onComplete }: Props) 
             </div>
             <div style={{ display: 'flex', gap: '7px', paddingTop: '5px' }}>
               {slides.map((_, index) => (
-                <button key={index} type="button" onClick={() => setStep(index)} aria-label={`Go to onboarding slide ${index + 1}`} style={{ width: index === step ? '30px' : '8px', height: '8px', borderRadius: '999px', border: 'none', background: index === step ? 'linear-gradient(90deg, #ec4899, #8b5cf6, #06b6d4)' : completed.includes(index) ? '#22c55e' : 'rgba(255,255,255,0.18)', cursor: 'pointer', transition: 'all 0.18s ease' }} />
+                <button key={index} type="button" onClick={() => setStep(index)} aria-label={`Go to onboarding slide ${index + 1}`} style={{ width: index === step ? '30px' : '8px', height: '8px', borderRadius: '999px', border: 'none', background: index === step ? 'linear-gradient(90deg, #ec4899, #8b5cf6, #06b6d4)' : 'rgba(255,255,255,0.18)', cursor: 'pointer', transition: 'all 0.18s ease' }} />
               ))}
             </div>
           </div>
@@ -227,17 +229,7 @@ export default function OnboardingFlow({ userId, userName, onComplete }: Props) 
           <AnimatePresence mode="wait">
             <motion.div key={step} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.18 }}>
               <Visual type={slide.visual} acted={acted} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '18px', alignItems: 'center', marginTop: '20px' }}>
-                <div>
-                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.62)', fontSize: '15px', lineHeight: 1.48 }}>{slide.caption}</p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '14px' }}>
-                    {slide.chips.map(chip => <MiniLabel key={chip}>{chip}</MiniLabel>)}
-                  </div>
-                </div>
-                <button type="button" onClick={runAction} aria-label={`${slide.action}: ${slide.title}`} style={{ width: '46px', height: '46px', borderRadius: '50%', border: acted ? '1px solid rgba(34,197,94,0.55)' : '1px solid rgba(255,255,255,0.18)', background: acted ? 'rgba(34,197,94,0.16)' : 'linear-gradient(135deg, rgba(236,72,153,0.94), rgba(139,92,246,0.94), rgba(6,182,212,0.94))', color: 'white', cursor: 'pointer', fontWeight: 900, fontSize: '18px', boxShadow: acted ? 'none' : '0 16px 34px rgba(139,92,246,0.26)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                  {acted ? '✓' : '›'}
-                </button>
-              </div>
+              <p style={{ margin: '20px 0 0', color: 'rgba(255,255,255,0.62)', fontSize: '15px', lineHeight: 1.48 }}>{slide.caption}</p>
             </motion.div>
           </AnimatePresence>
 
