@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect } from 'react'
+import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { useFlowData } from '../../hooks/useFlowData'
 import { supabase } from '../../supabase'
 import type { FlowBranch, FlowTask } from '../../hooks/useFlowData'
@@ -15,7 +15,7 @@ const NODE_R        = 20
 const TRUNK_NODE_R  = 24
 const NODE_SPACING  = 160
 const PHASE_START_X = 100
-const PHASE_SPACING = 560
+const PHASE_SPACING = 720
 const BRANCH_CARD_W = 280
 
 function statusFill(s: string) {
@@ -80,11 +80,21 @@ function relativeUpdate(hours: number | null): string {
   return `${Math.floor(hours / 24)}d ago`
 }
 
+function loadMergedBranchIds(projectId?: string | null): Set<string> {
+  if (!projectId || typeof window === 'undefined') return new Set()
+  try {
+    const stored = window.localStorage.getItem(`flow-merged:${projectId}`)
+    return new Set(stored ? JSON.parse(stored) as string[] : [])
+  } catch {
+    return new Set()
+  }
+}
+
 interface NodeLayout { task: FlowTask; x: number; y: number }
 interface MilestoneLayout { id: string; label: string; x: number }
 interface BranchLayout {
   branch: FlowBranch; above: boolean
-  originX: number; branchY: number; cardX: number
+  originX: number; branchY: number; cardX: number; mergeX: number
   nodes: NodeLayout[]; endX: number
 }
 
@@ -106,6 +116,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const [showTaskPaths, setShowTaskPaths] = useState(false)
   const [attentionOnly, setAttentionOnly] = useState(false)
   const [focusBranchId, setFocusBranchId] = useState<string | null>(null)
+  const [mergedBranchIds, setMergedBranchIds] = useState<Set<string>>(() => loadMergedBranchIds(projectId))
   const [dragging,   setDragging]   = useState(false)
   const [drag0,      setDrag0]      = useState({ x: 0, scroll: 0 })
   const [svgH,       setSvgH]       = useState(500)
@@ -120,6 +131,16 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     m(); const ro = new ResizeObserver(m); ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  const persistMergedBranch = useCallback((branchId: string) => {
+    if (!projectId) return
+    setMergedBranchIds(prev => {
+      const next = new Set(prev)
+      next.add(branchId)
+      window.localStorage.setItem(`flow-merged:${projectId}`, JSON.stringify([...next]))
+      return next
+    })
+  }, [projectId])
 
   const canvasH = Math.max(svgH, 920)
   const TRUNK_Y = Math.round(canvasH * 0.52)
@@ -136,7 +157,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     const maxTaskRun = showTaskPaths
       ? branches.reduce((max, b) => Math.max(max, Math.max(b.tasks.length - 1, 0) * NODE_SPACING + BRANCH_CARD_W), 0)
       : 0
-    const svgWidth   = Math.max(lastPhaseX + maxTaskRun + 760, 2600)
+    const svgWidth   = Math.max(lastPhaseX + maxTaskRun + 760, 3200)
     const nowX       = milestoneNodes[Math.min(1, milestoneNodes.length - 1)]?.x ?? 360
 
     const milestoneIndex = new Map(milestoneNodes.map((m, i) => [m.id, i]))
@@ -159,14 +180,15 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
         const lane = Math.floor(slot / 2)
         const branchY = TRUNK_Y + (above ? -1 : 1) * (104 + lane * 88)
         const slotRatio = (slot + 1) / (bucket.length + 1)
-        const originX = intervalStart + intervalWidth * (0.12 + slotRatio * 0.58)
-        const cardX = intervalStart + 152
+        const originX = intervalStart + intervalWidth * (0.12 + slotRatio * 0.18)
+        const cardX = intervalStart + 190
+        const mergeX = intervalEnd - 115
         const taskStartX = cardX + BRANCH_CARD_W + 58
         const nodes: NodeLayout[] = branch.tasks.map((task, i) => ({
           task, x: taskStartX + i * NODE_SPACING, y: branchY + 20,
         }))
         const endX = nodes.length > 0 ? nodes[nodes.length - 1].x : cardX + BRANCH_CARD_W
-        result.push({ branch, above, originX, branchY, cardX, nodes, endX })
+        result.push({ branch, above, originX, branchY, cardX, mergeX, nodes, endX })
       })
     })
     return { branches: result, svgWidth, nowX, milestoneNodes }
@@ -183,7 +205,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const activeTasks  = branches.reduce((s, b) => s + b.tasks.filter(t => t.status === 'in_progress').length, 0)
   const overdueTasks = branches.reduce((s, b) => s + b.tasks.filter(t => isOverdue(t)).length, 0)
   const blockedCount = branches.filter(b => branchHealth(b).label === 'BLOCKED').length
-  const mergedCount  = branches.filter(b => b.total > 0 && b.done === b.total).length
+  const mergedCount  = branches.filter(b => mergedBranchIds.has(b.id)).length
   const branchSignalMap = useMemo(() => new Map(branches.map(b => [b.id, branchSignals(b)])), [branches])
   const attentionBranches = useMemo(
     () => branches.filter(b => branchSignalMap.get(b.id)?.atRisk || branchSignalMap.get(b.id)?.empty),
@@ -194,8 +216,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     [branches, branchSignalMap],
   )
   const completedBranches = useMemo(
-    () => branches.filter(b => b.total > 0 && b.done === b.total),
-    [branches],
+    () => branches.filter(b => b.total > 0 && b.done === b.total && !mergedBranchIds.has(b.id)),
+    [branches, mergedBranchIds],
   )
   const focusBranch = branches.find(b => b.id === focusBranchId) ?? attentionBranches[0] ?? branches[0] ?? null
   const focusSignals = focusBranch ? branchSignalMap.get(focusBranch.id) : null
@@ -215,6 +237,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
 
   const mergeBranch = async (branch: FlowBranch) => {
     if (!projectId || branch.total === 0 || mergingId) return
+    if (mergedBranchIds.has(branch.id)) return
     const unfinished = branch.tasks.filter(t => t.status !== 'done')
     if (unfinished.length > 0) {
       setMergeError(`${branch.name} still has ${unfinished.length} open task${unfinished.length === 1 ? '' : 's'}. Finish the branch before merging.`)
@@ -223,13 +246,22 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
 
     setMergeError(null)
     setMergingId(branch.id)
+    persistMergedBranch(branch.id)
     const { error: taskErr } = await supabase.from('tasks').update({
       show_on_flow: true,
       last_edited_by: userId,
       last_edited_at: new Date().toISOString(),
     }).eq('project_id', projectId).eq('feature_id', branch.id)
 
-    if (taskErr) setMergeError(taskErr.message)
+    if (taskErr) {
+      setMergeError(taskErr.message)
+      setMergedBranchIds(prev => {
+        const next = new Set(prev)
+        next.delete(branch.id)
+        window.localStorage.setItem(`flow-merged:${projectId}`, JSON.stringify([...next]))
+        return next
+      })
+    }
     else await refetch()
     setMergingId(null)
   }
@@ -592,7 +624,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
               })}
 
             {/* ── BRANCHES ── */}
-            {layout.branches.map(({ branch, above, originX, branchY, cardX, nodes, endX }) => {
+            {layout.branches.map(({ branch, above, originX, branchY, cardX, mergeX, nodes, endX }) => {
               const isHov      = hovBranch === branch.id
               const isMyBranch = myBranchIds.has(branch.id)
               const signals    = branchSignalMap.get(branch.id) ?? branchSignals(branch)
@@ -604,11 +636,12 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
               const titleY     = (y: number) => above ? y - NODE_R - 18 : y + NODE_R + 26
               const dateY      = (y: number) => above ? y - NODE_R - 32 : y + NODE_R + 40
               const bh         = branchHealth(branch)
-              const canMerge   = projectId && branch.total > 0 && branch.done === branch.total
+              const isMerged   = mergedBranchIds.has(branch.id)
+              const canMerge   = projectId && branch.total > 0 && branch.done === branch.total && !isMerged
               const branchEndX = cardX + BRANCH_CARD_W
-              const mergeX     = originX + PHASE_SPACING * 0.72
-              const branchPath = `M ${originX} ${TRUNK_Y} C ${originX + 50} ${TRUNK_Y}, ${cardX - 82} ${connectorY}, ${cardX} ${connectorY}`
-              const returnPath = `M ${branchEndX} ${connectorY} C ${branchEndX + 96} ${connectorY}, ${mergeX - 130} ${TRUNK_Y}, ${mergeX} ${TRUNK_Y}`
+              const elbowX = cardX - 42
+              const branchPath = `M ${originX} ${TRUNK_Y} L ${originX} ${connectorY} L ${elbowX} ${connectorY} L ${cardX} ${connectorY}`
+              const returnPath = `M ${branchEndX} ${connectorY} L ${mergeX} ${connectorY} L ${mergeX} ${TRUNK_Y}`
 
               return (
                 <g key={branch.id}
@@ -620,27 +653,29 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                 >
                   <path
                     d={branchPath}
-                    fill="none" stroke={signals.atRisk ? '#f87171' : branch.color}
-                    strokeOpacity={isHov ? 0.88 : signals.atRisk ? 0.72 : 0.34}
-                    strokeWidth={isHov ? 3 : signals.atRisk ? 2.6 : 1.8}
+                    fill="none" stroke={isMerged ? '#22c55e' : signals.atRisk ? '#f87171' : branch.color}
+                    strokeOpacity={isHov ? 0.88 : isMerged ? 0.54 : signals.atRisk ? 0.72 : 0.34}
+                    strokeWidth={isHov ? 3 : isMerged ? 2.4 : signals.atRisk ? 2.6 : 1.8}
                     strokeLinecap="round"
+                    strokeLinejoin="round"
                     strokeDasharray={signals.atRisk ? '10 10' : undefined}
                     className={signals.atRisk ? 'fg-attention-flow' : undefined}
                     style={{ transition: 'all 0.2s' }}
                   />
                   <circle cx={originX} cy={TRUNK_Y} r={isHov ? 7 : 5}
-                    fill={signals.atRisk ? '#f87171' : branch.color} opacity={isHov ? 1 : 0.78}
+                    fill={isMerged ? '#22c55e' : signals.atRisk ? '#f87171' : branch.color} opacity={isHov ? 1 : 0.78}
                     filter={isHov ? `url(#fg-gf-${branch.id})` : undefined}
                     style={{ transition: 'all 0.2s' }}
                   />
-                  {(canMerge || mergingId === branch.id) && (
+                  {(canMerge || isMerged || mergingId === branch.id) && (
                     <path
                       d={returnPath}
-                      fill="none" stroke={branch.color}
-                      strokeOpacity={mergingId === branch.id ? 0.95 : 0.38}
-                      strokeWidth={mergingId === branch.id ? 3.4 : 2}
+                      fill="none" stroke="#22c55e"
+                      strokeOpacity={mergingId === branch.id ? 0.95 : isMerged ? 0.62 : 0.38}
+                      strokeWidth={mergingId === branch.id ? 3.4 : isMerged ? 2.6 : 2}
                       strokeLinecap="round"
-                      strokeDasharray={mergingId === branch.id ? '14 10' : '5 8'}
+                      strokeLinejoin="round"
+                      strokeDasharray={mergingId === branch.id ? '14 10' : isMerged ? undefined : '5 8'}
                       className={mergingId === branch.id ? 'fg-merge-flow' : undefined}
                     />
                   )}
@@ -656,8 +691,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                   <foreignObject x={chipStartX} y={chipY} width={chipWidth} height={92} style={{ overflow: 'visible', pointerEvents: 'auto' }}>
                     <div style={{
                       display: 'grid', gridTemplateColumns: '28px minmax(0, 1fr) auto auto', alignItems: 'center', columnGap: '7px',
-                      background: signals.atRisk ? 'rgba(248,113,113,0.11)' : `${branch.color}1a`,
-                      border: `1.5px solid ${signals.atRisk ? '#f87171' : branch.color}${isHov ? 'cc' : '55'}`,
+                      background: isMerged ? 'rgba(34,197,94,0.12)' : signals.atRisk ? 'rgba(248,113,113,0.11)' : `${branch.color}1a`,
+                      border: `1.5px solid ${isMerged ? '#22c55e' : signals.atRisk ? '#f87171' : branch.color}${isHov ? 'cc' : '55'}`,
                       borderRadius: '10px', padding: '7px 10px 7px 7px',
                       backdropFilter: 'blur(12px)',
                       whiteSpace: 'nowrap',
@@ -668,7 +703,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                       {/* Avatar / initials */}
                       <div style={{
                         width: '26px', height: '26px', borderRadius: '50%',
-                        border: `2px solid ${signals.atRisk ? '#f87171' : branch.color}`,
+                        border: `2px solid ${isMerged ? '#22c55e' : signals.atRisk ? '#f87171' : branch.color}`,
                         overflow: 'hidden', flexShrink: 0,
                         background: `linear-gradient(135deg, ${branch.color}, ${branch.color}88)`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -688,19 +723,19 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                         {branch.name}
                       </span>
                       {/* Health dot — color-coded so managers can scan instantly */}
-                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: signals.stale ? '#f59e0b' : bh.color, flexShrink: 0 }} title={signals.stale ? 'No recent update' : bh.label} />
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isMerged ? '#22c55e' : signals.stale ? '#f59e0b' : bh.color, flexShrink: 0 }} title={isMerged ? 'Merged' : signals.stale ? 'No recent update' : bh.label} />
                       {/* Progress */}
                       <span style={{ color: branch.color, fontSize: '10px', fontFamily: 'Space Mono', fontWeight: 700 }}>
                         {branch.progress}%
                       </span>
                       <span style={{ gridColumn: '2 / -1', color: signals.stale ? '#f59e0b' : 'rgba(255,255,255,0.38)', fontSize: '8px', fontFamily: 'Space Mono', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {signals.empty ? 'No flow tasks' : `${signals.blocked} blocked · ${relativeUpdate(signals.quietHours)}`}
+                        {isMerged ? 'Merged into trunk' : signals.empty ? 'No flow tasks' : `${signals.blocked} blocked · ${relativeUpdate(signals.quietHours)}`}
                       </span>
-                      {projectId && (canMerge || mergingId === branch.id) && (
+                      {projectId && (canMerge || isMerged || mergingId === branch.id) && (
                         <button
                           onClick={e => { e.stopPropagation(); void mergeBranch(branch) }}
-                          disabled={!canMerge || mergingId === branch.id}
-                          title={canMerge ? 'Merge completed feature into main trunk' : 'Finish all feature tasks before merging'}
+                          disabled={!canMerge || isMerged || mergingId === branch.id}
+                          title={isMerged ? 'Feature is merged' : canMerge ? 'Merge completed feature into main trunk' : 'Finish all feature tasks before merging'}
                           style={{
                             gridColumn: '1 / -1',
                             justifySelf: 'end',
@@ -708,15 +743,15 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                             height: '18px',
                             padding: '0 8px',
                             borderRadius: '9px',
-                            border: `1px solid ${canMerge ? 'rgba(34,197,94,0.45)' : 'rgba(255,255,255,0.08)'}`,
-                            background: canMerge ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.03)',
-                            color: canMerge ? '#4ade80' : 'rgba(255,255,255,0.28)',
-                            cursor: canMerge ? 'pointer' : 'not-allowed',
+                            border: `1px solid ${canMerge || isMerged ? 'rgba(34,197,94,0.45)' : 'rgba(255,255,255,0.08)'}`,
+                            background: canMerge || isMerged ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.03)',
+                            color: canMerge || isMerged ? '#4ade80' : 'rgba(255,255,255,0.28)',
+                            cursor: canMerge && !isMerged ? 'pointer' : 'not-allowed',
                             fontSize: '8px',
                             fontFamily: 'Space Mono',
                             fontWeight: 700,
                           }}>
-                          {mergingId === branch.id ? 'MERGING...' : 'MERGE'}
+                          {mergingId === branch.id ? 'MERGING...' : isMerged ? 'MERGED' : 'MERGE'}
                         </button>
                       )}
                     </div>
