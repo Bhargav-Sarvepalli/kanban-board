@@ -122,6 +122,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const [svgH,       setSvgH]       = useState(500)
   const [mergingId,  setMergingId]  = useState<string | null>(null)
   const [mergeError, setMergeError] = useState<string | null>(null)
+  const [showBriefDetails, setShowBriefDetails] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const wrapRef   = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -314,7 +316,17 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const trunkPath = `M 60 ${TRUNK_Y} C ${layout.svgWidth * 0.26} ${TRUNK_Y - 18}, ${layout.svgWidth * 0.48} ${TRUNK_Y + 18}, ${layout.svgWidth * 0.7} ${TRUNK_Y - 8} S ${layout.svgWidth - 220} ${TRUNK_Y + 12}, ${trunkEnd} ${TRUNK_Y}`
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{
+      width: isFullscreen ? '100vw' : '100%',
+      height: isFullscreen ? '100vh' : '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      position: isFullscreen ? 'fixed' : 'relative',
+      inset: isFullscreen ? 0 : undefined,
+      zIndex: isFullscreen ? 2000 : undefined,
+      background: '#0a0a0f',
+    }}>
 
       {/* ── TOP BAR ── */}
       <div style={{
@@ -381,6 +393,11 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
 
         {/* Right: MY TASKS + STANDUP */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button onClick={() => setIsFullscreen(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: isFullscreen ? 'rgba(139,92,246,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${isFullscreen ? 'rgba(139,92,246,0.46)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: isFullscreen ? '#c4b5fd' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
+            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: isFullscreen ? '#a78bfa' : 'rgba(255,255,255,0.4)' }} />
+            {isFullscreen ? 'EXIT FULL' : 'FULL SCREEN'}
+          </button>
           {projectId && (
             <button onClick={() => setAttentionOnly(v => !v)}
               style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: attentionOnly ? 'rgba(248,113,113,0.16)' : 'rgba(255,255,255,0.07)', border: `1px solid ${attentionOnly ? 'rgba(248,113,113,0.45)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: attentionOnly ? '#fca5a5' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
@@ -416,27 +433,33 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       <div style={{
         display: 'flex', gap: '8px', padding: '8px 24px',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
-        overflowX: 'auto', flexShrink: 0, alignItems: 'center',
+        overflowX: 'auto', flexShrink: 0, alignItems: 'stretch',
       }}>
         {projectId && (
           <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch', flexShrink: 0 }}>
-            <div style={{ width: '220px', padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)' }}>
-              <p style={{ margin: '0 0 7px', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>STANDUP BRIEF</p>
+            <div style={{ width: showBriefDetails ? '430px' : '310px', padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '7px' }}>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>STANDUP BRIEF</p>
+                <button onClick={() => setShowBriefDetails(v => !v)}
+                  style={{ height: '18px', padding: '0 7px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.62)', fontSize: '8px', fontFamily: 'Space Mono', fontWeight: 700, cursor: 'pointer' }}>
+                  {showBriefDetails ? 'LESS' : 'DETAILS'}
+                </button>
+              </div>
               {standupItems.map(item => (
-                <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '7px', marginTop: '5px' }}>
+                <div key={item.label} style={{ display: 'grid', gridTemplateColumns: '6px 112px minmax(0, 1fr)', alignItems: 'start', gap: '7px', marginTop: '5px' }}>
                   <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: item.color, flexShrink: 0 }} />
-                  <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '10px', fontFamily: 'Space Mono', minWidth: '86px' }}>{item.label}</span>
-                  <span style={{ color: 'white', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 650, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '92px' }}>{item.value}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '10px', fontFamily: 'Space Mono' }}>{item.label}</span>
+                  <span title={item.value} style={{ color: 'white', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 650, overflow: 'hidden', textOverflow: showBriefDetails ? undefined : 'ellipsis', whiteSpace: showBriefDetails ? 'normal' : 'nowrap', lineHeight: 1.35 }}>{item.value}</span>
                 </div>
               ))}
             </div>
 
             {focusBranch && focusSignals && (
-              <div style={{ width: '300px', padding: '9px 12px', borderRadius: '8px', border: `1px solid ${focusSignals.atRisk ? 'rgba(248,113,113,0.24)' : 'rgba(255,255,255,0.1)'}`, background: focusSignals.atRisk ? 'rgba(248,113,113,0.055)' : 'rgba(255,255,255,0.035)' }}>
+              <div style={{ width: showBriefDetails ? '430px' : '380px', padding: '9px 12px', borderRadius: '8px', border: `1px solid ${focusSignals.atRisk ? 'rgba(248,113,113,0.24)' : 'rgba(255,255,255,0.1)'}`, background: focusSignals.atRisk ? 'rgba(248,113,113,0.055)' : 'rgba(255,255,255,0.035)' }}>
                 <p style={{ margin: '0 0 7px', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>FOCUS FEATURE</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: focusSignals.atRisk ? '#f87171' : focusBranch.color, flexShrink: 0 }} />
-                  <span style={{ color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 750, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{focusBranch.name}</span>
+                  <span title={focusBranch.name} style={{ color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 750, overflow: 'hidden', textOverflow: showBriefDetails ? undefined : 'ellipsis', whiteSpace: showBriefDetails ? 'normal' : 'nowrap', lineHeight: 1.25, minWidth: 0 }}>{focusBranch.name}</span>
                   <button onClick={() => onBranchClick(focusBranch)}
                     style={{ marginLeft: 'auto', height: '22px', padding: '0 8px', borderRadius: '7px', border: '1px solid rgba(139,92,246,0.35)', background: 'rgba(139,92,246,0.12)', color: '#c4b5fd', fontSize: '9px', fontFamily: 'Space Mono', fontWeight: 700, cursor: 'pointer' }}>
                     OPEN
@@ -639,9 +662,9 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
               const isMerged   = mergedBranchIds.has(branch.id)
               const canMerge   = projectId && branch.total > 0 && branch.done === branch.total && !isMerged
               const branchEndX = cardX + BRANCH_CARD_W
-              const elbowX = cardX - 42
-              const branchPath = `M ${originX} ${TRUNK_Y} L ${originX} ${connectorY} L ${elbowX} ${connectorY} L ${cardX} ${connectorY}`
-              const returnPath = `M ${branchEndX} ${connectorY} L ${mergeX} ${connectorY} L ${mergeX} ${TRUNK_Y}`
+              const forkPull = above ? -36 : 36
+              const branchPath = `M ${originX} ${TRUNK_Y} C ${originX + 28} ${TRUNK_Y + forkPull}, ${cardX - 96} ${connectorY}, ${cardX} ${connectorY}`
+              const returnPath = `M ${branchEndX} ${connectorY} C ${branchEndX + 86} ${connectorY}, ${mergeX - 78} ${TRUNK_Y}, ${mergeX} ${TRUNK_Y}`
 
               return (
                 <g key={branch.id}
@@ -654,11 +677,11 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                   <path
                     d={branchPath}
                     fill="none" stroke={isMerged ? '#22c55e' : signals.atRisk ? '#f87171' : branch.color}
-                    strokeOpacity={isHov ? 0.88 : isMerged ? 0.54 : signals.atRisk ? 0.72 : 0.34}
-                    strokeWidth={isHov ? 3 : isMerged ? 2.4 : signals.atRisk ? 2.6 : 1.8}
+                    strokeOpacity={isHov ? 0.82 : isMerged ? 0.42 : signals.atRisk ? 0.56 : 0.24}
+                    strokeWidth={isHov ? 2.8 : isMerged ? 2.2 : signals.atRisk ? 2.2 : 1.5}
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeDasharray={signals.atRisk ? '10 10' : undefined}
+                    strokeDasharray={signals.atRisk ? '12 12' : undefined}
                     className={signals.atRisk ? 'fg-attention-flow' : undefined}
                     style={{ transition: 'all 0.2s' }}
                   />
@@ -671,8 +694,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                     <path
                       d={returnPath}
                       fill="none" stroke="#22c55e"
-                      strokeOpacity={mergingId === branch.id ? 0.95 : isMerged ? 0.62 : 0.38}
-                      strokeWidth={mergingId === branch.id ? 3.4 : isMerged ? 2.6 : 2}
+                      strokeOpacity={mergingId === branch.id ? 0.9 : isMerged ? 0.46 : 0.3}
+                      strokeWidth={mergingId === branch.id ? 3 : isMerged ? 2.3 : 1.8}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeDasharray={mergingId === branch.id ? '14 10' : isMerged ? undefined : '5 8'}

@@ -24,7 +24,13 @@ import Sidebar from './components/Sidebar'
 import type { FlowBranch } from './hooks/useFlowData'
 import { useProjects } from './hooks/useProjects'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+
+type AppView = 'today' | 'board' | 'calendar' | 'flow' | 'dashboard'
+
+function isAppView(value: string | null): value is AppView {
+  return value === 'today' || value === 'board' || value === 'calendar' || value === 'flow' || value === 'dashboard'
+}
 
 function App() {
   const [userId,   setUserId]   = useState<string | null>(null)
@@ -54,6 +60,7 @@ function App() {
   } | null>(null)
 
   const navigate = useNavigate()
+  const location = useLocation()
   const isPro    = true
 
   const [nexEnabled, setNexEnabled] = useState(() => {
@@ -65,7 +72,7 @@ function App() {
     ? (['dashboard', 'board', 'flow', 'calendar'] as const)
     : (['today', 'board', 'calendar'] as const)
 
-  const [view, setView] = useState<'today' | 'board' | 'calendar' | 'flow' | 'dashboard'>(() => {
+  const [view, setView] = useState<AppView>(() => {
     try {
       const saved = localStorage.getItem('nex_default_view')
       if (saved === 'board' || saved === 'calendar' || saved === 'today' || saved === 'flow') return saved
@@ -78,6 +85,56 @@ function App() {
     : view
 
   const { projects, refetch: refetchProjects } = useProjects(userId, currentWorkspace?.id ?? null)
+
+  const updateAppUrl = (
+    nextView: AppView,
+    opts?: {
+      project?: Project | null
+      feature?: { id: string; name: string } | null
+      replace?: boolean
+    },
+  ) => {
+    const params = new URLSearchParams()
+    params.set('view', nextView)
+    const projectForUrl = opts?.project !== undefined ? opts.project : currentProject
+    if (projectForUrl) params.set('project', projectForUrl.id)
+    if (opts?.feature) {
+      params.set('feature', opts.feature.id)
+      params.set('featureName', opts.feature.name)
+    }
+    const next = `/app?${params.toString()}`
+    if (`${location.pathname}${location.search}` !== next) {
+      navigate(next, { replace: opts?.replace ?? false })
+    }
+  }
+
+  useEffect(() => {
+    if (location.pathname !== '/app') return
+    const params = new URLSearchParams(location.search)
+    const routeView = params.get('view')
+    const projectId = params.get('project')
+    const featureId = params.get('feature')
+    const featureName = params.get('featureName')
+
+    if (isAppView(routeView) && routeView !== view) {
+      queueMicrotask(() => setView(routeView))
+    }
+
+    if (projectId && projects.length > 0 && currentProject?.id !== projectId) {
+      const project = projects.find(p => p.id === projectId)
+      if (project) queueMicrotask(() => setCurrentProject(project))
+    }
+
+    if (featureId) {
+      queueMicrotask(() => {
+        setBranchFilter(prev => prev?.id === featureId && prev.mode === 'feature'
+          ? prev
+          : { id: featureId, name: featureName ?? 'Feature', mode: 'feature' })
+      })
+    } else if (isAppView(routeView) && routeView !== 'board') {
+      queueMicrotask(() => setBranchFilter(null))
+    }
+  }, [location.pathname, location.search, projects, currentProject?.id, view])
 
   const prevWsRef = useRef<string | undefined>(currentWorkspace?.id)
   if (prevWsRef.current !== currentWorkspace?.id) {
@@ -213,16 +270,22 @@ function App() {
   const handleLogout  = async () => { await supabase.auth.signOut(); navigate('/auth') }
 
   const handleBranchClick = (branch: FlowBranch) => {
-    setBranchFilter(branch.id === 'unassigned' ? null : {
-      id: branch.id, name: branch.name,
-      mode: currentProject ? 'feature' : 'assignee',
-    })
+    const nextFilter = branch.id === 'unassigned' ? null : {
+      id: branch.id,
+      name: branch.name,
+      mode: currentProject ? 'feature' as const : 'assignee' as const,
+    }
+    setBranchFilter(nextFilter)
     setView('board')
+    updateAppUrl('board', {
+      feature: nextFilter?.mode === 'feature' ? { id: nextFilter.id, name: nextFilter.name } : null,
+    })
   }
 
-  const handleViewChange = (v: 'today' | 'board' | 'calendar' | 'flow' | 'dashboard') => {
+  const handleViewChange = (v: AppView) => {
     setView(v)
     if (v !== 'board') setBranchFilter(null)
+    updateAppUrl(v, { feature: null })
   }
 
   const total     = tasks.length
@@ -256,7 +319,13 @@ function App() {
         onOpenWorkspacePanel={() => setShowWorkspacePanel(true)}
         projects={projects}
         currentProject={currentProject}
-        onProjectChange={p => { setCurrentProject(p); setView(p ? 'board' : 'today') }}
+        onProjectChange={p => {
+          const nextView: AppView = p ? 'board' : 'today'
+          setCurrentProject(p)
+          setBranchFilter(null)
+          setView(nextView)
+          updateAppUrl(nextView, { project: p, feature: null })
+        }}
         onNewProject={() => setShowProjectWizard(true)}
         currentView={effectiveView}
         availableViews={availableTabs}
@@ -348,7 +417,7 @@ function App() {
                 <span style={{ color: '#a78bfa', fontSize: '12px' }}>
                   {branchFilter.mode === 'feature' ? '🌿' : '👤'} {branchFilter.name}
                 </span>
-                <button onClick={() => setBranchFilter(null)} style={{ background: 'none', border: 'none', color: '#6b6b7b', cursor: 'pointer', fontSize: '12px', padding: 0 }}>✕</button>
+                <button onClick={() => { setBranchFilter(null); updateAppUrl('board', { feature: null }) }} style={{ background: 'none', border: 'none', color: '#6b6b7b', cursor: 'pointer', fontSize: '12px', padding: 0 }}>✕</button>
               </div>
             </div>
           )}
@@ -394,12 +463,13 @@ function App() {
               projectId={currentProject.id}
               projectName={currentProject.name}
               userId={userId ?? ''}
-              onClose={() => setView('board')}
+              onClose={() => { setView('board'); updateAppUrl('board', { feature: null }) }}
               onProjectRenamed={newName => setCurrentProject(p => p ? { ...p, name: newName } : p)}
-              onProjectDeleted={() => { setCurrentProject(null); setView('today'); refetchProjects() }}
+              onProjectDeleted={() => { setCurrentProject(null); setBranchFilter(null); setView('today'); updateAppUrl('today', { project: null, feature: null }); refetchProjects() }}
               onFeatureClick={(featureId, featureName) => {
                 setBranchFilter({ id: featureId, name: featureName, mode: 'feature' })
                 setView('board')
+                updateAppUrl('board', { feature: { id: featureId, name: featureName } })
               }}
               inline={true}
             />
@@ -430,7 +500,7 @@ function App() {
         {showProjectWizard && userId && currentWorkspace && (
           <ProjectCreationWizard userId={userId} workspaceId={currentWorkspace.id}
             onClose={() => setShowProjectWizard(false)}
-            onCreated={p => { setShowProjectWizard(false); refetchProjects(); setCurrentProject(p); setView('board') }} />
+            onCreated={p => { setShowProjectWizard(false); refetchProjects(); setCurrentProject(p); setBranchFilter(null); setView('board'); updateAppUrl('board', { project: p, feature: null }) }} />
         )}
       </AnimatePresence>
       {showOnboarding && userId && (
