@@ -615,7 +615,9 @@ function App() {
         <NexErrorBoundary>
           <NexAssistant workspaceId={currentWorkspace?.id ?? null} userId={userId}
             projectId={currentProject?.id ?? null}
-            isPro={isPro} nexEnabled={nexEnabled} onTaskCreated={refetchTasks} panelOpen={showSettings} />
+            isPro={isPro} nexEnabled={nexEnabled} onTaskCreated={refetchTasks}
+            onOpenProjectWizard={() => { if (currentWorkspace) setShowProjectWizard(true) }}
+            panelOpen={showSettings} />
         </NexErrorBoundary>
       )}
     </div>

@@ -14,6 +14,7 @@ interface NexAssistantProps {
   isPro: boolean
   nexEnabled: boolean
   onTaskCreated?: () => void
+  onOpenProjectWizard?: () => void
   panelOpen?: boolean
 }
 
@@ -57,7 +58,7 @@ const SILENCE_MS  = 1200
 const ORB_SIZE    = 52
 const MAX_HISTORY = 20
 
-export default function NexAssistant({ workspaceId, projectId = null, userId, isPro, nexEnabled, onTaskCreated, panelOpen = false }: NexAssistantProps) {
+export default function NexAssistant({ workspaceId, projectId = null, userId, isPro, nexEnabled, onTaskCreated, onOpenProjectWizard, panelOpen = false }: NexAssistantProps) {
   const [globeState, setGlobeState]   = useState<GlobeState>('idle')
   const [expanded, setExpanded]       = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
@@ -173,7 +174,10 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     if (action.type === 'create_task' || action.type === 'delete_task' || action.type === 'update_task_status' || action.type === 'update_task') {
       onTaskCreated?.()
     }
-  }, [loadContext, onTaskCreated])
+    if (action.type === 'open_project_wizard') {
+      onOpenProjectWizard?.()
+    }
+  }, [loadContext, onTaskCreated, onOpenProjectWizard])
 
   const fireNex = useCallback(async (transcript: string) => {
     if (!transcript.trim() || !userId) return

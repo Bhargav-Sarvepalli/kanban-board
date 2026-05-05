@@ -10,6 +10,7 @@ export type NexTool =
   | 'get_daily_briefing'
   | 'get_standup_briefing'
   | 'suggest_next_task'
+  | 'open_project_wizard'
 
 export interface TaskContext {
   tasks: {
@@ -92,6 +93,9 @@ NexTask product map:
 - Calendar combines task dates and manual meeting entries.
 - Timer is a fullscreen focus clock with optional beats.
 - Standup mode should clarify risk, current progress, stale work, and decisions.
+- Project Creation Wizard is the guided setup for workspace projects. It opens from the plus button beside Projects in the sidebar.
+- Project Creation Wizard steps: project basics, collaborators, Flow phases, and feature branches. It is workspace-only right now, not Personal.
+- If the user says create a project, set up a project, plan a new launch, or asks for a project wizard, use open_project_wizard when a workspace is active. If they are in Personal, tell them project setup needs a workspace first.
 
 Manager and standup behavior:
 - Speak like a chief of staff. Start with health, then risks, then decisions.
@@ -211,6 +215,11 @@ const NEX_TOOLS = [
     description: 'Recommend the single most important task to work on next.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
+  {
+    name: 'open_project_wizard',
+    description: 'Open the guided Project Creation Wizard for workspace project setup, including project details, collaborators, Flow phases, and feature branches.',
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
 ]
 
 export function stripMarkdown(text: string): string {
@@ -309,6 +318,16 @@ export async function executeNexTool(
       })
       const top = sorted[0]
       return { result: top ? `I'd start with ${top.title}${top.due_date ? `, due ${top.due_date}` : ''}.` : 'Everything is done. Well played.' }
+    }
+
+    case 'open_project_wizard': {
+      if (!workspaceId) {
+        return { result: 'Project setup lives inside a workspace. Switch to a workspace first, then I can open it.' }
+      }
+      return {
+        result: 'Opening project setup. I will help shape the project, phases, team, and feature branches.',
+        action: { type: 'open_project_wizard', data: { workspaceId } },
+      }
     }
 
     case 'create_task': {

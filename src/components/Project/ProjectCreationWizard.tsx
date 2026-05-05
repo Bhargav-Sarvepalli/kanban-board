@@ -108,40 +108,69 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
   const generateWithNex = async () => {
     if (!nexPrompt.trim()) return
     setNexLoading(true)
+    setError('')
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nex-generate`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: `You are a project planning assistant. Given this project description: "${nexPrompt}", suggest 4-6 milestone names. Return ONLY a JSON array of strings, nothing else. Example: ["Kickoff","Design","Development","Testing","Launch"]`
-          })
-        }
-      )
-      const data = await res.json()
+      const { data, error: nexError } = await supabase.functions.invoke('nex-generate', {
+        body: {
+          max_tokens: 220,
+          prompt: `You are Nex, the project setup assistant inside NexTask. Given this project description: "${nexPrompt}", suggest 4-6 short Flow phase names for a manager-friendly project timeline. Return ONLY a JSON array of strings, nothing else. Example: ["Kickoff","Design","Build","Review","Launch"]`,
+        },
+      })
+      if (nexError) throw nexError
       const text = data.content?.[0]?.text ?? '[]'
       const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
-      if (Array.isArray(parsed)) setMilestones(parsed.map((m: string) => ({ name: m })))
-    } catch { /* silent */ }
+      if (Array.isArray(parsed)) {
+        const nextMilestones = parsed
+          .map((m: unknown) => String(m).trim())
+          .filter(Boolean)
+          .slice(0, 6)
+          .map(name => ({ name }))
+        if (nextMilestones.length > 0) setMilestones(nextMilestones)
+      }
+    } catch (err) {
+      console.error('[ProjectCreationWizard] Nex milestone generation failed:', err)
+      setError('Nex could not generate phases right now. You can still continue with manual phases.')
+    }
     finally { setNexLoading(false) }
+  }
+
+  const saveMilestones = async () => {
+    if (!createdProject) return []
+    const cleaned = milestones
+      .map((m, i) => ({ name: m.name.trim(), position: i }))
+      .filter(m => m.name.length > 0)
+    if (cleaned.length === 0) return []
+
+    const { data: existing, error: existingError } = await supabase
+      .from('project_milestones')
+      .select('id,name')
+      .eq('project_id', createdProject.id)
+    if (existingError) throw existingError
+
+    const existingNames = new Set((existing ?? []).map(m => m.name))
+    const missing = cleaned.filter(m => !existingNames.has(m.name))
+
+    if (missing.length === 0) return existing ?? []
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('project_milestones')
+      .insert(missing.map(m => ({ project_id: createdProject.id, name: m.name, position: m.position })))
+      .select('id,name')
+    if (insertError) throw insertError
+
+    return [...(existing ?? []), ...(inserted ?? [])]
   }
 
   const handleStep3 = async () => {
     if (!createdProject) { setStep(3); return }
     setLoading(true)
     try {
-      // Check if milestones already inserted (user went back/forward)
-      const { data: existing } = await supabase
-        .from('project_milestones')
-        .select('id')
-        .eq('project_id', createdProject.id)
-      if (!existing || existing.length === 0) {
-        await supabase.from('project_milestones').insert(
-          milestones.map((m, i) => ({ project_id: createdProject.id, name: m.name, position: i }))
-        )
-      }
-    } finally { setLoading(false); setStep(3) }
+      await saveMilestones()
+      setStep(3)
+    } catch (err) {
+      console.error('[ProjectCreationWizard] milestone save error:', err)
+      setError('Could not save phases. Please try again.')
+    } finally { setLoading(false) }
   }
 
   const addFeature = () => {
@@ -197,8 +226,9 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
         }
       }
 
+      const msData = await saveMilestones()
+
       if (features.length > 0) {
-        const { data: msData } = await supabase.from('project_milestones').select('id,name').eq('project_id', createdProject.id)
         const msMap: Record<string, string> = {}
         msData?.forEach(m => { msMap[m.name] = m.id })
         await supabase.from('project_features').insert(
@@ -213,7 +243,10 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
         )
       }
       finish(createdProject)
-    } catch { finish(createdProject!) }
+    } catch (err) {
+      console.error('[ProjectCreationWizard] complete error:', err)
+      setError('Project was created, but setup details could not be saved. Please try again.')
+    }
     finally { setLoading(false) }
   }
 
@@ -257,6 +290,9 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
 
         {/* Content */}
         <div style={{ padding: '0 32px 32px' }}>
+          {error && step !== 0 && (
+            <p style={{ color: '#f87171', fontSize: '12px', fontFamily: 'Space Grotesk', margin: '0 0 12px' }}>{error}</p>
+          )}
           <AnimatePresence mode="wait">
 
             {/* STEP 1 */}
@@ -357,7 +393,7 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
                 </div>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
                   <button onClick={() => setStep(1)} style={secondaryBtnStyle}>Back</button>
-                  <button onClick={() => setStep(3)} style={{ ...secondaryBtnStyle, flex: 1 }}>Skip for Now</button>
+                  <button onClick={handleStep3} disabled={loading} style={{ ...secondaryBtnStyle, flex: 1 }}>Use Defaults</button>
                   <button onClick={handleStep3} disabled={loading} style={primaryBtnStyle(!loading)}>{loading ? 'Saving…' : 'Next: Create Features →'}</button>
                 </div>
               </motion.div>
