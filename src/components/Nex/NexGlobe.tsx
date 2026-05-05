@@ -5,10 +5,9 @@ type GlobeState = 'idle' | 'listening' | 'thinking' | 'speaking'
 interface Props {
   state: GlobeState
   size?: number
-  onClick: () => void
 }
 
-export default function NexGlobe({ state, size = 48, onClick }: Props) {
+export default function NexGlobe({ state, size = 48 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef   = useRef<number>(0)
   const frameRef  = useRef(0)
@@ -142,10 +141,9 @@ export default function NexGlobe({ state, size = 48, onClick }: Props) {
       ref={canvasRef}
       width={size}
       height={size}
-      onClick={onClick}
       style={{
         width: `${size}px`, height: `${size}px`,
-        cursor: 'pointer', display: 'block',
+        display: 'block',
         borderRadius: '50%',
       }}
     />

@@ -11,6 +11,7 @@ export type NexTool =
   | 'get_standup_briefing'
   | 'suggest_next_task'
   | 'open_project_wizard'
+  | 'open_workspace_panel'
 
 export interface TaskContext {
   tasks: {
@@ -268,7 +269,10 @@ function localNexFallback(
 
   if (wantsProjectSetup) {
     if (!workspaceId) {
-      return { speech: 'Project setup needs a workspace. Switch to a workspace, then I can open the setup wizard.' }
+      return {
+        speech: 'Project setup needs a workspace. I opened the workspace switcher.',
+        action: { type: 'open_workspace_panel', data: {} },
+      }
     }
     return {
       speech: 'Opening project setup.',
@@ -373,7 +377,10 @@ export async function executeNexTool(
 
     case 'open_project_wizard': {
       if (!workspaceId) {
-        return { result: 'Project setup lives inside a workspace. Switch to a workspace first, then I can open it.' }
+        return {
+          result: 'Project setup lives inside a workspace. I opened the workspace switcher.',
+          action: { type: 'open_workspace_panel', data: {} },
+        }
       }
       return {
         result: 'Opening project setup. I will help shape the project, phases, team, and feature branches.',

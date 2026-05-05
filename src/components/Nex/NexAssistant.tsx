@@ -15,6 +15,7 @@ interface NexAssistantProps {
   nexEnabled: boolean
   onTaskCreated?: () => void
   onOpenProjectWizard?: () => void
+  onOpenWorkspacePanel?: () => void
   panelOpen?: boolean
 }
 
@@ -58,7 +59,7 @@ const SILENCE_MS  = 1200
 const ORB_SIZE    = 52
 const MAX_HISTORY = 20
 
-export default function NexAssistant({ workspaceId, projectId = null, userId, isPro, nexEnabled, onTaskCreated, onOpenProjectWizard, panelOpen = false }: NexAssistantProps) {
+export default function NexAssistant({ workspaceId, projectId = null, userId, isPro, nexEnabled, onTaskCreated, onOpenProjectWizard, onOpenWorkspacePanel, panelOpen = false }: NexAssistantProps) {
   const [globeState, setGlobeState]   = useState<GlobeState>('idle')
   const [expanded, setExpanded]       = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
@@ -74,6 +75,9 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
   const finalTextRef    = useRef('')
   const panelRef        = useRef<HTMLDivElement>(null)
   const ttsWarmedRef    = useRef(false)
+  const activatingRef   = useRef(false)
+  const processingRef   = useRef(false)
+  const lastCommandRef  = useRef<{ text: string; at: number } | null>(null)
 
   useEffect(() => { globeStateRef.current = globeState }, [globeState])
 
@@ -177,18 +181,27 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     if (action.type === 'open_project_wizard') {
       onOpenProjectWizard?.()
     }
-  }, [loadContext, onTaskCreated, onOpenProjectWizard])
+    if (action.type === 'open_workspace_panel') {
+      onOpenWorkspacePanel?.()
+    }
+  }, [loadContext, onTaskCreated, onOpenProjectWizard, onOpenWorkspacePanel])
 
   const fireNex = useCallback(async (transcript: string) => {
     if (!transcript.trim() || !userId) return
+    const cleanTranscript = transcript.trim()
+    const now = Date.now()
+    if (processingRef.current) return
+    if (lastCommandRef.current?.text === cleanTranscript.toLowerCase() && now - lastCommandRef.current.at < 2500) return
+    processingRef.current = true
+    lastCommandRef.current = { text: cleanTranscript.toLowerCase(), at: now }
     setGlobeState('thinking')
     setInterimText('')
-    addMessage('user', transcript)
+    addMessage('user', cleanTranscript)
     finalTextRef.current = ''
 
     try {
       const { speech, action, newHistory } = await askNex(
-        transcript, taskCtx, workspaceId, userId,
+        cleanTranscript, taskCtx, workspaceId, userId,
         projectId,
         historyRef.current.slice(-MAX_HISTORY)
       )
@@ -206,6 +219,8 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
       addMessage('nex', errMsg)
       speak(errMsg)
       setGlobeState('idle')
+    } finally {
+      processingRef.current = false
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskCtx, workspaceId, projectId, userId, speak, handleAction, addMessage])
@@ -253,6 +268,9 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
   }, [])
 
   const handleActivate = useCallback(() => {
+    if (activatingRef.current) return
+    activatingRef.current = true
+    setTimeout(() => { activatingRef.current = false }, 650)
     if (showTooltip) { setShowTooltip(false); localStorage.setItem(TOOLTIP_KEY, '1') }
     if (!isPro) { speak('Nex is available on the Pro plan.'); return }
     if (!userId) return
@@ -265,12 +283,17 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     setExpanded(true)
     warmupTTS()
 
+    if (expanded && messages.length > 0) {
+      startListeningCycle()
+      return
+    }
+
     void loadContext().then(ctx => {
       const greeting = ctx ? buildGreeting(ctx) : 'What can I help you with?'
       addMessage('nex', greeting)
       speak(greeting, () => setTimeout(startListeningCycle, 400))
     })
-  }, [showTooltip, isPro, userId, speak, stopListening, startListeningCycle, loadContext, addMessage, warmupTTS])
+  }, [showTooltip, isPro, userId, speak, stopListening, startListeningCycle, loadContext, addMessage, warmupTTS, expanded, messages.length])
 
   useEffect(() => {
     if (!nexEnabled) return
@@ -418,7 +441,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
           onClick={handleActivate}
           style={{ background: 'rgba(8,4,18,0.95)', border: `1px solid ${isIdle ? 'rgba(139,92,246,0.3)' : accentColor + '60'}`, borderRadius: '32px', padding: '6px 14px 6px 6px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: isIdle ? '0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(139,92,246,0.1)' : `0 4px 20px rgba(0,0,0,0.5), 0 0 20px ${accentColor}30`, backdropFilter: 'blur(20px)', transition: 'all 0.3s ease', cursor: 'pointer' }}
         >
-          <NexGlobe state={globeState} size={ORB_SIZE} onClick={handleActivate} />
+          <NexGlobe state={globeState} size={ORB_SIZE} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '12px', letterSpacing: '0.22em', fontWeight: 700, color: isIdle ? 'rgba(167,139,250,0.9)' : accentColor, transition: 'color 0.3s ease' }}>NEX</span>

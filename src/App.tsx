@@ -617,6 +617,7 @@ function App() {
             projectId={currentProject?.id ?? null}
             isPro={isPro} nexEnabled={nexEnabled} onTaskCreated={refetchTasks}
             onOpenProjectWizard={() => { if (currentWorkspace) setShowProjectWizard(true) }}
+            onOpenWorkspacePanel={() => setShowWorkspacePanel(true)}
             panelOpen={showSettings} />
         </NexErrorBoundary>
       )}
