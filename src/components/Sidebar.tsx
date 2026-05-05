@@ -352,6 +352,8 @@ export default function Sidebar({
       )}
 
       {/* ── BOTTOM: Settings + User ── */}
+      {!currentWorkspace && <div style={{ flex: 1, minHeight: 0 }} />}
+
       <div style={{ borderTop: '1px solid #2d2d40', padding: '8px', flexShrink: 0 }}>
         <button
           onClick={onSettings}
