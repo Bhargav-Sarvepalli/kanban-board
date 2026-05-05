@@ -55,10 +55,10 @@ declare global {
 }
 
 const TOOLTIP_KEY = 'nex_tooltip_seen'
-const SILENCE_MS  = 1800
+const SILENCE_MS  = 1500
 const ORB_SIZE    = 52
 const MAX_HISTORY = 20
-const MIN_CONFIDENCE = 0.55
+const MIN_CONFIDENCE = 0.35
 
 export default function NexAssistant({ workspaceId, projectId = null, userId, isPro, nexEnabled, onTaskCreated, onOpenProjectWizard, onOpenWorkspacePanel, panelOpen = false }: NexAssistantProps) {
   const [globeState, setGlobeState]   = useState<GlobeState>('idle')
@@ -219,7 +219,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
       historyRef.current = newHistory.slice(-MAX_HISTORY)
       if (action) handleAction(action)
       addMessage('nex', speech)
-      speak(speech)
+      speak(speech, () => setTimeout(startListeningCycle, 450))
     } catch (err) {
       console.error('[Nex]', err)
       const errMsg = 'Systems encountered an error.'
@@ -229,6 +229,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     } finally {
       processingRef.current = false
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskCtx, workspaceId, projectId, userId, speak, handleAction, addMessage])
 
   const startListeningCycle = useCallback(() => {
@@ -237,7 +238,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     if (recognitionRef.current) { try { recognitionRef.current.abort() } catch (e) { void e } }
 
     const recognition = new SR()
-    recognition.continuous = false; recognition.interimResults = true; recognition.lang = 'en-US'
+    recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-US'
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interim = ''; let final = ''; let bestConfidence = 1
@@ -308,7 +309,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     void loadContext().then(ctx => {
       const greeting = ctx ? buildGreeting(ctx) : 'What can I help you with?'
       addMessage('nex', greeting)
-      speak(greeting)
+      speak(greeting, () => setTimeout(startListeningCycle, 350))
     })
   }, [showTooltip, isPro, userId, speak, stopListening, startListeningCycle, loadContext, addMessage, warmupTTS, expanded, messages.length])
 
