@@ -76,16 +76,15 @@ function HeroScene({ mx, my }: { mx: number; my: number }) {
 
 // ─── CURSOR ───────────────────────────────────────────────────
 function Cursor() {
-  const x = useMotionValue(-200); const y = useMotionValue(-200)
+  const x  = useMotionValue(-200); const y  = useMotionValue(-200)
   const sx = useSpring(x, { stiffness: 800, damping: 35 })
   const sy = useSpring(y, { stiffness: 800, damping: 35 })
-  const bx = useSpring(x, { stiffness: 80,  damping: 15 })
-  const by = useSpring(y, { stiffness: 80,  damping: 15 })
-  // Separate springs for the blob offset (always half of blobSize)
-  const bxOuter = useTransform(bx, v => v - 10)  // half of base 20px
-  const byOuter = useTransform(by, v => v - 10)
-  const sxDot   = useTransform(sx, v => v - 2)
-  const syDot   = useTransform(sy, v => v - 2)
+  const bx = useSpring(x, { stiffness: 80, damping: 15 })
+  const by = useSpring(y, { stiffness: 80, damping: 15 })
+
+  // Dot always offset by -2
+  const sxDot = useTransform(sx, v => v - 2)
+  const syDot = useTransform(sy, v => v - 2)
 
   const [hov, setHov] = useState(false)
   const [vel, setVel] = useState({ x: 0, y: 0 })
@@ -106,33 +105,36 @@ function Cursor() {
     }
   }, [x, y])
 
-  const spd       = Math.hypot(vel.x, vel.y)
-  const str       = Math.min(spd * 0.04, 0.5)
-  const ang       = Math.atan2(vel.y, vel.x) * (180 / Math.PI)
-  const blobSize  = hov ? 64 : 20
-  const blobW     = blobSize + spd * 0.8
+  const spd      = Math.hypot(vel.x, vel.y)
+  const str      = Math.min(spd * 0.04, 0.5)
+  const ang      = Math.atan2(vel.y, vel.x) * (180 / Math.PI)
+  const blobSize = hov ? 64 : 20
+  const half     = blobSize / 2
 
   return (
     <>
-      {/* Outer blob */}
-      <motion.div style={{ position: 'fixed', pointerEvents: 'none', zIndex: 9999, x: bxOuter, y: byOuter }}>
+      <motion.div style={{
+        position: 'fixed', pointerEvents: 'none', zIndex: 9999,
+        // Use useTransform with the current half value — stable per render
+        x: useTransform(bx, v => v - half),
+        y: useTransform(by, v => v - half),
+      }}>
         <motion.div
           animate={{
-            width: blobW,
-            height: blobSize,
-            rotate: ang,
+            width:        blobSize + spd * 0.8,
+            height:       blobSize,
+            rotate:       ang,
             borderRadius: hov ? '8px' : '50%',
-            background: hov ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.5)',
-            border: hov ? '1px solid rgba(139,92,246,0.6)' : '1px solid transparent',
-            scaleX: 1 + str,
-            scaleY: 1 - str * 0.5,
-            boxShadow: `0 0 ${hov ? 20 : 10}px rgba(139,92,246,0.4)`,
+            background:   hov ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.5)',
+            border:       hov ? '1px solid rgba(139,92,246,0.6)' : '1px solid transparent',
+            scaleX:       1 + str,
+            scaleY:       1 - str * 0.5,
+            boxShadow:    `0 0 ${hov ? 20 : 10}px rgba(139,92,246,0.4)`,
           }}
           transition={{ duration: 0.12, ease: 'easeOut' }}
           style={{ borderRadius: '50%' }}
         />
       </motion.div>
-      {/* Inner dot */}
       <motion.div style={{
         position: 'fixed', pointerEvents: 'none', zIndex: 9999,
         x: sxDot, y: syDot,
