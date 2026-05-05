@@ -139,128 +139,203 @@ function Reveal({ children, delay = 0, style }: { children: string; delay?: numb
 }
 
 // ─── FLOW SVG ─────────────────────────────────────────────────
+// Layout: milestones at fixed X positions, branches occupy dedicated horizontal zones
+// Zone 1 (x 80–320):  Kickoff branches — Auth & Login, Kanban Board (both MERGED)
+// Zone 2 (x 330–580): Designing branches — Flow Engine (65%), Dashboard (42%)
+// Zone 3 (x 590–680): Phase 1 branch — Calendar (Planned, 0%)
+// Trunk Y = 145 (centre). Branch offset = ±88px
+
 function FlowSVG() {
-  const PHASE_COLORS = ['#4ade80', '#7c3aed', '#2563eb', '#d97706', '#dc2626']
-  const phases = [
-    { x: 70,  label: 'Kickoff',   done: true,  active: false },
-    { x: 230, label: 'Designing', done: false,  active: true  },
-    { x: 410, label: 'Phase 1',   done: false,  active: false },
-    { x: 560, label: 'Review',    done: false,  active: false },
+  const TY = 145  // trunk Y
+
+  // Milestones — spaced so they sit BETWEEN branch zones, never inside one
+  const milestones = [
+    { x: 52,  label: 'Kickoff',   done: true,  active: false },
+    { x: 326, label: 'Designing', done: false, active: true  },
+    { x: 584, label: 'Phase 1',   done: false, active: false },
+    { x: 698, label: 'Review',    done: false, active: false },
   ]
+
+  // Branch definitions — forkX/mergeX are trunk attachment points
+  // Chips sit in the middle of the branch horizontal span
   const branches = [
-    { name: 'Auth & Login',   color: PHASE_COLORS[0], pct: 100, merged: true,  above: true,  forkX: 160, endX: 300 },
-    { name: 'Kanban Board',   color: PHASE_COLORS[0], pct: 100, merged: true,  above: false, forkX: 160, endX: 300 },
-    { name: 'Flow Engine',    color: PHASE_COLORS[1], pct: 65,  merged: false, above: true,  forkX: 290, endX: 560 },
-    { name: 'Dashboard',      color: PHASE_COLORS[1], pct: 42,  merged: false, above: false, forkX: 290, endX: 560 },
-    { name: 'Calendar',       color: PHASE_COLORS[2], pct: 0,   merged: false, above: true,  forkX: 460, endX: 640 },
-  ]
-  const TY = 130
+    // ── Zone 1: Kickoff done branches ──
+    {
+      name: 'Auth & Login', color: '#4ade80', pct: 100, merged: true,
+      above: true,
+      forkX: 80, mergeX: 300,  // both fork BEFORE Designing milestone
+    },
+    {
+      name: 'Kanban Board', color: '#4ade80', pct: 100, merged: true,
+      above: false,
+      forkX: 80, mergeX: 300,
+    },
+    // ── Zone 2: Designing in-progress branches ──
+    {
+      name: 'Flow Engine',  color: '#7c3aed', pct: 65,  merged: false,
+      above: true,
+      forkX: 350, mergeX: null,
+      endX: 570,
+    },
+    {
+      name: 'Dashboard',    color: '#a78bfa', pct: 42,  merged: false,
+      above: false,
+      forkX: 350, mergeX: null,
+      endX: 570,
+    },
+    // ── Zone 3: Phase 1 planned branch ──
+    {
+      name: 'Calendar',     color: '#2563eb', pct: 0,   merged: false,
+      above: true,
+      forkX: 610, mergeX: null,
+      endX: 730,
+    },
+  ] as Array<{
+    name: string; color: string; pct: number; merged: boolean
+    above: boolean; forkX: number; mergeX: number | null; endX?: number
+  }>
+
+  const OFFSET = 88  // vertical distance from trunk to branch
 
   return (
-    <svg viewBox="0 0 680 270" style={{ width: '100%', display: 'block' }}>
+    <svg viewBox="0 0 760 295" style={{ width: '100%', display: 'block' }}>
       <defs>
-        <filter id="glow2"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow2">
+          <feGaussianBlur stdDeviation="3" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
         {branches.map(b => (
-          <linearGradient key={b.name} id={`g-${b.name.replace(/\s/g,'')}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor={b.color} stopOpacity={b.merged ? 0.8 : 0.6} />
-            <stop offset="100%" stopColor={b.color} stopOpacity={b.merged ? 0.4 : 0.15} />
+          <linearGradient key={b.name} id={`g-${b.name.replace(/\s+/g,'')}`} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stopColor={b.color} stopOpacity={b.merged ? 0.85 : 0.7} />
+            <stop offset="100%" stopColor={b.color} stopOpacity={b.merged ? 0.5 : 0.2} />
           </linearGradient>
         ))}
       </defs>
 
-      {/* Trunk glow */}
-      <line x1={32} y1={TY} x2={648} y2={TY} stroke="#7c3aed" strokeWidth={20} strokeOpacity={0.055} strokeLinecap="round" />
-      {/* Done segment */}
-      <line x1={32} y1={TY} x2={300} y2={TY} stroke="#4ade80" strokeWidth={2} strokeLinecap="round" />
-      {/* Active segment */}
-      <line x1={300} y1={TY} x2={460} y2={TY} stroke="#a78bfa" strokeWidth={2} strokeLinecap="round" />
-      {/* Planned */}
-      <line x1={460} y1={TY} x2={636} y2={TY} stroke="rgba(255,255,255,0.1)" strokeWidth={2} strokeDasharray="4 4" strokeLinecap="round" />
-      {/* Arrow */}
-      <polygon points="650,130 637,123 637,137" fill="rgba(255,255,255,0.25)" />
+      {/* ── Trunk ── */}
+      {/* Wide glow behind trunk */}
+      <line x1={28} y1={TY} x2={742} y2={TY} stroke="#7c3aed" strokeWidth={22} strokeOpacity={0.045} strokeLinecap="round" />
+      {/* Done segment — green up to Designing */}
+      <line x1={28} y1={TY} x2={326} y2={TY} stroke="#4ade80" strokeWidth={2} strokeLinecap="round" />
+      {/* Active segment — violet up to Phase 1 */}
+      <line x1={326} y1={TY} x2={584} y2={TY} stroke="#a78bfa" strokeWidth={2} strokeLinecap="round" />
+      {/* Planned — dashed */}
+      <line x1={584} y1={TY} x2={740} y2={TY} stroke="rgba(255,255,255,0.1)" strokeWidth={2} strokeDasharray="4 4" strokeLinecap="round" />
+      {/* Arrow tip */}
+      <polygon points="752,145 740,138 740,152" fill="rgba(255,255,255,0.22)" />
 
-      {/* Phase nodes */}
-      {phases.map((p, i) => (
-        <g key={p.label}>
-          <circle cx={p.x} cy={TY} r={p.active ? 15 : 10}
-            fill={p.done ? '#16a34a' : p.active ? '#7c3aed' : 'rgba(12,8,24,0.95)'}
-            stroke={p.done ? '#4ade80' : p.active ? '#a78bfa' : 'rgba(255,255,255,0.1)'}
-            strokeWidth={1.5} filter={p.active ? 'url(#glow2)' : undefined} />
-          <text x={p.x} y={TY + 4.5} textAnchor="middle"
-            fill={p.done || p.active ? 'white' : 'rgba(255,255,255,0.2)'}
-            fontSize={p.active ? 11 : 8} fontWeight="bold">
-            {p.done ? '✓' : p.active ? '⚡' : '○'}
+      {/* ── Milestone nodes ── */}
+      {milestones.map(ms => (
+        <g key={ms.label}>
+          {ms.active && (
+            <circle cx={ms.x} cy={TY} r={22} fill="#7c3aed" fillOpacity={0.08} />
+          )}
+          <circle cx={ms.x} cy={TY} r={ms.active ? 15 : 10}
+            fill={ms.done ? '#15803d' : ms.active ? '#7c3aed' : 'rgba(10,6,20,0.96)'}
+            stroke={ms.done ? '#4ade80' : ms.active ? '#a78bfa' : 'rgba(255,255,255,0.1)'}
+            strokeWidth={1.5}
+            filter={ms.active ? 'url(#glow2)' : undefined}
+          />
+          {/* Icon text */}
+          <text x={ms.x} y={TY + 4.5} textAnchor="middle"
+            fill={ms.done || ms.active ? 'white' : 'rgba(255,255,255,0.2)'}
+            fontSize={ms.active ? 11 : 8} fontWeight="bold" fontFamily="Inter,sans-serif">
+            {ms.done ? '✓' : ms.active ? '⚡' : '○'}
           </text>
-          <text x={p.x} y={p.active ? 156 : 150} textAnchor="middle"
-            fill={p.active ? '#c4b5fd' : p.done ? '#86efac' : 'rgba(255,255,255,0.25)'}
-            fontSize={9} fontWeight={p.active ? 600 : 400} fontFamily="Inter,sans-serif">
-            {p.label}
+          {/* Label below */}
+          <text x={ms.x} y={ms.active ? TY + 34 : TY + 28} textAnchor="middle"
+            fill={ms.active ? '#c4b5fd' : ms.done ? '#86efac' : 'rgba(255,255,255,0.22)'}
+            fontSize={9} fontWeight={ms.active ? 600 : 400} fontFamily="Inter,sans-serif">
+            {ms.label}
           </text>
-          {/* Phase color indicator */}
-          <rect x={p.x - 8} y={p.active ? 161 : 155} width={16} height={2} rx={1} fill={PHASE_COLORS[i] + '60'} />
         </g>
       ))}
 
-      {/* Branches */}
+      {/* ── Branches ── */}
       {branches.map(b => {
-        const bY    = TY + (b.above ? -82 : 82)
-        const lineS = b.forkX + 58
-        const lineE = b.merged ? b.endX - 32 : b.endX
-        const cx    = (lineS + lineE) / 2
-        const cw    = 118
+        const bY   = TY + (b.above ? -OFFSET : OFFSET)
+        const endX = b.mergeX ?? b.endX ?? (b.forkX + 180)
+        // Horizontal span of the branch line (after fork curve ends, before merge curve starts)
+        const lineStart = b.forkX + 52
+        const lineEnd   = b.merged ? endX - 36 : endX
+        const chipMidX  = (lineStart + lineEnd) / 2
+        const CW = 128  // chip width
 
         return (
           <g key={b.name}>
-            {/* Fork */}
-            <path d={`M ${b.forkX} ${TY} C ${b.forkX + 34} ${TY}, ${b.forkX + 44} ${bY}, ${lineS} ${bY}`}
-              fill="none" stroke={b.color} strokeWidth={1.4} strokeOpacity={b.merged ? 0.65 : 0.45} />
-            {/* Line */}
-            <line x1={lineS} y1={bY} x2={lineE} y2={bY}
-              stroke={`url(#g-${b.name.replace(/\s/g,'')})`} strokeWidth={1.4} />
-            {/* Merge back */}
-            {b.merged && (
-              <path d={`M ${lineE} ${bY} C ${b.endX + 4} ${bY}, ${b.endX + 10} ${TY}, ${b.endX + 28} ${TY}`}
-                fill="none" stroke={b.color} strokeWidth={1.4} strokeOpacity={0.5} />
+            {/* Fork curve out from trunk */}
+            <path
+              d={`M ${b.forkX} ${TY} C ${b.forkX + 44} ${TY}, ${b.forkX + 52} ${bY}, ${lineStart} ${bY}`}
+              fill="none" stroke={b.color}
+              strokeWidth={1.5} strokeOpacity={b.merged ? 0.7 : 0.5}
+            />
+
+            {/* Branch horizontal line */}
+            <line x1={lineStart} y1={bY} x2={lineEnd} y2={bY}
+              stroke={`url(#g-${b.name.replace(/\s+/g,'')})`}
+              strokeWidth={1.5}
+            />
+
+            {/* Merge curve back to trunk */}
+            {b.merged && b.mergeX && (
+              <path
+                d={`M ${lineEnd} ${bY} C ${endX} ${bY}, ${endX + 12} ${TY}, ${endX + 36} ${TY}`}
+                fill="none" stroke={b.color}
+                strokeWidth={1.5} strokeOpacity={0.55}
+              />
             )}
 
-            {/* Task nodes on branch */}
-            {b.pct > 0 && [0.28, 0.55, 0.78].map((t, ni) => {
-              const nx = lineS + (lineE - lineS) * t
-              const done = (ni + 1) / 3 <= b.pct / 100
+            {/* Task nodes along branch */}
+            {b.pct > 0 && [0.25, 0.52, 0.78].map((t, ni) => {
+              const nx   = lineStart + (lineEnd - lineStart) * t
+              const done = (ni + 1) <= (b.pct / 100) * 3
               return (
-                <circle key={ni} cx={nx} cy={bY} r={4}
-                  fill={done ? b.color : 'rgba(12,8,24,0.9)'}
-                  stroke={b.color} strokeWidth={1.2} strokeOpacity={done ? 0 : 0.5} />
+                <circle key={ni} cx={nx} cy={bY} r={4.5}
+                  fill={done ? b.color : 'rgba(10,6,20,0.92)'}
+                  stroke={b.color} strokeWidth={1.2}
+                  strokeOpacity={done ? 0.3 : 0.45}
+                />
               )
             })}
 
-            {/* Chip */}
-            <rect x={cx - cw/2} y={bY - 18} width={cw} height={34} rx={7}
-              fill={b.merged ? b.color + '1e' : b.color + '0f'}
+            {/* Feature chip */}
+            <rect
+              x={chipMidX - CW/2} y={bY - 20} width={CW} height={38} rx={8}
+              fill={b.color + (b.merged ? '20' : '0e')}
               stroke={b.color} strokeWidth={b.merged ? 0.9 : 0.6}
-              strokeOpacity={b.merged ? 0.65 : 0.35} />
-            {/* Name */}
-            <text x={cx - cw/2 + 9} y={bY - 3} fill="rgba(255,255,255,0.8)"
-              fontSize={9} fontFamily="Inter,sans-serif" fontWeight={500}>{b.name}</text>
-            {/* Progress track */}
-            <rect x={cx - cw/2 + 9} y={bY + 7} width={cw - 48} height={2.5} rx={1.25} fill="rgba(255,255,255,0.07)" />
-            <rect x={cx - cw/2 + 9} y={bY + 7} width={(cw - 48) * b.pct / 100} height={2.5} rx={1.25} fill={b.color} />
-            <text x={cx + cw/2 - 8} y={bY + 10} textAnchor="end" fill={b.color}
-              fontSize={8.5} fontFamily="Inter,sans-serif" fontWeight={700}>{b.pct}%</text>
+              strokeOpacity={b.merged ? 0.7 : 0.38}
+            />
+            {/* Feature name */}
+            <text x={chipMidX - CW/2 + 10} y={bY - 4} fill="rgba(255,255,255,0.82)"
+              fontSize={9.5} fontFamily="Inter,sans-serif" fontWeight={500}>{b.name}</text>
+            {/* Progress bar track */}
+            <rect x={chipMidX - CW/2 + 10} y={bY + 8} width={CW - 52} height={2.5} rx={1.25}
+              fill="rgba(255,255,255,0.07)" />
+            {/* Progress fill */}
+            {b.pct > 0 && (
+              <rect x={chipMidX - CW/2 + 10} y={bY + 8} width={(CW - 52) * b.pct / 100} height={2.5} rx={1.25}
+                fill={b.color} />
+            )}
+            {/* Percent label */}
+            <text x={chipMidX + CW/2 - 9} y={bY + 12} textAnchor="end" fill={b.color}
+              fontSize={9} fontFamily="Inter,sans-serif" fontWeight={700}>{b.pct}%</text>
 
-            {/* MERGED */}
+            {/* MERGED badge above chip */}
             {b.merged && (
               <>
-                <rect x={cx - 22} y={bY - 31} width={44} height={12} rx={3.5} fill={b.color + '25'} />
-                <text x={cx} y={bY - 22} textAnchor="middle" fill={b.color}
-                  fontSize={7} fontFamily="Inter,sans-serif" fontWeight={700} letterSpacing="0.06em">MERGED</text>
+                <rect x={chipMidX - 24} y={bY - 36} width={48} height={14} rx={4}
+                  fill={b.color + '22'} />
+                <text x={chipMidX} y={bY - 25} textAnchor="middle" fill={b.color}
+                  fontSize={7.5} fontFamily="Inter,sans-serif" fontWeight={700} letterSpacing="0.08em">
+                  MERGED
+                </text>
               </>
             )}
 
-            {/* Planned indicator */}
-            {b.pct === 0 && (
-              <text x={cx} y={bY + 4} textAnchor="middle" fill="rgba(255,255,255,0.3)"
-                fontSize={8} fontFamily="Inter,sans-serif">Planned</text>
+            {/* PLANNED label for 0% */}
+            {b.pct === 0 && !b.merged && (
+              <text x={chipMidX} y={bY + 5} textAnchor="middle" fill="rgba(255,255,255,0.28)"
+                fontSize={8.5} fontFamily="Inter,sans-serif">Planned</text>
             )}
           </g>
         )
@@ -504,21 +579,99 @@ export default function Landing() {
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: '10px' }}>
             {[
-              { icon: '⚡', name: 'Flow',             color: '#7c3aed', desc: 'Live execution map. Branches, merges, phases.' },
-              { icon: '🎯', name: 'Standup mode',     color: '#2563eb', desc: 'Fullscreen slides. Run it in under 5 minutes.' },
-              { icon: '🤖', name: 'Nex AI',           color: '#db2777', desc: 'Create tasks, summarize blockers, plan sprints.' },
-              { icon: '📋', name: 'Kanban board',     color: '#059669', desc: 'Real-time drag and drop. All columns synced.' },
-              { icon: '⏱️', name: 'Focus timer',      color: '#d97706', desc: 'Pomodoro with ambient beats. Shipped more.' },
-              { icon: '🗓️', name: 'Calendar',         color: '#7c3aed', desc: 'Tasks and manual events in one month view.' },
-              { icon: '📊', name: 'Dashboard',        color: '#2563eb', desc: 'Health, team, phases, links — one screen.' },
-              { icon: '👥', name: 'Workspaces',       color: '#db2777', desc: 'Invite by email. Assign roles. Fully isolated.' },
+              {
+                icon: (c: string) => (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <circle cx="10" cy="10" r="2" fill={c}/>
+                    <path d="M3 10h4M13 10h4M10 3v4M10 13v4" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
+                    <path d="M5.5 5.5 L8 8M12 12l2.5 2.5M14.5 5.5L12 8M8 12l-2.5 2.5" stroke={c} strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.5"/>
+                  </svg>
+                ),
+                name: 'Flow', color: '#7c3aed', desc: 'Live execution map. Branches, merges, phases.',
+              },
+              {
+                icon: (c: string) => (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <rect x="3" y="4" width="14" height="3" rx="1.5" fill={c} fillOpacity="0.9"/>
+                    <rect x="3" y="9.5" width="10" height="2.5" rx="1.25" fill={c} fillOpacity="0.5"/>
+                    <rect x="3" y="14" width="7" height="2.5" rx="1.25" fill={c} fillOpacity="0.3"/>
+                  </svg>
+                ),
+                name: 'Standup mode', color: '#2563eb', desc: 'Fullscreen slides. Run it in under 5 minutes.',
+              },
+              {
+                icon: (c: string) => (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <circle cx="10" cy="10" r="7" stroke={c} strokeWidth="1.5" strokeOpacity="0.4"/>
+                    <circle cx="10" cy="10" r="2.5" fill={c}/>
+                    <path d="M10 3v2M10 15v2M3 10h2M15 10h2" stroke={c} strokeWidth="1.3" strokeLinecap="round" strokeOpacity="0.6"/>
+                  </svg>
+                ),
+                name: 'Nex AI', color: '#db2777', desc: 'Create tasks, summarize blockers, plan sprints.',
+              },
+              {
+                icon: (c: string) => (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <rect x="2" y="5" width="16" height="12" rx="2" stroke={c} strokeWidth="1.4" strokeOpacity="0.5"/>
+                    <path d="M7 5V3M13 5V3" stroke={c} strokeWidth="1.4" strokeLinecap="round"/>
+                    <rect x="5" y="9" width="4" height="4" rx="1" fill={c} fillOpacity="0.7"/>
+                    <rect x="11" y="9" width="4" height="2" rx="1" fill={c} fillOpacity="0.3"/>
+                    <rect x="11" y="12.5" width="4" height="1.5" rx="0.75" fill={c} fillOpacity="0.2"/>
+                  </svg>
+                ),
+                name: 'Kanban board', color: '#059669', desc: 'Real-time drag and drop. All columns synced.',
+              },
+              {
+                icon: (c: string) => (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <circle cx="10" cy="10" r="7" stroke={c} strokeWidth="1.4" strokeOpacity="0.45"/>
+                    <path d="M10 6v4l2.5 2.5" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <circle cx="10" cy="10" r="1" fill={c}/>
+                  </svg>
+                ),
+                name: 'Focus timer', color: '#d97706', desc: 'Pomodoro with ambient beats. Shipped more.',
+              },
+              {
+                icon: (c: string) => (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <rect x="2" y="4" width="16" height="13" rx="2" stroke={c} strokeWidth="1.4" strokeOpacity="0.45"/>
+                    <path d="M6 4V2M14 4V2M2 8h16" stroke={c} strokeWidth="1.3" strokeLinecap="round" strokeOpacity="0.6"/>
+                    <circle cx="7" cy="12" r="1.5" fill={c} fillOpacity="0.7"/>
+                    <circle cx="13" cy="12" r="1.5" fill={c} fillOpacity="0.35"/>
+                  </svg>
+                ),
+                name: 'Calendar', color: '#7c3aed', desc: 'Tasks and manual events in one month view.',
+              },
+              {
+                icon: (c: string) => (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <rect x="2" y="2" width="7" height="7" rx="1.5" fill={c} fillOpacity="0.7"/>
+                    <rect x="11" y="2" width="7" height="4" rx="1.5" fill={c} fillOpacity="0.35"/>
+                    <rect x="11" y="8" width="7" height="3" rx="1.5" fill={c} fillOpacity="0.2"/>
+                    <rect x="2" y="11" width="16" height="7" rx="1.5" stroke={c} strokeWidth="1.2" strokeOpacity="0.35"/>
+                    <path d="M5 14.5h10M5 16.5h6" stroke={c} strokeWidth="1" strokeLinecap="round" strokeOpacity="0.4"/>
+                  </svg>
+                ),
+                name: 'Dashboard', color: '#2563eb', desc: 'Health, team, phases, links — one screen.',
+              },
+              {
+                icon: (c: string) => (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <circle cx="7.5" cy="7" r="3" stroke={c} strokeWidth="1.4" strokeOpacity="0.7"/>
+                    <circle cx="13.5" cy="7" r="2.5" stroke={c} strokeWidth="1.2" strokeOpacity="0.4"/>
+                    <path d="M2 17c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke={c} strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.6"/>
+                    <path d="M14 12c1.5 0.5 3 1.5 3.5 3.5" stroke={c} strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.3"/>
+                  </svg>
+                ),
+                name: 'Workspaces', color: '#db2777', desc: 'Invite by email. Assign roles. Fully isolated.',
+              },
             ].map((f, i) => (
               <FadeUp key={f.name} delay={i * 0.04}>
                 <div
                   style={{ padding: '20px 18px', background: 'rgba(255,255,255,0.02)', border: divider, borderRadius: '11px', transition: 'border-color 0.2s, background 0.2s', height: '100%', boxSizing: 'border-box' }}
                   onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => { e.currentTarget.style.borderColor = f.color + '40'; e.currentTarget.style.background = f.color + '08' }}
                   onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}>
-                  <div style={{ fontSize: '20px', marginBottom: '12px' }}>{f.icon}</div>
+                  <div style={{ marginBottom: '14px' }}>{f.icon(f.color)}</div>
                   <p style={{ ...Body('13px', 'rgba(255,255,255,0.72)'), fontWeight: 600, letterSpacing: '-0.01em', marginBottom: '5px' }}>{f.name}</p>
                   <p style={{ ...Body('12px', 'rgba(255,255,255,0.3)'), lineHeight: 1.55 }}>{f.desc}</p>
                 </div>
