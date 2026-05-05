@@ -252,7 +252,58 @@ export function buildGreeting(ctx: TaskContext): string {
 async function callNexChat(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke('nex-chat', { body })
   if (error) throw error
+  if (data?.error) throw new Error(String(data.error))
   return data
+}
+
+function localNexFallback(
+  transcript: string,
+  ctx: TaskContext,
+  workspaceId: string | null,
+): { speech: string; action?: NexActionResult } | null {
+  const lower = transcript.toLowerCase()
+  const wantsProjectSetup =
+    /\b(create|start|setup|set up|new|plan|build)\b/.test(lower) &&
+    /\b(project|launch|workspace project|project wizard|setup wizard)\b/.test(lower)
+
+  if (wantsProjectSetup) {
+    if (!workspaceId) {
+      return { speech: 'Project setup needs a workspace. Switch to a workspace, then I can open the setup wizard.' }
+    }
+    return {
+      speech: 'Opening project setup.',
+      action: { type: 'open_project_wizard', data: { workspaceId } },
+    }
+  }
+
+  if (/\b(standup|briefing|status|project health)\b/.test(lower)) {
+    const today = fmt(new Date())
+    const open = ctx.tasks.filter(t => t.status !== 'done')
+    const done = ctx.tasks.filter(t => t.status === 'done')
+    const overdue = open.filter(t => t.due_date && t.due_date < today)
+    const active = ctx.tasks.filter(t => t.status === 'in_progress')
+    const risk = overdue[0]?.title
+    return {
+      speech: `Health: ${overdue.length ? 'at risk' : active.length ? 'moving' : 'quiet'}. ${done.length}/${ctx.tasks.length} done.${risk ? ` Attention: ${risk}.` : ' No immediate risk flagged.'}`,
+    }
+  }
+
+  if (/\b(next|work on|priority|focus)\b/.test(lower)) {
+    const today = fmt(new Date())
+    const candidates = ctx.tasks.filter(t => t.status !== 'done')
+    const score = (p: string | null) => p === 'high' ? 0 : p === 'normal' ? 1 : 2
+    const top = [...candidates].sort((a, b) => {
+      const aO = a.due_date && a.due_date < today ? -1 : 0
+      const bO = b.due_date && b.due_date < today ? -1 : 0
+      if (aO !== bO) return aO - bO
+      if (score(a.priority) !== score(b.priority)) return score(a.priority) - score(b.priority)
+      if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
+      return 0
+    })[0]
+    return { speech: top ? `Start with ${top.title}.` : 'Everything is clear.' }
+  }
+
+  return null
 }
 
 export async function executeNexTool(
@@ -431,6 +482,13 @@ export async function askNex(
     { role: 'user', content: transcript },
   ]
 
+  const immediateFallback = localNexFallback(transcript, ctx, workspaceId)
+  const isProjectSetupRequest = /\b(create|start|setup|set up|new|plan|build)\b/i.test(transcript) &&
+    /\b(project|launch|workspace project|project wizard|setup wizard)\b/i.test(transcript)
+  if (immediateFallback && (immediateFallback.action?.type === 'open_project_wizard' || isProjectSetupRequest)) {
+    return { speech: immediateFallback.speech, action: immediateFallback.action, newHistory: messages }
+  }
+
   let data: { content?: { type: string; [key: string]: unknown }[] }
   try {
     data = await callNexChat({
@@ -441,7 +499,9 @@ export async function askNex(
     })
   } catch (err) {
     console.error('Nex API error:', err)
-    return { speech: 'Systems are unresponsive. Try again.', newHistory: history }
+    const fallback = immediateFallback ?? localNexFallback(transcript, ctx, workspaceId)
+    if (fallback) return { ...fallback, newHistory: messages }
+    return { speech: 'Nex is having trouble reaching the AI service. Core commands still work; try project setup, standup, or what to work on next.', newHistory: messages }
   }
 
   const toolBlock = data.content?.find((b: { type: string }) => b.type === 'tool_use')
@@ -455,15 +515,20 @@ export async function askNex(
       { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: toolResult.result }] },
     ]
 
-    const followData = await callNexChat({
-      max_tokens: 200,
-      system: NEX_SYSTEM_PROMPT(ctx),
-      tools: NEX_TOOLS,
-      messages: withTool,
-    })
-
-    const textBlock  = followData.content?.find((b: { type: string }) => b.type === 'text')
-    const speech     = stripMarkdown(typeof textBlock?.text === 'string' ? textBlock.text : toolResult.result)
+    let speech = stripMarkdown(toolResult.result)
+    let followData: { content?: { type: string; [key: string]: unknown }[] } = { content: [{ type: 'text', text: speech }] }
+    try {
+      followData = await callNexChat({
+        max_tokens: 200,
+        system: NEX_SYSTEM_PROMPT(ctx),
+        tools: NEX_TOOLS,
+        messages: withTool,
+      })
+      const textBlock = followData.content?.find((b: { type: string }) => b.type === 'text')
+      speech = stripMarkdown(typeof textBlock?.text === 'string' ? textBlock.text : toolResult.result)
+    } catch (err) {
+      console.error('Nex follow-up error:', err)
+    }
 
     const newHistory: ConvMessage[] = [
       ...messages,
