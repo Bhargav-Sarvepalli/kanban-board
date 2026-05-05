@@ -2,18 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { MeshDistortMaterial, Sphere, Stars } from '@react-three/drei'
 import { useNavigate } from 'react-router-dom'
-import { motion, useScroll, useTransform, useInView, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
+import { motion, useScroll, useTransform, useInView, useMotionValue, useSpring } from 'framer-motion'
 import * as THREE from 'three'
 import Lenis from 'lenis'
 import DemoBoard from '../components/DemoBoard'
 
 // ─── 3D ───────────────────────────────────────────────────────
 function GlowOrb({ position, color, speed = 1, distort = 0.5, scale = 1 }: {
-  position: [number, number, number]
-  color: string
-  speed?: number
-  distort?: number
-  scale?: number
+  position: [number, number, number]; color: string; speed?: number; distort?: number; scale?: number
 }) {
   const mesh = useRef<THREE.Mesh>(null)
   useFrame((s) => {
@@ -30,351 +26,241 @@ function GlowOrb({ position, color, speed = 1, distort = 0.5, scale = 1 }: {
 }
 
 const PARTICLE_POSITIONS = (() => {
-  const count = 400
-  const arr = new Float32Array(count * 3)
-  let seed = 12345
-  const rand = () => {
-    seed = (seed * 16807 + 0) % 2147483647
-    return (seed / 2147483647 - 0.5) * 30
-  }
+  const count = 500; const arr = new Float32Array(count * 3); let seed = 99991
+  const rand = () => { seed = (seed * 16807) % 2147483647; return (seed / 2147483647 - 0.5) * 28 }
   for (let i = 0; i < count * 3; i++) arr[i] = rand()
   return arr
 })()
 
-function FloatParticles() {
-  const pts = useRef<THREE.Points>(null)
-  useFrame((s) => {
-    if (pts.current) pts.current.rotation.y = s.clock.elapsedTime * 0.015
-  })
+function Particles() {
+  const ref = useRef<THREE.Points>(null)
+  useFrame(s => { if (ref.current) ref.current.rotation.y = s.clock.elapsedTime * 0.012 })
   return (
-    <points ref={pts}>
+    <points ref={ref}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[PARTICLE_POSITIONS, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.025} color="#8b5cf6" transparent opacity={0.7} />
+      <pointsMaterial size={0.022} color="#8b5cf6" transparent opacity={0.4} />
     </points>
   )
 }
 
-function HeroCanvas({ mx, my }: { mx: number; my: number }) {
+function HeroScene({ mx, my }: { mx: number; my: number }) {
   const grp = useRef<THREE.Group>(null)
   useFrame(() => {
     if (!grp.current) return
-    grp.current.rotation.y += (mx * 0.15 - grp.current.rotation.y) * 0.03
-    grp.current.rotation.x += (-my * 0.08 - grp.current.rotation.x) * 0.03
+    grp.current.rotation.y += (mx * 0.1 - grp.current.rotation.y) * 0.025
+    grp.current.rotation.x += (-my * 0.06 - grp.current.rotation.x) * 0.025
   })
   return (
     <group ref={grp}>
-      <ambientLight intensity={0.4} />
-      <pointLight position={[8, 8, 8]} intensity={6} color="#8b5cf6" />
-      <pointLight position={[-8, -8, -4]} intensity={3} color="#ec4899" />
-      <Stars radius={80} depth={50} count={2000} factor={5} saturation={0} fade speed={0.2} />
-      <FloatParticles />
-      <GlowOrb position={[-3.5, 0.8, -2]} color="#8b5cf6" speed={0.6} distort={0.6} scale={1.2} />
-      <GlowOrb position={[3.5, -0.8, -3]} color="#ec4899" speed={0.9} distort={0.4} scale={0.9} />
-      <GlowOrb position={[0.5, 2, -5]} color="#06b6d4" speed={0.4} distort={0.7} scale={0.7} />
+      <ambientLight intensity={0.25} />
+      <pointLight position={[10, 8, 6]} intensity={5} color="#7c3aed" />
+      <pointLight position={[-8, -6, -4]} intensity={2.5} color="#db2777" />
+      <Stars radius={90} depth={60} count={1800} factor={4} saturation={0} fade speed={0.1} />
+      <Particles />
+      <GlowOrb position={[-3.2, 1.0, -2.5]} color="#7c3aed" speed={0.55} distort={0.65} scale={1.1} />
+      <GlowOrb position={[3.2, -1.0, -3.5]} color="#db2777" speed={0.8}  distort={0.45} scale={0.85} />
+      <GlowOrb position={[0.6,  2.2, -5.5]} color="#06b6d4" speed={0.35} distort={0.75} scale={0.55} />
       <mesh>
-        <torusGeometry args={[4, 0.015, 16, 100]} />
-        <meshStandardMaterial color="#8b5cf6" emissive="#8b5cf6" emissiveIntensity={1.2} transparent opacity={0.6} />
+        <torusGeometry args={[4.2, 0.011, 16, 120]} />
+        <meshStandardMaterial color="#7c3aed" emissive="#7c3aed" emissiveIntensity={1.1} transparent opacity={0.4} />
       </mesh>
-      <mesh rotation={[0.5, 0, 0.3]}>
-        <torusGeometry args={[6, 0.012, 16, 100]} />
-        <meshStandardMaterial color="#ec4899" emissive="#ec4899" emissiveIntensity={1.2} transparent opacity={0.5} />
+      <mesh rotation={[0.55, 0, 0.3]}>
+        <torusGeometry args={[6.2, 0.009, 16, 120]} />
+        <meshStandardMaterial color="#db2777" emissive="#db2777" emissiveIntensity={1.1} transparent opacity={0.28} />
       </mesh>
     </group>
   )
 }
 
-// ─── LIQUID CURSOR ────────────────────────────────────────────
-function MagneticCursor() {
-  const x = useMotionValue(-100)
-  const y = useMotionValue(-100)
-  const sx = useSpring(x, { stiffness: 800, damping: 35 })
-  const sy = useSpring(y, { stiffness: 800, damping: 35 })
-  const bx = useSpring(x, { stiffness: 80, damping: 15 })
-  const by = useSpring(y, { stiffness: 80, damping: 15 })
-  const [hovered, setHovered] = useState(false)
-  const [vel, setVel] = useState({ x: 0, y: 0 })
-  const lastPos = useRef({ x: 0, y: 0 })
-
+// ─── CURSOR ───────────────────────────────────────────────────
+function Cursor() {
+  const x = useMotionValue(-200); const y = useMotionValue(-200)
+  const sx = useSpring(x, { stiffness: 900, damping: 38 }); const sy = useSpring(y, { stiffness: 900, damping: 38 })
+  const bx = useSpring(x, { stiffness: 75,  damping: 14  }); const by = useSpring(y, { stiffness: 75,  damping: 14  })
+  const [hov, setHov] = useState(false)
+  const [vel, setVel] = useState({ x: 0, y: 0 }); const last = useRef({ x: 0, y: 0 })
   useEffect(() => {
-    const move = (e: MouseEvent) => {
-      const vx = e.clientX - lastPos.current.x
-      const vy = e.clientY - lastPos.current.y
-      setVel({ x: vx, y: vy })
-      lastPos.current = { x: e.clientX, y: e.clientY }
-      x.set(e.clientX)
-      y.set(e.clientY)
+    const onMove = (e: MouseEvent) => {
+      setVel({ x: e.clientX - last.current.x, y: e.clientY - last.current.y })
+      last.current = { x: e.clientX, y: e.clientY }
+      x.set(e.clientX); y.set(e.clientY)
     }
-    const over = (e: MouseEvent) => {
-      setHovered(!!(e.target as HTMLElement).closest('button, a'))
-    }
-    window.addEventListener('mousemove', move)
-    window.addEventListener('mouseover', over)
-    return () => {
-      window.removeEventListener('mousemove', move)
-      window.removeEventListener('mouseover', over)
-    }
+    const onOver = (e: MouseEvent) => setHov(!!(e.target as HTMLElement).closest('button,a'))
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseover', onOver)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseover', onOver) }
   }, [x, y])
-
-  const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2)
-  const stretch = Math.min(speed * 0.04, 0.5)
-  const angle = Math.atan2(vel.y, vel.x) * (180 / Math.PI)
-  const blobSize = hovered ? 64 : 20
-
+  const spd = Math.hypot(vel.x, vel.y)
+  const str = Math.min(spd * 0.035, 0.45)
+  const ang = Math.atan2(vel.y, vel.x) * (180 / Math.PI)
+  const sz  = hov ? 52 : 16
   return (
     <>
-      <motion.div style={{ position: 'fixed', pointerEvents: 'none', zIndex: 9999, x: useTransform(bx, v => v - blobSize / 2), y: useTransform(by, v => v - blobSize / 2) }}>
-        <motion.div
-          animate={{
-            width: blobSize + speed * 0.8, height: blobSize,
-            rotate: angle,
-            borderRadius: hovered ? '8px' : '50%',
-            background: hovered ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.5)',
-            border: hovered ? '1px solid rgba(139,92,246,0.6)' : '1px solid transparent',
-            scaleX: 1 + stretch, scaleY: 1 - stretch * 0.5,
-            boxShadow: `0 0 ${hovered ? 20 : 10}px rgba(139,92,246,0.4)`,
-          }}
-          transition={{ duration: 0.12, ease: 'easeOut' }}
-          style={{ borderRadius: '50%' }}
-        />
+      <motion.div style={{ position: 'fixed', pointerEvents: 'none', zIndex: 9999, x: useTransform(bx, v => v - sz / 2), y: useTransform(by, v => v - sz / 2) }}>
+        <motion.div animate={{ width: sz + spd * 0.5, height: sz, rotate: ang, borderRadius: hov ? '7px' : '50%', background: hov ? 'rgba(124,58,237,0.1)' : 'rgba(124,58,237,0.4)', border: hov ? '1px solid rgba(124,58,237,0.45)' : 'none', scaleX: 1 + str, scaleY: 1 - str * 0.45, boxShadow: `0 0 ${hov ? 16 : 7}px rgba(124,58,237,0.3)` }} transition={{ duration: 0.1, ease: 'easeOut' }} style={{ borderRadius: '50%' }} />
       </motion.div>
-      <motion.div style={{
-        position: 'fixed', pointerEvents: 'none', zIndex: 9999,
-        x: useTransform(sx, v => v - 2), y: useTransform(sy, v => v - 2),
-        width: 4, height: 4, borderRadius: '50%',
-        background: 'white', mixBlendMode: 'difference',
-      }} />
+      <motion.div style={{ position: 'fixed', pointerEvents: 'none', zIndex: 9999, x: useTransform(sx, v => v - 2), y: useTransform(sy, v => v - 2), width: 4, height: 4, borderRadius: '50%', background: 'white', mixBlendMode: 'difference' }} />
     </>
   )
 }
 
-function NoiseOverlay() {
+// ─── UTILITIES ────────────────────────────────────────────────
+function Noise() {
+  return <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 2, opacity: 0.018, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
+}
+
+function FadeUp({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: React.CSSProperties }) {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true, margin: '-32px' })
   return (
-    <div style={{
-      position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 2, opacity: 0.025,
-      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-    }} />
+    <motion.div ref={ref} initial={{ opacity: 0, y: 18 }} animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay }} style={style}>
+      {children}
+    </motion.div>
   )
 }
 
-function Reveal({ text, delay = 0, style }: { text: string; delay?: number; style?: React.CSSProperties }) {
+function Reveal({ children, delay = 0, style }: { children: string; delay?: number; style?: React.CSSProperties }) {
   const ref = useRef(null)
-  const inView = useInView(ref, { once: true, margin: '-60px' })
+  const inView = useInView(ref, { once: true, margin: '-32px' })
   return (
     <div ref={ref} style={style}>
-      {text.split(' ').map((word, i) => (
-        <span key={i} style={{ display: 'inline-block', overflow: 'hidden', marginRight: '0.22em', verticalAlign: 'bottom' }}>
-          <motion.span
-            initial={{ y: '115%', opacity: 0 }}
-            animate={inView ? { y: 0, opacity: 1 } : {}}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: delay + i * 0.08 }}
-            style={{ display: 'inline-block' }}
-          >{word}</motion.span>
+      {children.split(' ').map((w, i) => (
+        <span key={i} style={{ display: 'inline-block', overflow: 'hidden', marginRight: '0.18em', verticalAlign: 'bottom' }}>
+          <motion.span initial={{ y: '105%' }} animate={inView ? { y: 0 } : {}}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: delay + i * 0.065 }}
+            style={{ display: 'inline-block' }}>{w}</motion.span>
         </span>
       ))}
     </div>
   )
 }
 
-function CountUp({ end, suffix = '' }: { end: number; suffix?: string }) {
-  const [n, setN] = useState(0)
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true })
-  useEffect(() => {
-    if (!inView) return
-    let v = 0
-    const step = (end / 1800) * 16
-    const t = setInterval(() => {
-      v += step
-      if (v >= end) { setN(end); clearInterval(t) }
-      else setN(Math.floor(v))
-    }, 16)
-    return () => clearInterval(t)
-  }, [inView, end])
-  return <span ref={ref}>{n}{suffix}</span>
-}
-
-// ─── FEATURES ─────────────────────────────────────────────────
-const FEATURES = [
-  {
-    n: '01',
-    icon: '⚡',
-    title: 'Flow — Execution Timeline',
-    desc: 'See every feature branch off the project trunk in real time. Done tasks merge back in. Your team\'s progress is a living map, not a spreadsheet.',
-    color: '#8b5cf6',
-  },
-  {
-    n: '02',
-    icon: '🎯',
-    title: 'Daily Standup Mode',
-    desc: 'One click. Fullscreen slides for each team member — active tasks, blockers, what\'s next. Run your standup in 3 minutes, not 30.',
-    color: '#06b6d4',
-  },
-  {
-    n: '03',
-    icon: '🤖',
-    title: 'Nex AI Assistant',
-    desc: 'Voice or text. Ask Nex to create tasks, summarize blockers, prioritize your sprint, or generate a project brief. It knows your workspace.',
-    color: '#ec4899',
-  },
-  {
-    n: '04',
-    icon: '📋',
-    title: 'Kanban Board',
-    desc: 'Physics-based drag and drop. TO DO → IN PROGRESS → IN REVIEW → DONE. Real-time sync so your whole team sees every move instantly.',
-    color: '#10b981',
-  },
-  {
-    n: '05',
-    icon: '⏱️',
-    title: 'Focus Timer',
-    desc: 'Deep work, short break, long break. A circular focus ring tracks your session. Beats mode plays ambient sound. Ship more in less time.',
-    color: '#f59e0b',
-  },
-  {
-    n: '06',
-    icon: '🗓️',
-    title: 'Calendar + Manual Events',
-    desc: 'Task due dates, meetings, client calls, team standups — all in one view. Month summary shows exactly what\'s overdue and what\'s shipping.',
-    color: '#a78bfa',
-  },
-  {
-    n: '07',
-    icon: '📊',
-    title: 'Project Dashboard',
-    desc: 'Health, progress, team activity, phase timeline, and links in one view. Drag to reorder phases. One click to mark a phase complete.',
-    color: '#34d399',
-  },
-  {
-    n: '08',
-    icon: '👥',
-    title: 'Team Workspaces',
-    desc: 'Invite teammates by email. Assign roles. Each workspace is fully isolated with row-level security. Your data stays yours — mathematically.',
-    color: '#ef4444',
-  },
-]
-
-// ─── TECH LOGOS ───────────────────────────────────────────────
-const TECH = [
-  { name: 'Supabase', color: '#3ecf8e', desc: 'Database & Auth' },
-  { name: 'Anthropic', color: '#d4a574', desc: 'AI Engine' },
-  { name: 'Vercel', color: '#ffffff', desc: 'Deployment' },
-  { name: 'React', color: '#61dafb', desc: 'Frontend' },
-  { name: 'Three.js', color: '#8b5cf6', desc: '3D Graphics' },
-  { name: 'Framer', color: '#ec4899', desc: 'Motion' },
-]
-
-// ─── FLOW DEMO SVG ────────────────────────────────────────────
-function FlowDemo() {
-  const features = [
-    { name: 'Design UI', color: '#7c3aed', progress: 100, merged: true, y: -90 },
-    { name: 'Auth & Users', color: '#2563eb', progress: 100, merged: true, y: 90 },
-    { name: 'Flow Engine', color: '#059669', progress: 60, merged: false, y: -90 },
-    { name: 'Dashboard', color: '#d97706', progress: 35, merged: false, y: 90 },
-  ]
-  const trunk = { start: 40, current: 260, end: 620 }
+// ─── FLOW SVG ─────────────────────────────────────────────────
+function FlowSVG() {
+  const PHASE_COLORS = ['#4ade80', '#7c3aed', '#2563eb', '#d97706', '#dc2626']
   const phases = [
-    { x: 100, label: 'Kickoff', done: true },
-    { x: 260, label: 'Designing', current: true },
-    { x: 450, label: 'Phase 1', done: false },
-    { x: 600, label: 'Review', done: false },
+    { x: 70,  label: 'Kickoff',   done: true,  active: false },
+    { x: 230, label: 'Designing', done: false,  active: true  },
+    { x: 410, label: 'Phase 1',   done: false,  active: false },
+    { x: 560, label: 'Review',    done: false,  active: false },
   ]
+  const branches = [
+    { name: 'Auth & Login',   color: PHASE_COLORS[0], pct: 100, merged: true,  above: true,  forkX: 160, endX: 300 },
+    { name: 'Kanban Board',   color: PHASE_COLORS[0], pct: 100, merged: true,  above: false, forkX: 160, endX: 300 },
+    { name: 'Flow Engine',    color: PHASE_COLORS[1], pct: 65,  merged: false, above: true,  forkX: 290, endX: 560 },
+    { name: 'Dashboard',      color: PHASE_COLORS[1], pct: 42,  merged: false, above: false, forkX: 290, endX: 560 },
+    { name: 'Calendar',       color: PHASE_COLORS[2], pct: 0,   merged: false, above: true,  forkX: 460, endX: 640 },
+  ]
+  const TY = 130
 
   return (
-    <svg viewBox="0 0 660 280" style={{ width: '100%', maxWidth: '660px', margin: '0 auto', display: 'block' }}>
+    <svg viewBox="0 0 680 270" style={{ width: '100%', display: 'block' }}>
       <defs>
-        {features.map(f => (
-          <linearGradient key={f.name} id={`fl-${f.name.replace(/\s/g,'-')}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor={f.color} stopOpacity="0.9" />
-            <stop offset="100%" stopColor={f.color} stopOpacity="0.4" />
+        <filter id="glow2"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        {branches.map(b => (
+          <linearGradient key={b.name} id={`g-${b.name.replace(/\s/g,'')}`} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={b.color} stopOpacity={b.merged ? 0.8 : 0.6} />
+            <stop offset="100%" stopColor={b.color} stopOpacity={b.merged ? 0.4 : 0.15} />
           </linearGradient>
         ))}
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
       </defs>
 
       {/* Trunk glow */}
-      <line x1={trunk.start} y1={140} x2={trunk.end} y2={140} stroke="#7c3aed" strokeWidth={28} strokeOpacity={0.07} strokeLinecap="round" />
-      {/* Trunk done */}
-      <line x1={trunk.start} y1={140} x2={trunk.current} y2={140} stroke="#4ade80" strokeWidth={3} strokeLinecap="round" />
-      {/* Trunk future */}
-      <line x1={trunk.current} y1={140} x2={trunk.end} y2={140} stroke="rgba(255,255,255,0.15)" strokeWidth={3} strokeLinecap="round" strokeDasharray="6 4" />
+      <line x1={32} y1={TY} x2={648} y2={TY} stroke="#7c3aed" strokeWidth={20} strokeOpacity={0.055} strokeLinecap="round" />
+      {/* Done segment */}
+      <line x1={32} y1={TY} x2={300} y2={TY} stroke="#4ade80" strokeWidth={2} strokeLinecap="round" />
+      {/* Active segment */}
+      <line x1={300} y1={TY} x2={460} y2={TY} stroke="#a78bfa" strokeWidth={2} strokeLinecap="round" />
+      {/* Planned */}
+      <line x1={460} y1={TY} x2={636} y2={TY} stroke="rgba(255,255,255,0.1)" strokeWidth={2} strokeDasharray="4 4" strokeLinecap="round" />
       {/* Arrow */}
-      <polygon points={`${trunk.end+12},${140} ${trunk.end},${133} ${trunk.end},${147}`} fill="rgba(255,255,255,0.35)" />
+      <polygon points="650,130 637,123 637,137" fill="rgba(255,255,255,0.25)" />
 
       {/* Phase nodes */}
-      {phases.map(p => (
+      {phases.map((p, i) => (
         <g key={p.label}>
-          <circle cx={p.x} cy={140} r={p.current ? 18 : 13}
-            fill={p.done ? '#16a34a' : p.current ? '#7c3aed' : 'rgba(20,10,40,0.95)'}
-            stroke={p.done ? '#16a34a' : p.current ? '#a78bfa' : 'rgba(255,255,255,0.15)'}
-            strokeWidth={2} filter={p.current ? 'url(#glow)' : undefined} />
-          <text x={p.x} y={145} textAnchor="middle" fill={p.done || p.current ? 'white' : 'rgba(255,255,255,0.3)'}
-            fontSize={p.done ? 11 : p.current ? 13 : 9} fontWeight="bold">
-            {p.done ? '✓' : p.current ? '⚡' : '○'}
+          <circle cx={p.x} cy={TY} r={p.active ? 15 : 10}
+            fill={p.done ? '#16a34a' : p.active ? '#7c3aed' : 'rgba(12,8,24,0.95)'}
+            stroke={p.done ? '#4ade80' : p.active ? '#a78bfa' : 'rgba(255,255,255,0.1)'}
+            strokeWidth={1.5} filter={p.active ? 'url(#glow2)' : undefined} />
+          <text x={p.x} y={TY + 4.5} textAnchor="middle"
+            fill={p.done || p.active ? 'white' : 'rgba(255,255,255,0.2)'}
+            fontSize={p.active ? 11 : 8} fontWeight="bold">
+            {p.done ? '✓' : p.active ? '⚡' : '○'}
           </text>
-          <text x={p.x} y={p.current ? 170 : 163} textAnchor="middle"
-            fill={p.current ? '#a78bfa' : p.done ? '#4ade80' : 'rgba(255,255,255,0.35)'}
-            fontSize={10} fontWeight={p.current ? 700 : 400} fontFamily="Inter, sans-serif">
+          <text x={p.x} y={p.active ? 156 : 150} textAnchor="middle"
+            fill={p.active ? '#c4b5fd' : p.done ? '#86efac' : 'rgba(255,255,255,0.25)'}
+            fontSize={9} fontWeight={p.active ? 600 : 400} fontFamily="Inter,sans-serif">
             {p.label}
           </text>
+          {/* Phase color indicator */}
+          <rect x={p.x - 8} y={p.active ? 161 : 155} width={16} height={2} rx={1} fill={PHASE_COLORS[i] + '60'} />
         </g>
       ))}
 
-      {/* Feature branches */}
-      {features.map((f, i) => {
-        const forkX  = i < 2 ? 180 : 310
-        const endX   = f.merged ? forkX + 110 : 580
-        const midX   = forkX + (endX - forkX) * 0.5
-        const branchY = 140 + f.y
-        const chipW  = 130
+      {/* Branches */}
+      {branches.map(b => {
+        const bY    = TY + (b.above ? -82 : 82)
+        const lineS = b.forkX + 58
+        const lineE = b.merged ? b.endX - 32 : b.endX
+        const cx    = (lineS + lineE) / 2
+        const cw    = 118
 
         return (
-          <g key={f.name}>
-            {/* Branch curve out */}
-            <path
-              d={`M ${forkX} 140 C ${forkX + 40} 140, ${forkX + 50} ${branchY}, ${forkX + 70} ${branchY}`}
-              fill="none" stroke={f.color} strokeWidth={1.5} strokeOpacity={0.6}
-            />
-            {/* Branch line */}
-            {!f.merged ? (
-              <line x1={forkX + 70} y1={branchY} x2={endX - 20} y2={branchY}
-                stroke={`url(#fl-${f.name.replace(/\s/g,'-')})`} strokeWidth={1.5} />
-            ) : (
+          <g key={b.name}>
+            {/* Fork */}
+            <path d={`M ${b.forkX} ${TY} C ${b.forkX + 34} ${TY}, ${b.forkX + 44} ${bY}, ${lineS} ${bY}`}
+              fill="none" stroke={b.color} strokeWidth={1.4} strokeOpacity={b.merged ? 0.65 : 0.45} />
+            {/* Line */}
+            <line x1={lineS} y1={bY} x2={lineE} y2={bY}
+              stroke={`url(#g-${b.name.replace(/\s/g,'')})`} strokeWidth={1.4} />
+            {/* Merge back */}
+            {b.merged && (
+              <path d={`M ${lineE} ${bY} C ${b.endX + 4} ${bY}, ${b.endX + 10} ${TY}, ${b.endX + 28} ${TY}`}
+                fill="none" stroke={b.color} strokeWidth={1.4} strokeOpacity={0.5} />
+            )}
+
+            {/* Task nodes on branch */}
+            {b.pct > 0 && [0.28, 0.55, 0.78].map((t, ni) => {
+              const nx = lineS + (lineE - lineS) * t
+              const done = (ni + 1) / 3 <= b.pct / 100
+              return (
+                <circle key={ni} cx={nx} cy={bY} r={4}
+                  fill={done ? b.color : 'rgba(12,8,24,0.9)'}
+                  stroke={b.color} strokeWidth={1.2} strokeOpacity={done ? 0 : 0.5} />
+              )
+            })}
+
+            {/* Chip */}
+            <rect x={cx - cw/2} y={bY - 18} width={cw} height={34} rx={7}
+              fill={b.merged ? b.color + '1e' : b.color + '0f'}
+              stroke={b.color} strokeWidth={b.merged ? 0.9 : 0.6}
+              strokeOpacity={b.merged ? 0.65 : 0.35} />
+            {/* Name */}
+            <text x={cx - cw/2 + 9} y={bY - 3} fill="rgba(255,255,255,0.8)"
+              fontSize={9} fontFamily="Inter,sans-serif" fontWeight={500}>{b.name}</text>
+            {/* Progress track */}
+            <rect x={cx - cw/2 + 9} y={bY + 7} width={cw - 48} height={2.5} rx={1.25} fill="rgba(255,255,255,0.07)" />
+            <rect x={cx - cw/2 + 9} y={bY + 7} width={(cw - 48) * b.pct / 100} height={2.5} rx={1.25} fill={b.color} />
+            <text x={cx + cw/2 - 8} y={bY + 10} textAnchor="end" fill={b.color}
+              fontSize={8.5} fontFamily="Inter,sans-serif" fontWeight={700}>{b.pct}%</text>
+
+            {/* MERGED */}
+            {b.merged && (
               <>
-                <line x1={forkX + 70} y1={branchY} x2={endX - 40} y2={branchY}
-                  stroke={f.color} strokeWidth={1.5} strokeOpacity={0.6} />
-                {/* Merge curve back */}
-                <path
-                  d={`M ${endX - 40} ${branchY} C ${endX} ${branchY}, ${endX} 140, ${endX + 20} 140`}
-                  fill="none" stroke={f.color} strokeWidth={1.5} strokeOpacity={0.6}
-                />
+                <rect x={cx - 22} y={bY - 31} width={44} height={12} rx={3.5} fill={b.color + '25'} />
+                <text x={cx} y={bY - 22} textAnchor="middle" fill={b.color}
+                  fontSize={7} fontFamily="Inter,sans-serif" fontWeight={700} letterSpacing="0.06em">MERGED</text>
               </>
             )}
 
-            {/* Feature chip */}
-            <rect x={midX - chipW/2} y={branchY - 22} width={chipW} height={38} rx={8}
-              fill={f.merged ? `${f.color}22` : `${f.color}14`}
-              stroke={f.color} strokeWidth={1} strokeOpacity={f.merged ? 0.7 : 0.4} />
-            {/* Feature name */}
-            <text x={midX - chipW/2 + 8} y={branchY - 5} fill="white" fontSize={9.5} fontWeight={600} fontFamily="Inter, sans-serif">{f.name}</text>
-            {/* Progress bar bg */}
-            <rect x={midX - chipW/2 + 8} y={branchY + 4} width={chipW - 52} height={3} rx={1.5} fill="rgba(255,255,255,0.1)" />
-            {/* Progress bar fill */}
-            <rect x={midX - chipW/2 + 8} y={branchY + 4} width={(chipW - 52) * f.progress / 100} height={3} rx={1.5} fill={f.color} />
-            {/* % label */}
-            <text x={midX + chipW/2 - 26} y={branchY + 8} fill={f.color} fontSize={9} fontWeight={700} fontFamily="Inter, sans-serif">
-              {f.progress}%
-            </text>
-            {/* MERGED badge */}
-            {f.merged && (
-              <>
-                <rect x={midX + chipW/2 - 54} y={branchY - 20} width={44} height={14} rx={4} fill={`${f.color}33`} />
-                <text x={midX + chipW/2 - 32} y={branchY - 9} textAnchor="middle" fill={f.color} fontSize={7.5} fontWeight={700} fontFamily="Inter, sans-serif">MERGED</text>
-              </>
+            {/* Planned indicator */}
+            {b.pct === 0 && (
+              <text x={cx} y={bY + 4} textAnchor="middle" fill="rgba(255,255,255,0.3)"
+                fontSize={8} fontFamily="Inter,sans-serif">Planned</text>
             )}
           </g>
         )
@@ -383,33 +269,28 @@ function FlowDemo() {
   )
 }
 
-// ─── MAIN ─────────────────────────────────────────────────────
+// ─── LANDING ──────────────────────────────────────────────────
 export default function Landing() {
   const navigate = useNavigate()
   const [mx, setMx] = useState(0)
   const [my, setMy] = useState(0)
-  const [activeF, setActiveF] = useState(0)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
-  const productRef = useRef<HTMLDivElement>(null)
-  const flowRef = useRef<HTMLDivElement>(null)
+  const boardRef = useRef<HTMLDivElement>(null)
 
-  const { scrollYProgress: pScroll } = useScroll({ target: productRef, offset: ['start end', 'center center'] })
-  const pRx    = useTransform(pScroll, [0, 1], [isMobile ? 8 : 18, 0])
-  const pRy    = useTransform(pScroll, [0, 1], [isMobile ? -3 : -6, 0])
-  const pScale = useTransform(pScroll, [0, 1], [0.88, 1])
-  const pY     = useTransform(pScroll, [0, 1], [60, 0])
+  const { scrollYProgress } = useScroll({ target: boardRef, offset: ['start end', 'center center'] })
+  const bRx    = useTransform(scrollYProgress, [0, 1], [isMobile ? 5 : 14, 0])
+  const bScale = useTransform(scrollYProgress, [0, 1], [0.91, 1])
+  const bY     = useTransform(scrollYProgress, [0, 1], [40, 0])
 
   useEffect(() => {
     const r = () => setIsMobile(window.innerWidth < 768)
-    window.addEventListener('resize', r)
-    return () => window.removeEventListener('resize', r)
+    window.addEventListener('resize', r); return () => window.removeEventListener('resize', r)
   }, [])
 
   useEffect(() => {
-    const lenis = new Lenis({ duration: 1.6, easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
-    const raf = (t: number) => { lenis.raf(t); requestAnimationFrame(raf) }
-    requestAnimationFrame(raf)
-    return () => lenis.destroy()
+    const l = new Lenis({ duration: 1.6, easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
+    const f = (t: number) => { l.raf(t); requestAnimationFrame(f) }
+    requestAnimationFrame(f); return () => l.destroy()
   }, [])
 
   useEffect(() => {
@@ -417,526 +298,281 @@ export default function Landing() {
       setMx((e.clientX / window.innerWidth - 0.5) * 2)
       setMy((e.clientY / window.innerHeight - 0.5) * 2)
     }
-    window.addEventListener('mousemove', fn)
-    return () => window.removeEventListener('mousemove', fn)
+    window.addEventListener('mousemove', fn); return () => window.removeEventListener('mousemove', fn)
   }, [])
 
-  useEffect(() => {
-    const t = setInterval(() => setActiveF(p => (p + 1) % FEATURES.length), 3500)
-    return () => clearInterval(t)
-  }, [])
+  const H  = (s: string, opts?: { size?: string; weight?: number; color?: string; mb?: string; mt?: string }) => ({
+    fontSize: opts?.size ?? (isMobile ? 'clamp(32px,10vw,48px)' : 'clamp(40px,5vw,72px)'),
+    fontWeight: opts?.weight ?? 800,
+    letterSpacing: '-0.045em',
+    lineHeight: 1.0,
+    color: opts?.color ?? '#f0f0f5',
+    margin: 0,
+    marginBottom: opts?.mb ?? '0',
+    marginTop: opts?.mt ?? '0',
+    fontFamily: 'Inter, system-ui, sans-serif',
+  })
 
-  const pad = isMobile ? '0 20px' : '0 48px'
+  const Body = (size = '16px', color = 'rgba(255,255,255,0.45)'): React.CSSProperties => ({
+    fontSize: isMobile ? '14px' : size,
+    color,
+    lineHeight: 1.75,
+    fontFamily: 'Inter, system-ui, sans-serif',
+    margin: 0,
+  })
+
+  const p = isMobile ? '0 22px' : '0 60px'
+  const sectionPad = isMobile ? '80px 0' : '130px 0'
+  const divider = '1px solid rgba(255,255,255,0.05)'
 
   return (
-    <div style={{ background: '#000', color: '#fff', overflowX: 'hidden', cursor: isMobile ? 'auto' : 'none' }}>
-      {!isMobile && <MagneticCursor />}
-      <NoiseOverlay />
+    <div style={{ background: '#05050a', color: '#fff', overflowX: 'hidden', cursor: isMobile ? 'auto' : 'none' }}>
+      {!isMobile && <Cursor />}
+      <Noise />
 
       {/* ── NAV ── */}
       <motion.nav
-        initial={{ opacity: 0, y: -16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6, duration: 0.7 }}
-        style={{
-          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-          padding: isMobile ? '14px 20px' : '20px 48px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(24px)',
-          borderBottom: '1px solid rgba(255,255,255,0.05)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800, color: 'white' }}>N</div>
-          <span style={{ fontWeight: 700, fontSize: isMobile ? '14px' : '15px', fontFamily: 'Space Grotesk', letterSpacing: '-0.02em' }}>
-            NEX<span style={{ color: '#8b5cf6' }}>TASK</span>
-          </span>
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 0.7 }}
+        style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: isMobile ? '16px 22px' : '20px 60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5,5,10,0.82)', backdropFilter: 'blur(24px)', borderBottom: divider }}>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(140deg,#7c3aed,#db2777)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800, color: 'white', letterSpacing: '-0.02em' }}>N</div>
+          <span style={{ fontWeight: 700, fontSize: '15px', letterSpacing: '-0.02em', color: '#e8e8f0', fontFamily: 'Inter, system-ui, sans-serif' }}>NexTask</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Nav actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {!isMobile && (
-            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={() => navigate('/auth')}
-              style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '8px 20px', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>
+            <button onClick={() => navigate('/auth')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.42)', cursor: 'pointer', fontSize: '14px', padding: '8px 18px', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 500, borderRadius: '8px', transition: 'color 0.15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.42)' }}>
               Sign in
-            </motion.button>
+            </button>
           )}
-          <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={() => navigate('/auth')}
-            style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '8px', padding: isMobile ? '8px 16px' : '8px 22px', color: 'white', cursor: 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700, boxShadow: '0 0 16px rgba(139,92,246,0.3)' }}>
-            Start free →
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={() => navigate('/auth')}
+            style={{ background: '#7c3aed', border: 'none', borderRadius: '9px', padding: isMobile ? '9px 18px' : '9px 22px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: 600, fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '-0.01em' }}>
+            Get started
           </motion.button>
         </div>
       </motion.nav>
 
-      {/* ── HERO ── */}
-      <section style={{ position: 'relative', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      {/* ══ HERO ══════════════════════════════════════════════ */}
+      <section style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0 }}>
-          <Canvas camera={{ position: [0, 0, 9], fov: 52 }}>
-            <HeroCanvas mx={mx} my={my} />
+          <Canvas camera={{ position: [0, 0, 9], fov: 50 }}>
+            <HeroScene mx={mx} my={my} />
           </Canvas>
         </div>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 60%, rgba(0,0,0,0.97) 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 40%, rgba(5,5,10,0) 0%, rgba(5,5,10,0.6) 50%, rgba(5,5,10,0.98) 100%)' }} />
 
-        <div style={{ position: 'relative', zIndex: 10, textAlign: 'center', padding: isMobile ? '0 20px' : '0 24px', maxWidth: '960px', width: '100%' }}>
+        <div style={{ position: 'relative', zIndex: 10, textAlign: 'center', maxWidth: '900px', width: '100%', padding: isMobile ? '100px 24px 80px' : '0 32px' }}>
 
-          {/* Eyebrow */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '999px', padding: '5px 14px', marginBottom: '28px' }}
-          >
-            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#8b5cf6', boxShadow: '0 0 8px #8b5cf6' }} />
-            <span style={{ color: '#a78bfa', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600, letterSpacing: '0.04em' }}>
-              Project management reimagined
-            </span>
-          </motion.div>
+          {/* Headline — two lines, product truth */}
+          <div style={{ overflow: 'hidden', marginBottom: '2px' }}>
+            <motion.h1
+              initial={{ y: '100%' }} animate={{ y: 0 }}
+              transition={{ duration: 1.05, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+              style={{ ...H('white', { size: isMobile ? 'clamp(44px,13vw,64px)' : 'clamp(64px,8.5vw,108px)' }), color: '#f0f0f8' }}>
+              Project tracking,
+            </motion.h1>
+          </div>
+          <div style={{ overflow: 'hidden', marginBottom: isMobile ? '28px' : '40px' }}>
+            <motion.h1
+              initial={{ y: '100%' }} animate={{ y: 0 }}
+              transition={{ duration: 1.05, ease: [0.16, 1, 0.3, 1], delay: 0.46 }}
+              style={{ ...H('white', { size: isMobile ? 'clamp(44px,13vw,64px)' : 'clamp(64px,8.5vw,108px)' }), background: 'linear-gradient(128deg, #a78bfa 20%, #f472b6 80%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              finally clear.
+            </motion.h1>
+          </div>
 
-          {/* Main headline */}
-          {['See your team\'s', 'work move.'].map((line, idx) => (
-            <div key={idx} style={{ overflow: 'hidden', marginBottom: idx === 0 ? '4px' : isMobile ? '24px' : '36px' }}>
-              <motion.h1
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1], delay: 0.5 + idx * 0.15 }}
-                style={{
-                  fontSize: isMobile ? 'clamp(48px, 14vw, 68px)' : 'clamp(64px, 9vw, 120px)',
-                  fontWeight: 900, fontFamily: 'Space Grotesk',
-                  letterSpacing: '-0.055em', lineHeight: 0.92, margin: 0,
-                  background: idx === 1 ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'none',
-                  color: idx === 0 ? 'white' : 'transparent',
-                  WebkitBackgroundClip: idx === 1 ? 'text' : 'unset',
-                  WebkitTextFillColor: idx === 1 ? 'transparent' : 'unset',
-                }}
-              >{line}</motion.h1>
-            </div>
-          ))}
-
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.0, duration: 0.8 }}
-            style={{ color: 'rgba(255,255,255,0.55)', fontSize: isMobile ? '14px' : 'clamp(14px, 1.5vw, 17px)', fontFamily: 'Space Grotesk', lineHeight: 1.75, maxWidth: '500px', margin: '0 auto', marginBottom: isMobile ? '32px' : '44px' }}
-          >
-            NexTask turns your Kanban board into a live execution map. Watch features branch, tasks progress, and work merge — in real time.
+          <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: 0.75 }}
+            style={{ ...Body(isMobile ? '15px' : '19px'), maxWidth: '520px', margin: '0 auto', marginBottom: isMobile ? '36px' : '52px', color: 'rgba(255,255,255,0.48)', fontWeight: 400 }}>
+            See every feature, every phase, every blocker — on a single live timeline. Built for teams that need clarity, not more tools.
           </motion.p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.2 }}
-            style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '20px' }}
-          >
-            <motion.button
-              whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
-              onClick={() => navigate('/auth')}
-              style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '12px', padding: isMobile ? '13px 28px' : '15px 40px', color: 'white', cursor: 'pointer', fontSize: isMobile ? '14px' : '15px', fontFamily: 'Space Grotesk', fontWeight: 700, boxShadow: '0 0 32px rgba(139,92,246,0.4)' }}>
-              Start free — no card needed →
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }}
+            style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <motion.button whileHover={{ scale: 1.03, boxShadow: '0 0 36px rgba(124,58,237,0.45)' }} whileTap={{ scale: 0.97 }} onClick={() => navigate('/auth')}
+              style={{ background: '#7c3aed', border: 'none', borderRadius: '11px', padding: isMobile ? '14px 32px' : '16px 44px', color: 'white', cursor: 'pointer', fontSize: isMobile ? '15px' : '16px', fontWeight: 700, fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '-0.01em', boxShadow: '0 0 28px rgba(124,58,237,0.3)' }}>
+              Start for free
             </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
-              onClick={() => flowRef.current?.scrollIntoView({ behavior: 'smooth' })}
-              style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', padding: isMobile ? '13px 28px' : '15px 40px', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: isMobile ? '14px' : '15px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>
-              See how Flow works ↓
+            <motion.button whileHover={{ scale: 1.03, borderColor: 'rgba(255,255,255,0.22)' }} whileTap={{ scale: 0.97 }}
+              onClick={() => document.getElementById('flow-section')?.scrollIntoView({ behavior: 'smooth' })}
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '11px', padding: isMobile ? '14px 28px' : '16px 36px', color: 'rgba(255,255,255,0.58)', cursor: 'pointer', fontSize: isMobile ? '15px' : '16px', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 500 }}>
+              See it in action
             </motion.button>
           </motion.div>
-
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }}
-            style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px', fontFamily: 'Space Grotesk' }}>
-            Free forever · No credit card · Works in your browser
-          </motion.p>
         </div>
 
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '220px', background: 'linear-gradient(to bottom, transparent, #000)', zIndex: 5 }} />
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '200px', background: 'linear-gradient(to bottom, transparent, #05050a)', zIndex: 5 }} />
       </section>
 
-      {/* ── BUILT WITH ── */}
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'rgba(255,255,255,0.012)', padding: isMobile ? '16px 20px' : '20px 48px' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: isMobile ? '20px' : '48px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.2em', flexShrink: 0 }}>BUILT WITH</span>
-          {TECH.map((t, i) => (
-            <motion.div key={t.name}
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.06 }}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: t.color, opacity: 0.7 }} />
-              <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>{t.name}</span>
-            </motion.div>
-          ))}
-        </div>
-      </div>
+      {/* ══ FLOW SECTION ════════════════════════════════════ */}
+      <section id="flow-section" style={{ padding: sectionPad, borderTop: divider }}>
+        <div style={{ maxWidth: '1080px', margin: '0 auto', padding: p }}>
 
-      {/* ── MARQUEE ── */}
-      <div style={{ overflow: 'hidden', padding: '12px 0', background: 'rgba(255,255,255,0.008)' }}>
-        <motion.div
-          animate={{ x: [0, -3200] }}
-          transition={{ duration: 32, repeat: Infinity, ease: 'linear' }}
-          style={{ display: 'flex', gap: '56px', whiteSpace: 'nowrap', width: 'max-content' }}
-        >
-          {Array(6).fill([
-            'FLOW TIMELINE', '✦', 'STANDUP MODE', '✦', 'NEX AI ASSISTANT', '✦',
-            'KANBAN BOARD', '✦', 'FOCUS TIMER', '✦', 'CALENDAR EVENTS', '✦',
-            'PROJECT DASHBOARD', '✦', 'REAL-TIME SYNC', '✦', 'TEAM WORKSPACES', '✦',
-          ]).flat().map((t, i) => (
-            <span key={i} style={{ color: i % 2 === 1 ? '#8b5cf6' : 'rgba(255,255,255,0.2)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.2em' }}>{t}</span>
-          ))}
-        </motion.div>
-      </div>
+          <FadeUp style={{ marginBottom: isMobile ? '48px' : '72px', maxWidth: '560px' }}>
+            <p style={{ ...Body('12px', 'rgba(255,255,255,0.22)'), letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '18px' }}>Flow</p>
+            <Reveal style={{ ...H('white', { size: isMobile ? 'clamp(28px,8vw,42px)' : 'clamp(36px,4vw,58px)', mb: '18px' }) }}>
+              Your whole project. One view.
+            </Reveal>
+            <p style={{ ...Body('17px', 'rgba(255,255,255,0.42)'), maxWidth: '460px' }}>
+              Features branch off the project timeline and merge back when done. Phases tell you where you are. Task nodes show who's working on what.
+            </p>
+          </FadeUp>
 
-      {/* ── FLOW SECTION ── */}
-      <section ref={flowRef} style={{ padding: isMobile ? '80px 0 60px' : '140px 0 100px', position: 'relative', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '800px', height: '400px', background: 'radial-gradient(ellipse, rgba(124,58,237,0.05) 0%, transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: pad }}>
-
-          <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em' }}>01 — FLOW</span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
-          </motion.div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '48px' : '80px', alignItems: 'center' }}>
-            <div>
-              <Reveal text="Your project. Live. As a timeline." style={{ fontSize: isMobile ? 'clamp(28px, 7vw, 40px)' : 'clamp(32px, 4vw, 56px)', fontWeight: 800, fontFamily: 'Space Grotesk', letterSpacing: '-0.04em', lineHeight: 1.05, color: 'white', marginBottom: '20px' }} />
-              <motion.p initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }}
-                style={{ color: 'rgba(255,255,255,0.55)', fontSize: isMobile ? '14px' : '16px', fontFamily: 'Space Grotesk', lineHeight: 1.8, marginBottom: '24px' }}>
-                Every feature branches off the project trunk. Tasks become nodes. When a feature ships, it merges back in — like Git, but for your whole team's execution.
-              </motion.p>
-              {[
-                { icon: '⚡', text: 'See which features are ahead, on track, or at risk — at a glance' },
-                { icon: '🔀', text: 'Completed features merge back into the trunk automatically' },
-                { icon: '🎯', text: 'One-click Standup Mode — run daily standups in under 5 minutes' },
-              ].map((b, i) => (
-                <motion.div key={i} initial={{ opacity: 0, x: -12 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 + i * 0.08 }}
-                  style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '1px' }}>{b.icon}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', fontFamily: 'Space Grotesk', lineHeight: 1.6 }}>{b.text}</span>
-                </motion.div>
-              ))}
-              <motion.button
-                initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.4 }}
-                whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-                onClick={() => navigate('/auth')}
-                style={{ marginTop: '20px', background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: '10px', padding: '11px 24px', color: '#a78bfa', cursor: 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>
-                See Flow in action →
-              </motion.button>
+          {/* Flow diagram */}
+          <FadeUp delay={0.1} style={{ background: 'rgba(255,255,255,0.02)', border: divider, borderRadius: '16px', padding: isMobile ? '20px 10px 24px' : '32px 28px 36px', position: 'relative', overflow: 'hidden', marginBottom: isMobile ? '48px' : '72px' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.35), transparent)' }} />
+            {/* Window chrome */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '20px' }}>
+              {['#ff5f57','#febc2e','#28c840'].map((c, i) => <div key={i} style={{ width: '8px', height: '8px', borderRadius: '50%', background: c, opacity: 0.7 }} />)}
+              <span style={{ marginLeft: '8px', ...Body('10px', 'rgba(255,255,255,0.2)'), letterSpacing: '0.1em', textTransform: 'uppercase' }}>NexTask — Flow</span>
             </div>
+            <FlowSVG />
+            {/* Legend */}
+            <div style={{ display: 'flex', gap: '20px', marginTop: '18px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              {[['#4ade80','Done'],['#a78bfa','Active'],['rgba(255,255,255,0.2)','Planned'],['#7c3aed','Merged']].map(([c,l]) => (
+                <div key={l} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: c }} />
+                  <span style={{ ...Body('11px', 'rgba(255,255,255,0.3)') }}>{l}</span>
+                </div>
+              ))}
+            </div>
+          </FadeUp>
 
-            {/* Flow SVG Demo */}
-            <motion.div
-              initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
-              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: isMobile ? '20px 12px' : '32px 24px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.5), transparent)' }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed', boxShadow: '0 0 8px #7c3aed' }} />
-                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.15em' }}>NEXTASK / LAUNCH — LIVE</span>
-              </div>
-              <FlowDemo />
-              <div style={{ display: 'flex', gap: '16px', marginTop: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                {[
-                  { dot: '#4ade80', label: 'Done' },
-                  { dot: '#a78bfa', label: 'Active' },
-                  { dot: 'rgba(255,255,255,0.2)', label: 'Planned' },
-                  { dot: '#7c3aed', label: 'Merged' },
-                ].map(l => (
-                  <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: l.dot }} />
-                    <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px', fontFamily: 'Space Grotesk' }}>{l.label}</span>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
+          {/* Three truths below the diagram */}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: isMobile ? '28px' : '40px' }}>
+            {[
+              { title: 'Know what\'s blocked', body: 'At-risk and blocked features are visible the moment they fall behind. No check-in needed.' },
+              { title: 'Standup in minutes', body: 'One click opens fullscreen slides — one per person. Active tasks, blockers, what\'s next.' },
+              { title: 'Phases, not columns', body: 'Features are grouped by milestone. You always know where the project stands against the plan.' },
+            ].map((c, i) => (
+              <FadeUp key={c.title} delay={i * 0.08}>
+                <p style={{ ...Body('15px', 'rgba(255,255,255,0.7)'), fontWeight: 600, letterSpacing: '-0.01em', marginBottom: '8px' }}>{c.title}</p>
+                <p style={{ ...Body('14px', 'rgba(255,255,255,0.36)'), lineHeight: 1.7 }}>{c.body}</p>
+              </FadeUp>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ── PRODUCT DEMO ── */}
-      <section ref={productRef} style={{ padding: isMobile ? '60px 0 80px' : '100px 0 160px', position: 'relative', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: pad }}>
+      {/* ══ BOARD ════════════════════════════════════════════ */}
+      <section ref={boardRef} style={{ padding: sectionPad, borderTop: divider }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: p }}>
 
-          <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em' }}>02 — BOARD</span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
-          </motion.div>
+          <FadeUp style={{ marginBottom: isMobile ? '36px' : '56px', maxWidth: '520px' }}>
+            <p style={{ ...Body('12px', 'rgba(255,255,255,0.22)'), letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '18px' }}>Board</p>
+            <Reveal style={{ ...H('white', { size: isMobile ? 'clamp(28px,8vw,42px)' : 'clamp(36px,4vw,58px)', mb: '18px' }) }}>
+              The board moves with your team.
+            </Reveal>
+            <p style={{ ...Body('17px', 'rgba(255,255,255,0.42)') }}>
+              Drag a card across a column. Every connected browser updates in under a second. Assign tasks, set priorities, and track due dates — all in the same place.
+            </p>
+          </FadeUp>
 
-          <Reveal text="The Kanban board that actually helps." style={{ fontSize: isMobile ? 'clamp(26px, 7vw, 38px)' : 'clamp(30px, 4vw, 56px)', fontWeight: 800, fontFamily: 'Space Grotesk', letterSpacing: '-0.04em', lineHeight: 1.05, color: 'white', marginBottom: '12px' }} />
-
-          <motion.p initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }}
-            style={{ color: 'rgba(255,255,255,0.5)', fontSize: isMobile ? '14px' : '16px', fontFamily: 'Space Grotesk', maxWidth: '480px', marginBottom: isMobile ? '36px' : '60px', lineHeight: 1.75 }}>
-            Drag tasks across columns. Updates sync instantly across every browser tab. AI writes descriptions. Nex answers questions about your work.
-          </motion.p>
-
-          {/* Browser mockup */}
-          <motion.div style={{ rotateX: pRx, rotateY: pRy, scale: pScale, y: pY, transformPerspective: 1400, transformStyle: 'preserve-3d', position: 'relative' }}>
-            <div style={{ position: 'absolute', inset: '-1px', borderRadius: '18px', background: 'linear-gradient(135deg, rgba(139,92,246,0.35), rgba(236,72,153,0.25), rgba(6,182,212,0.15))', filter: 'blur(0.5px)', zIndex: -1 }} />
-            <div style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.85), 0 0 60px rgba(139,92,246,0.08)' }}>
-              <div style={{ background: '#111', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          {/* 3D tilted browser */}
+          <motion.div style={{ rotateX: bRx, scale: bScale, y: bY, transformPerspective: 1100, position: 'relative' }}>
+            <div style={{ position: 'absolute', inset: '-1px', borderRadius: '16px', background: 'linear-gradient(140deg, rgba(124,58,237,0.28), rgba(219,39,119,0.18), rgba(6,182,212,0.1))', zIndex: -1 }} />
+            <div style={{ background: '#09090f', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 36px 90px rgba(0,0,0,0.85)' }}>
+              <div style={{ background: '#0d0d16', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '9px', borderBottom: divider }}>
                 <div style={{ display: 'flex', gap: '5px' }}>
-                  {['#ff5f57', '#febc2e', '#28c840'].map((c, i) => (
-                    <div key={i} style={{ width: '8px', height: '8px', borderRadius: '50%', background: c, opacity: 0.85 }} />
-                  ))}
+                  {['#ff5f57','#febc2e','#28c840'].map((c, i) => <div key={i} style={{ width: '8px', height: '8px', borderRadius: '50%', background: c, opacity: 0.75 }} />)}
                 </div>
                 {!isMobile && (
-                  <div style={{ flex: 1, maxWidth: '280px', margin: '0 auto', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '5px', padding: '3px 10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ maxWidth: '220px', margin: '0 auto', flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '5px', padding: '3px 10px', display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <span style={{ fontSize: '9px', color: '#10b981' }}>🔒</span>
-                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontFamily: 'Space Mono' }}>nextask.live/app</span>
+                    <span style={{ ...Body('10px', 'rgba(255,255,255,0.3)'), letterSpacing: '0.05em' }}>nextask.live/app</span>
                   </div>
                 )}
               </div>
-              <div style={{ height: isMobile ? '320px' : '520px' }}>
-                <DemoBoard />
-              </div>
+              <div style={{ height: isMobile ? '290px' : '460px' }}><DemoBoard /></div>
             </div>
           </motion.div>
-
-          {/* Capability pills */}
-          <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
-            style={{ display: 'flex', gap: '8px', marginTop: '28px', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {[
-              { label: 'Flow timeline', color: '#8b5cf6' },
-              { label: 'Standup mode', color: '#06b6d4' },
-              { label: 'Nex AI', color: '#ec4899' },
-              { label: 'Focus timer', color: '#f59e0b' },
-              { label: 'Calendar events', color: '#a78bfa' },
-              { label: 'Real-time sync', color: '#10b981' },
-              { label: 'Google auth', color: '#34d399' },
-              { label: 'Row-level security', color: '#ef4444' },
-            ].map((p, i) => (
-              <motion.div key={p.label} initial={{ opacity: 0, scale: 0.85 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.04 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '5px', background: `${p.color}0d`, border: `1px solid ${p.color}30`, borderRadius: '999px', padding: '5px 12px' }}>
-                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: p.color }} />
-                <span style={{ color: p.color, fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>{p.label}</span>
-              </motion.div>
-            ))}
-          </motion.div>
         </div>
       </section>
 
-      {/* ── FEATURES GRID ── */}
-      <section style={{ padding: isMobile ? '80px 0' : '120px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: pad }}>
+      {/* ══ FEATURES GRID ════════════════════════════════════ */}
+      <section style={{ padding: sectionPad, borderTop: divider }}>
+        <div style={{ maxWidth: '1080px', margin: '0 auto', padding: p }}>
 
-          <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            style={{ marginBottom: isMobile ? '40px' : '72px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em' }}>03 — EVERYTHING</span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
-          </motion.div>
+          <FadeUp style={{ marginBottom: isMobile ? '40px' : '64px', maxWidth: '480px' }}>
+            <p style={{ ...Body('12px', 'rgba(255,255,255,0.22)'), letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '18px' }}>Features</p>
+            <Reveal style={{ ...H('white', { size: isMobile ? 'clamp(28px,8vw,40px)' : 'clamp(32px,3.8vw,52px)' }) }}>
+              Everything your team needs.
+            </Reveal>
+          </FadeUp>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '32px' : '72px', alignItems: 'start' }}>
-            <div>
-              <Reveal text="Eight tools. One workspace." style={{ fontSize: isMobile ? 'clamp(24px, 6vw, 36px)' : 'clamp(28px, 3.5vw, 48px)', fontWeight: 800, fontFamily: 'Space Grotesk', letterSpacing: '-0.03em', lineHeight: 1.1, color: 'white', marginBottom: isMobile ? '24px' : '40px' }} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                {FEATURES.map((f, i) => (
-                  <motion.div key={f.n} initial={{ opacity: 0, x: -12 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}
-                    onMouseEnter={() => !isMobile && setActiveF(i)}
-                    onClick={() => setActiveF(i)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '11px 14px', borderRadius: '10px', cursor: 'pointer', background: activeF === i ? `${f.color}0a` : 'transparent', border: `1px solid ${activeF === i ? f.color + '22' : 'transparent'}`, transition: 'all 0.2s' }}>
-                    <span style={{ color: activeF === i ? f.color : 'rgba(255,255,255,0.2)', fontSize: '10px', fontFamily: 'Space Mono', flexShrink: 0 }}>{f.n}</span>
-                    <span style={{ fontSize: '15px', flexShrink: 0, filter: activeF === i ? 'none' : 'grayscale(1) opacity(0.4)' }}>{f.icon}</span>
-                    <span style={{ color: activeF === i ? 'white' : 'rgba(255,255,255,0.45)', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>{f.title}</span>
-                    {activeF === i && <motion.span layoutId="arr" style={{ marginLeft: 'auto', color: f.color, fontSize: '14px' }}>→</motion.span>}
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-
-            {!isMobile && (
-              <div style={{ position: 'sticky', top: '120px' }}>
-                <AnimatePresence mode="wait">
-                  <motion.div key={activeF}
-                    initial={{ opacity: 0, y: 20, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -20, scale: 0.97 }}
-                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                    style={{ background: `${FEATURES[activeF].color}07`, border: `1px solid ${FEATURES[activeF].color}18`, borderRadius: '24px', padding: '44px', minHeight: '360px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: `linear-gradient(90deg, transparent, ${FEATURES[activeF].color}60, transparent)` }} />
-                    <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '180px', height: '180px', borderRadius: '50%', background: `radial-gradient(circle, ${FEATURES[activeF].color}15 0%, transparent 70%)` }} />
-                    <div>
-                      <div style={{ fontSize: '44px', marginBottom: '18px' }}>{FEATURES[activeF].icon}</div>
-                      <div style={{ color: FEATURES[activeF].color, fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.2em', marginBottom: '10px' }}>FEATURE {FEATURES[activeF].n}</div>
-                      <h3 style={{ color: 'white', fontSize: '24px', fontWeight: 800, fontFamily: 'Space Grotesk', letterSpacing: '-0.02em', marginBottom: '12px', lineHeight: 1.2 }}>{FEATURES[activeF].title}</h3>
-                      <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '14px', fontFamily: 'Space Grotesk', lineHeight: 1.8 }}>{FEATURES[activeF].desc}</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '5px', marginTop: '24px' }}>
-                      {FEATURES.map((_, i) => (
-                        <motion.div key={i}
-                          animate={{ width: i === activeF ? 26 : 5, background: i === activeF ? FEATURES[activeF].color : 'rgba(255,255,255,0.12)' }}
-                          style={{ height: '3px', borderRadius: '999px', cursor: 'pointer' }}
-                          onClick={() => setActiveF(i)}
-                        />
-                      ))}
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ── WHO IT'S FOR ── */}
-      <section style={{ padding: isMobile ? '80px 0' : '120px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: pad }}>
-          <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            style={{ marginBottom: isMobile ? '40px' : '64px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em' }}>04 — WHO IT'S FOR</span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
-          </motion.div>
-
-          <Reveal text="Built for people who ship." style={{ fontSize: isMobile ? 'clamp(26px, 7vw, 38px)' : 'clamp(30px, 4vw, 52px)', fontWeight: 800, fontFamily: 'Space Grotesk', letterSpacing: '-0.04em', lineHeight: 1.05, color: 'white', marginBottom: isMobile ? '36px' : '56px' }} />
-
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: '10px' }}>
             {[
-              {
-                icon: '👨‍💻',
-                title: 'Dev teams',
-                color: '#8b5cf6',
-                points: [
-                  'Track features from todo to merged',
-                  'Run standups in 3 minutes with Standup Mode',
-                  'Nex AI knows your sprint context',
-                  'Flow shows exactly what\'s blocking the release',
-                ],
-              },
-              {
-                icon: '🎓',
-                title: 'Student teams',
-                color: '#06b6d4',
-                points: [
-                  'Project deliverables mapped to phases',
-                  'Assign tasks to teammates by email',
-                  'Due date calendar keeps the group honest',
-                  'Free forever — no credit card, ever',
-                ],
-              },
-              {
-                icon: '⚡',
-                title: 'Solo builders',
-                color: '#ec4899',
-                points: [
-                  'Personal board separate from team projects',
-                  'Focus timer with ambient beats mode',
-                  'Nex writes task descriptions for you',
-                  'Today view shows exactly what\'s urgent',
-                ],
-              },
-            ].map((card, i) => (
-              <motion.div key={card.title}
-                initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
-                style={{ background: `${card.color}07`, border: `1px solid ${card.color}18`, borderRadius: '16px', padding: isMobile ? '24px' : '32px', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: `linear-gradient(90deg, transparent, ${card.color}50, transparent)` }} />
-                <div style={{ fontSize: '32px', marginBottom: '14px' }}>{card.icon}</div>
-                <h3 style={{ color: 'white', fontSize: '18px', fontWeight: 700, fontFamily: 'Space Grotesk', marginBottom: '18px', letterSpacing: '-0.02em' }}>{card.title}</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {card.points.map((p, j) => (
-                    <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                      <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: card.color, marginTop: '7px', flexShrink: 0 }} />
-                      <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px', fontFamily: 'Space Grotesk', lineHeight: 1.6 }}>{p}</span>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
+              { icon: '⚡', name: 'Flow',             color: '#7c3aed', desc: 'Live execution map. Branches, merges, phases.' },
+              { icon: '🎯', name: 'Standup mode',     color: '#2563eb', desc: 'Fullscreen slides. Run it in under 5 minutes.' },
+              { icon: '🤖', name: 'Nex AI',           color: '#db2777', desc: 'Create tasks, summarize blockers, plan sprints.' },
+              { icon: '📋', name: 'Kanban board',     color: '#059669', desc: 'Real-time drag and drop. All columns synced.' },
+              { icon: '⏱️', name: 'Focus timer',      color: '#d97706', desc: 'Pomodoro with ambient beats. Shipped more.' },
+              { icon: '🗓️', name: 'Calendar',         color: '#7c3aed', desc: 'Tasks and manual events in one month view.' },
+              { icon: '📊', name: 'Dashboard',        color: '#2563eb', desc: 'Health, team, phases, links — one screen.' },
+              { icon: '👥', name: 'Workspaces',       color: '#db2777', desc: 'Invite by email. Assign roles. Fully isolated.' },
+            ].map((f, i) => (
+              <FadeUp key={f.name} delay={i * 0.04}
+                style={{ padding: '20px 18px', background: 'rgba(255,255,255,0.02)', border: divider, borderRadius: '11px', transition: 'border-color 0.2s, background 0.2s' }}
+                // @ts-ignore
+                onMouseEnter={e => { e.currentTarget.style.borderColor = f.color + '40'; e.currentTarget.style.background = f.color + '08' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}>
+                <div style={{ fontSize: '20px', marginBottom: '12px' }}>{f.icon}</div>
+                <p style={{ ...Body('13px', 'rgba(255,255,255,0.72)'), fontWeight: 600, letterSpacing: '-0.01em', marginBottom: '5px' }}>{f.name}</p>
+                <p style={{ ...Body('12px', 'rgba(255,255,255,0.3)'), lineHeight: 1.55 }}>{f.desc}</p>
+              </FadeUp>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── STATS ── */}
-      <section style={{ padding: isMobile ? '80px 20px' : '120px 48px', borderTop: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '600px', height: '300px', background: 'radial-gradient(ellipse, rgba(139,92,246,0.05) 0%, transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{ maxWidth: '900px', margin: '0 auto', position: 'relative' }}>
-          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-            style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: isMobile ? '48px' : '80px' }}>
-            <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em' }}>05 — BY THE NUMBERS</span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
-          </motion.div>
+      {/* ══ FINAL CTA ════════════════════════════════════════ */}
+      <section style={{ padding: isMobile ? '100px 0 120px' : '160px 0 180px', borderTop: divider, position: 'relative', overflow: 'hidden' }}>
+        {/* Subtle background glow */}
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '600px', height: '340px', background: 'radial-gradient(ellipse, rgba(124,58,237,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? '32px 20px' : '40px' }}>
-            {[
-              { end: 8, suffix: '+', label: 'Integrated features', sub: 'Flow, Board, Timer, AI…', color: '#8b5cf6' },
-              { end: 100, suffix: '%', label: 'Free to start', sub: 'No card. No trial. No catch.', color: '#10b981' },
-              { end: 5, suffix: 'min', label: 'Daily standup', sub: 'With Standup Mode', color: '#06b6d4' },
-              { end: 0, suffix: 'ms', label: 'Setup time', sub: 'Sign in and start', color: '#ec4899' },
-            ].map((s, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
-                style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: isMobile ? '44px' : 'clamp(44px,5vw,68px)', fontWeight: 800, fontFamily: 'Space Mono', color: s.color, letterSpacing: '-0.04em', textShadow: `0 0 40px ${s.color}40`, lineHeight: 1, marginBottom: '6px' }}>
-                  <CountUp end={s.end} suffix={s.suffix} />
-                </div>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 600, marginBottom: '4px' }}>{s.label}</div>
-                <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: '10px', fontFamily: 'Space Grotesk' }}>{s.sub}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FINAL CTA ── */}
-      <section style={{ minHeight: isMobile ? '80vh' : '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.35 }}>
-          <Canvas camera={{ position: [0, 0, 7], fov: 58 }}>
-            <ambientLight intensity={0.2} />
-            <pointLight position={[4, 4, 4]} color="#8b5cf6" intensity={3} />
-            <pointLight position={[-4, -4, -4]} color="#ec4899" intensity={2} />
-            <GlowOrb position={[0, 0, 0]} color="#8b5cf6" speed={0.4} distort={0.9} scale={1.5} />
-            <mesh>
-              <torusGeometry args={[3.5, 0.015, 16, 100]} />
-              <meshStandardMaterial color="#8b5cf6" emissive="#8b5cf6" emissiveIntensity={0.8} transparent opacity={0.4} />
-            </mesh>
-            <mesh rotation={[0.5, 0, 0]}>
-              <torusGeometry args={[5.5, 0.012, 16, 100]} />
-              <meshStandardMaterial color="#ec4899" emissive="#ec4899" emissiveIntensity={0.8} transparent opacity={0.3} />
-            </mesh>
-          </Canvas>
-        </div>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.93) 65%)' }} />
-
-        <div style={{ position: 'relative', zIndex: 10, textAlign: 'center', padding: isMobile ? '60px 20px' : '0 24px', maxWidth: '800px' }}>
-          <motion.span initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-            style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.3em', display: 'block', marginBottom: '24px' }}>
-            06 — START NOW
-          </motion.span>
-
-          <Reveal text="Stop managing. Start shipping." style={{ fontSize: isMobile ? 'clamp(28px, 8vw, 44px)' : 'clamp(36px,6vw,80px)', fontWeight: 900, fontFamily: 'Space Grotesk', letterSpacing: '-0.04em', lineHeight: 1.05, color: 'white', marginBottom: '16px' }} />
-
-          <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.3 }}
-            style={{ color: 'rgba(255,255,255,0.5)', fontSize: isMobile ? '14px' : '16px', fontFamily: 'Space Grotesk', maxWidth: '400px', margin: '0 auto 36px', lineHeight: 1.75 }}>
-            Sign in with Google. Your board is ready in 10 seconds. No setup. No onboarding call. Just start.
-          </motion.p>
-
-          <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.4 }}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+        <div style={{ maxWidth: '640px', margin: '0 auto', padding: p, textAlign: 'center', position: 'relative' }}>
+          <Reveal style={{ ...H('white', { size: isMobile ? 'clamp(32px,10vw,48px)' : 'clamp(44px,5.5vw,72px)', mb: '20px' }) }} delay={0.05}>
+            Start tracking. Right now.
+          </Reveal>
+          <FadeUp delay={0.15} style={{ marginBottom: '36px' }}>
+            <p style={{ ...Body(isMobile ? '15px' : '17px', 'rgba(255,255,255,0.38)') }}>
+              Sign in with Google. Your board is ready immediately. No setup, no configuration — just your work, organized.
+            </p>
+          </FadeUp>
+          <FadeUp delay={0.22}>
             <motion.button
-              whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
+              whileHover={{ scale: 1.03, boxShadow: '0 0 44px rgba(124,58,237,0.45)' }} whileTap={{ scale: 0.97 }}
               onClick={() => navigate('/auth')}
-              style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '14px', padding: isMobile ? '16px 36px' : '18px 52px', color: 'white', cursor: 'pointer', fontSize: isMobile ? '15px' : '16px', fontFamily: 'Space Grotesk', fontWeight: 700, boxShadow: '0 0 48px rgba(139,92,246,0.4)' }}>
-              Start free — takes 10 seconds →
+              style={{ background: '#7c3aed', border: 'none', borderRadius: '12px', padding: isMobile ? '15px 36px' : '18px 52px', color: 'white', cursor: 'pointer', fontSize: isMobile ? '15px' : '17px', fontWeight: 700, fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '-0.01em', boxShadow: '0 0 32px rgba(124,58,237,0.28)' }}>
+              Open NexTask
             </motion.button>
-            <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', fontFamily: 'Space Grotesk' }}>
-              No credit card · Free forever · Works on any device
-            </span>
-          </motion.div>
+          </FadeUp>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: isMobile ? '24px 20px' : '32px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '20px', height: '20px', borderRadius: '5px', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 800, color: 'white' }}>N</div>
-          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '12px', fontFamily: 'Space Grotesk' }}>NexTask</span>
-          <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: '12px' }}>·</span>
+      {/* ══ FOOTER ═══════════════════════════════════════════ */}
+      <footer style={{ borderTop: divider, padding: isMobile ? '22px 22px' : '26px 60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '20px', height: '20px', borderRadius: '5px', background: 'linear-gradient(140deg,#7c3aed,#db2777)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 800, color: 'white' }}>N</div>
+          <span style={{ ...Body('13px', 'rgba(255,255,255,0.22)') }}>NexTask</span>
+          <span style={{ color: 'rgba(255,255,255,0.1)' }}>·</span>
+          <a href="https://www.linkedin.com/in/bhargav-sarvepalli/" target="_blank" rel="noreferrer"
+            style={{ ...Body('12px', 'rgba(255,255,255,0.22)'), textDecoration: 'none' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.55)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.22)' }}>
+            Bhargav Sarvepalli
+          </a>
+          <span style={{ color: 'rgba(255,255,255,0.1)' }}>·</span>
           <a href="https://github.com/Bhargav-Sarvepalli/kanban-board" target="_blank" rel="noreferrer"
-            style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px', fontFamily: 'Space Grotesk', textDecoration: 'none' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.6)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.25)' }}>
+            style={{ ...Body('12px', 'rgba(255,255,255,0.22)'), textDecoration: 'none' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.55)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.22)' }}>
             GitHub
           </a>
-          <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: '12px' }}>·</span>
-          <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', fontFamily: 'Space Grotesk' }}>Built by Bhargav Sarvepalli</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontFamily: 'Space Mono' }}>© 2026 NEXTASK</span>
-        </div>
+        <span style={{ ...Body('11px', 'rgba(255,255,255,0.12)'), letterSpacing: '0.04em' }}>© 2026 NexTask</span>
       </footer>
     </div>
   )
