@@ -76,59 +76,59 @@ function HeroScene({ mx, my }: { mx: number; my: number }) {
 
 // ─── CURSOR ───────────────────────────────────────────────────
 function Cursor() {
-  const x  = useMotionValue(-200); const y  = useMotionValue(-200)
+  const x  = useMotionValue(-100); const y  = useMotionValue(-100)
   const sx = useSpring(x, { stiffness: 800, damping: 35 })
   const sy = useSpring(y, { stiffness: 800, damping: 35 })
-  const bx = useSpring(x, { stiffness: 80, damping: 15 })
-  const by = useSpring(y, { stiffness: 80, damping: 15 })
-
-  // Dot always offset by -2
-  const sxDot = useTransform(sx, v => v - 2)
-  const syDot = useTransform(sy, v => v - 2)
+  const bx = useSpring(x, { stiffness: 80,  damping: 15 })
+  const by = useSpring(y, { stiffness: 80,  damping: 15 })
 
   const [hov, setHov] = useState(false)
   const [vel, setVel] = useState({ x: 0, y: 0 })
   const last = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      setVel({ x: e.clientX - last.current.x, y: e.clientY - last.current.y })
+    const move = (e: MouseEvent) => {
+      const vx = e.clientX - last.current.x
+      const vy = e.clientY - last.current.y
+      setVel({ x: vx, y: vy })
       last.current = { x: e.clientX, y: e.clientY }
       x.set(e.clientX); y.set(e.clientY)
     }
-    const onOver = (e: MouseEvent) => setHov(!!(e.target as HTMLElement).closest('button,a'))
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseover', onOver)
+    const over = (e: MouseEvent) => {
+      setHov(!!(e.target as HTMLElement).closest('button, a'))
+    }
+    window.addEventListener('mousemove', move)
+    window.addEventListener('mouseover', over)
     return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseover', onOver)
+      window.removeEventListener('mousemove', move)
+      window.removeEventListener('mouseover', over)
     }
   }, [x, y])
 
-  const spd      = Math.hypot(vel.x, vel.y)
-  const str      = Math.min(spd * 0.04, 0.5)
-  const ang      = Math.atan2(vel.y, vel.x) * (180 / Math.PI)
+  const speed  = Math.sqrt(vel.x ** 2 + vel.y ** 2)
+  const stretch = Math.min(speed * 0.04, 0.5)
+  const angle  = Math.atan2(vel.y, vel.x) * (180 / Math.PI)
   const blobSize = hov ? 64 : 20
-  const half     = blobSize / 2
+
+  // useTransform called at top level — not inside JSX
+  const blobX = useTransform(bx, v => v - blobSize / 2)
+  const blobY = useTransform(by, v => v - blobSize / 2)
+  const dotX  = useTransform(sx, v => v - 2)
+  const dotY  = useTransform(sy, v => v - 2)
 
   return (
     <>
-      <motion.div style={{
-        position: 'fixed', pointerEvents: 'none', zIndex: 9999,
-        // Use useTransform with the current half value — stable per render
-        x: useTransform(bx, v => v - half),
-        y: useTransform(by, v => v - half),
-      }}>
+      <motion.div style={{ position: 'fixed', pointerEvents: 'none', zIndex: 9999, x: blobX, y: blobY }}>
         <motion.div
           animate={{
-            width:        blobSize + spd * 0.8,
+            width:        blobSize + speed * 0.8,
             height:       blobSize,
-            rotate:       ang,
+            rotate:       angle,
             borderRadius: hov ? '8px' : '50%',
             background:   hov ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.5)',
             border:       hov ? '1px solid rgba(139,92,246,0.6)' : '1px solid transparent',
-            scaleX:       1 + str,
-            scaleY:       1 - str * 0.5,
+            scaleX:       1 + stretch,
+            scaleY:       1 - stretch * 0.5,
             boxShadow:    `0 0 ${hov ? 20 : 10}px rgba(139,92,246,0.4)`,
           }}
           transition={{ duration: 0.12, ease: 'easeOut' }}
@@ -137,7 +137,7 @@ function Cursor() {
       </motion.div>
       <motion.div style={{
         position: 'fixed', pointerEvents: 'none', zIndex: 9999,
-        x: sxDot, y: syDot,
+        x: dotX, y: dotY,
         width: 4, height: 4, borderRadius: '50%',
         background: 'white', mixBlendMode: 'difference',
       }} />
@@ -187,48 +187,30 @@ function Reveal({ children, delay = 0, style }: { children: string; delay?: numb
 function FlowSVG() {
   const TY = 145  // trunk Y
 
-  // Milestones — sit BETWEEN branch zones with clear gap
+  // Milestones — clear zones between them
   const milestones = [
-    { x: 52,  label: 'Kickoff',   done: true,  active: false },
-    { x: 370, label: 'Designing', done: false, active: true  },
-    { x: 610, label: 'Phase 1',   done: false, active: false },
-    { x: 720, label: 'Review',    done: false, active: false },
+    { x: 56,  label: 'Kickoff',   done: true,  active: false },
+    { x: 400, label: 'Designing', done: false,  active: true  },
+    { x: 620, label: 'Phase 1',   done: false,  active: false },
+    { x: 730, label: 'Review',    done: false,  active: false },
   ]
 
-  // Branch zones — mergeX must be at least 60px before next milestone
   const branches = [
-    // Zone 1: Kickoff done — fork at 76, merge at 310 (60px before Designing@370)
-    {
-      name: 'Auth & Login', color: '#4ade80', pct: 100, merged: true,
-      above: true,  forkX: 76, mergeX: 310, endX: undefined,
-    },
-    {
-      name: 'Kanban Board', color: '#4ade80', pct: 100, merged: true,
-      above: false, forkX: 76, mergeX: 310, endX: undefined,
-    },
-    // Zone 2: Designing in-progress — fork at 400, no merge yet
-    {
-      name: 'Flow Engine',  color: '#7c3aed', pct: 65,  merged: false,
-      above: true,  forkX: 400, mergeX: null, endX: 585,
-    },
-    {
-      name: 'Dashboard',    color: '#a78bfa', pct: 42,  merged: false,
-      above: false, forkX: 400, mergeX: null, endX: 585,
-    },
-    // Zone 3: Phase 1 planned
-    {
-      name: 'Calendar',     color: '#2563eb', pct: 0,   merged: false,
-      above: true,  forkX: 635, mergeX: null, endX: 755,
-    },
-  ] as Array<{
-    name: string; color: string; pct: number; merged: boolean
-    above: boolean; forkX: number; mergeX: number | null; endX?: number
-  }>
+    // Kickoff zone: fork@80, branch line 132–220, merge@240 → trunk rejoins@284
+    // Gap: 284 → 400 (116px clear before Designing)
+    { name: 'Auth & Login', color: '#4ade80', pct: 100, merged: true,  above: true,  forkX: 80,  mergeX: 240 as number | null, endX: undefined as number | undefined },
+    { name: 'Kanban Board', color: '#4ade80', pct: 100, merged: true,  above: false, forkX: 80,  mergeX: 240 as number | null, endX: undefined },
+    // Designing zone: fork@430, no merge, line ends@590
+    { name: 'Flow Engine',  color: '#7c3aed', pct: 65,  merged: false, above: true,  forkX: 430, mergeX: null,                 endX: 590 },
+    { name: 'Dashboard',    color: '#a78bfa', pct: 42,  merged: false, above: false, forkX: 430, mergeX: null,                 endX: 590 },
+    // Phase 1 zone: fork@645, no merge, line ends@755
+    { name: 'Calendar',     color: '#2563eb', pct: 0,   merged: false, above: true,  forkX: 645, mergeX: null,                 endX: 755 },
+  ]
 
   const OFFSET = 88  // vertical distance from trunk to branch
 
   return (
-    <svg viewBox="0 0 790 295" style={{ width: '100%', display: 'block' }}>
+    <svg viewBox="0 0 800 295" style={{ width: '100%', display: 'block' }}>
       <defs>
         <filter id="glow2">
           <feGaussianBlur stdDeviation="3" result="b"/>
@@ -242,15 +224,15 @@ function FlowSVG() {
         ))}
       </defs>
 
-      {/* ── Trunk ── */}
-      <line x1={28} y1={TY} x2={770} y2={TY} stroke="#7c3aed" strokeWidth={22} strokeOpacity={0.045} strokeLinecap="round" />
-      {/* Done — green up to Designing@370 */}
-      <line x1={28} y1={TY} x2={370} y2={TY} stroke="#4ade80" strokeWidth={2} strokeLinecap="round" />
-      {/* Active — violet up to Phase1@610 */}
-      <line x1={370} y1={TY} x2={610} y2={TY} stroke="#a78bfa" strokeWidth={2} strokeLinecap="round" />
-      {/* Planned — dashed beyond */}
-      <line x1={610} y1={TY} x2={768} y2={TY} stroke="rgba(255,255,255,0.1)" strokeWidth={2} strokeDasharray="4 4" strokeLinecap="round" />
-      <polygon points="780,145 768,138 768,152" fill="rgba(255,255,255,0.22)" />
+      {/* Trunk glow */}
+      <line x1={28} y1={TY} x2={775} y2={TY} stroke="#7c3aed" strokeWidth={22} strokeOpacity={0.045} strokeLinecap="round" />
+      {/* Done — green up to Designing@400 */}
+      <line x1={28} y1={TY} x2={400} y2={TY} stroke="#4ade80" strokeWidth={2} strokeLinecap="round" />
+      {/* Active — violet up to Phase1@620 */}
+      <line x1={400} y1={TY} x2={620} y2={TY} stroke="#a78bfa" strokeWidth={2} strokeLinecap="round" />
+      {/* Planned — dashed */}
+      <line x1={620} y1={TY} x2={770} y2={TY} stroke="rgba(255,255,255,0.1)" strokeWidth={2} strokeDasharray="4 4" strokeLinecap="round" />
+      <polygon points="782,145 770,138 770,152" fill="rgba(255,255,255,0.22)" />
 
       {/* ── Milestone nodes ── */}
       {milestones.map(ms => (
@@ -304,10 +286,10 @@ function FlowSVG() {
               strokeWidth={1.5}
             />
 
-            {/* Merge curve back to trunk — rejoins at mergeX+40 */}
+            {/* Merge curve — control points stay inside the branch zone */}
             {b.merged && b.mergeX && (
               <path
-                d={`M ${lineEnd} ${bY} C ${b.mergeX + 8} ${bY}, ${b.mergeX + 28} ${TY}, ${b.mergeX + 44} ${TY}`}
+                d={`M ${lineEnd} ${bY} C ${lineEnd + 20} ${bY}, ${b.mergeX + 44} ${TY}, ${b.mergeX + 60} ${TY}`}
                 fill="none" stroke={b.color}
                 strokeWidth={1.5} strokeOpacity={0.55}
               />
