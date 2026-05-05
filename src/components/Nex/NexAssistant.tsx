@@ -55,9 +55,10 @@ declare global {
 }
 
 const TOOLTIP_KEY = 'nex_tooltip_seen'
-const SILENCE_MS  = 1200
+const SILENCE_MS  = 1800
 const ORB_SIZE    = 52
 const MAX_HISTORY = 20
+const MIN_CONFIDENCE = 0.55
 
 export default function NexAssistant({ workspaceId, projectId = null, userId, isPro, nexEnabled, onTaskCreated, onOpenProjectWizard, onOpenWorkspacePanel, panelOpen = false }: NexAssistantProps) {
   const [globeState, setGlobeState]   = useState<GlobeState>('idle')
@@ -143,6 +144,16 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     window.speechSynthesis.speak(dummy)
   }, [])
 
+  const shouldIgnoreTranscript = useCallback((text: string) => {
+    const clean = text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim()
+    if (!clean) return true
+    const words = clean.split(' ').filter(Boolean)
+    if (clean.length < 4) return true
+    if (words.length === 1 && !['nex', 'next', 'stop', 'pause', 'yes', 'no'].includes(clean)) return true
+    const noise = new Set(['um', 'uh', 'hmm', 'mm', 'yeah', 'okay', 'ok', 'hello', 'hey'])
+    return words.length <= 2 && words.every(w => noise.has(w))
+  }, [])
+
   const speak = useCallback((text: string, onDone?: () => void) => {
     warmupTTS()
     window.speechSynthesis.cancel()
@@ -162,7 +173,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
           voices.find(v => v.lang.startsWith('en') && !v.name.toLowerCase().includes('compact')) ??
           voices.find(v => v.lang.startsWith('en'))
         if (preferred) utter.voice = preferred
-        utter.rate = 1.08; utter.pitch = 1.04; utter.volume = 1
+        utter.rate = 1.03; utter.pitch = 1.02; utter.volume = 1
         utter.onstart = () => setGlobeState('speaking')
         utter.onend   = () => { setGlobeState('idle'); onDone?.() }
         utter.onerror = () => { setGlobeState('idle'); onDone?.() }
@@ -208,11 +219,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
       historyRef.current = newHistory.slice(-MAX_HISTORY)
       if (action) handleAction(action)
       addMessage('nex', speech)
-      speak(speech, () => {
-        setTimeout(() => {
-          if (globeStateRef.current === 'idle') startListeningCycle()
-        }, 500)
-      })
+      speak(speech)
     } catch (err) {
       console.error('[Nex]', err)
       const errMsg = 'Systems encountered an error.'
@@ -222,7 +229,6 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     } finally {
       processingRef.current = false
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskCtx, workspaceId, projectId, userId, speak, handleAction, addMessage])
 
   const startListeningCycle = useCallback(() => {
@@ -231,20 +237,31 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     if (recognitionRef.current) { try { recognitionRef.current.abort() } catch (e) { void e } }
 
     const recognition = new SR()
-    recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-US'
+    recognition.continuous = false; recognition.interimResults = true; recognition.lang = 'en-US'
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let interim = ''; let final = ''
+      let interim = ''; let final = ''; let bestConfidence = 1
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) final += event.results[i][0].transcript
-        else interim += event.results[i][0].transcript
+        const result = event.results[i]
+        const alt = result[0]
+        if (result.isFinal) {
+          final += alt.transcript
+          bestConfidence = Math.min(bestConfidence, alt.confidence || 1)
+        } else {
+          interim += alt.transcript
+        }
       }
       setInterimText(interim)
       if (final) { finalTextRef.current += ' ' + final.trim(); setInterimText('') }
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
       silenceTimerRef.current = setTimeout(() => {
         const full = (finalTextRef.current + ' ' + interim).trim()
-        if (full.length > 2) { recognition.stop(); void fireNex(full) }
+        if (bestConfidence < MIN_CONFIDENCE || shouldIgnoreTranscript(full)) {
+          recognition.stop()
+          setInterimText('')
+          return
+        }
+        recognition.stop(); void fireNex(full)
       }, SILENCE_MS)
     }
 
@@ -258,7 +275,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     recognition.start()
     setGlobeState('listening')
     finalTextRef.current = ''; setInterimText('')
-  }, [speak, fireNex])
+  }, [speak, fireNex, shouldIgnoreTranscript])
 
   const stopListening = useCallback(() => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
@@ -291,7 +308,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     void loadContext().then(ctx => {
       const greeting = ctx ? buildGreeting(ctx) : 'What can I help you with?'
       addMessage('nex', greeting)
-      speak(greeting, () => setTimeout(startListeningCycle, 400))
+      speak(greeting)
     })
   }, [showTooltip, isPro, userId, speak, stopListening, startListeningCycle, loadContext, addMessage, warmupTTS, expanded, messages.length])
 

@@ -73,16 +73,20 @@ const NEX_SYSTEM_PROMPT = (ctx: TaskContext) => {
   const now = new Date()
   const today = fmt(now)
   const tomorrow = fmt(new Date(now.getTime() + 86400000))
-  return `You are Nex, an AI assistant built into NexTask, a Kanban productivity system.
+  return `You are Nex, a voice companion built into NexTask, a Kanban productivity system.
 
-Personality: Calm, precise, quietly intelligent. Jarvis-like: efficient, occasionally dry wit. Never verbose. No filler phrases.
+Personality: Warm, calm, grounded, and direct. Talk like a smart friend sitting beside the user while they work. You are not a customer support bot.
 
 Rules:
 - Plain text only. No markdown formatting. Output may be read aloud via TTS.
 - Never open with: Sure, Of course, Certainly, Great, Absolutely, Happy to.
 - Every response under 2 sentences unless a full briefing or a task breakdown.
-- Be conversational, not just transactional. If the user is exploring, help them think before acting.
+- Be conversational, not just transactional. Acknowledge what the user is feeling or trying to do, then help.
+- Use natural short phrases: "I get you", "That makes sense", "Let's slow it down", "Stay with me", "We can handle that".
+- If the user sounds frustrated, calm things down before giving steps.
+- Do not over-explain. Do not sound like a manual.
 - Ask one short follow-up when the user intent is ambiguous. Act directly when the intent is clear.
+- If the user is quiet or says wait, pause mentally and say you are here when they are ready. Do not invent work.
 - You have FULL conversation memory. You remember everything said in this session.
 - When user refers to "that task", "the one I just mentioned", "the overdue one", use context from earlier in the conversation.
 - Never say you don't remember something that was said in this conversation.
@@ -299,11 +303,15 @@ function localNexFallback(
     }
   }
 
+  if (/\b(wait|hold on|stay calm|pause|one sec|give me a second)\b/.test(lower)) {
+    return { speech: "No rush. I'm here when you're ready." }
+  }
+
   if (/\b(subtask|subtasks|break down|breakdown|steps|checklist|execute)\b/.test(lower)) {
     const hinted = ctx.tasks.find(t => lower.includes(t.title.toLowerCase())) ??
       ctx.tasks.find(t => t.status !== 'done') ??
       null
-    if (!hinted) return { speech: 'Give me the task name and I will break it into execution steps.' }
+    if (!hinted) return { speech: "Tell me which task, and I'll break it into clean next steps." }
     const steps = buildSubtaskList(hinted.title, hinted.description ?? '')
     return { speech: `${hinted.title}: ${steps.map((s, i) => `${i + 1}. ${s}`).join(' ')}` }
   }
@@ -332,7 +340,7 @@ function localNexFallback(
       if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
       return 0
     })[0]
-    return { speech: top ? `Start with ${top.title}.` : 'Everything is clear.' }
+    return { speech: top ? `I'd start with ${top.title}. Smallest useful next move first.` : 'Nothing urgent is pulling at you right now.' }
   }
 
   return null
