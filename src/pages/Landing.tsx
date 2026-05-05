@@ -301,7 +301,7 @@ export default function Landing() {
     window.addEventListener('mousemove', fn); return () => window.removeEventListener('mousemove', fn)
   }, [])
 
-  const H  = (s: string, opts?: { size?: string; weight?: number; color?: string; mb?: string; mt?: string }) => ({
+  const H  = (_s: string, opts?: { size?: string; weight?: number; color?: string; mb?: string; mt?: string }) => ({
     fontSize: opts?.size ?? (isMobile ? 'clamp(32px,10vw,48px)' : 'clamp(40px,5vw,72px)'),
     fontWeight: opts?.weight ?? 800,
     letterSpacing: '-0.045em',
@@ -513,14 +513,15 @@ export default function Landing() {
               { icon: '📊', name: 'Dashboard',        color: '#2563eb', desc: 'Health, team, phases, links — one screen.' },
               { icon: '👥', name: 'Workspaces',       color: '#db2777', desc: 'Invite by email. Assign roles. Fully isolated.' },
             ].map((f, i) => (
-              <FadeUp key={f.name} delay={i * 0.04}
-                style={{ padding: '20px 18px', background: 'rgba(255,255,255,0.02)', border: divider, borderRadius: '11px', transition: 'border-color 0.2s, background 0.2s' }}
-                // @ts-ignore
-                onMouseEnter={e => { e.currentTarget.style.borderColor = f.color + '40'; e.currentTarget.style.background = f.color + '08' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}>
-                <div style={{ fontSize: '20px', marginBottom: '12px' }}>{f.icon}</div>
-                <p style={{ ...Body('13px', 'rgba(255,255,255,0.72)'), fontWeight: 600, letterSpacing: '-0.01em', marginBottom: '5px' }}>{f.name}</p>
-                <p style={{ ...Body('12px', 'rgba(255,255,255,0.3)'), lineHeight: 1.55 }}>{f.desc}</p>
+              <FadeUp key={f.name} delay={i * 0.04}>
+                <div
+                  style={{ padding: '20px 18px', background: 'rgba(255,255,255,0.02)', border: divider, borderRadius: '11px', transition: 'border-color 0.2s, background 0.2s', height: '100%', boxSizing: 'border-box' }}
+                  onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => { e.currentTarget.style.borderColor = f.color + '40'; e.currentTarget.style.background = f.color + '08' }}
+                  onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}>
+                  <div style={{ fontSize: '20px', marginBottom: '12px' }}>{f.icon}</div>
+                  <p style={{ ...Body('13px', 'rgba(255,255,255,0.72)'), fontWeight: 600, letterSpacing: '-0.01em', marginBottom: '5px' }}>{f.name}</p>
+                  <p style={{ ...Body('12px', 'rgba(255,255,255,0.3)'), lineHeight: 1.55 }}>{f.desc}</p>
+                </div>
               </FadeUp>
             ))}
           </div>
