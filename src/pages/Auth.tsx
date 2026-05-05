@@ -36,6 +36,7 @@ export default function Auth() {
             id: data.user.id,
             email: data.user.email,
             full_name: fullName.trim(),
+            onboarding_completed: false,
             updated_at: new Date().toISOString(),
           })
         }

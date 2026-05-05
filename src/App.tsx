@@ -28,7 +28,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 type AppView = 'today' | 'board' | 'calendar' | 'flow' | 'dashboard' | 'pomodoro'
-const ONBOARDING_VERSION = '2026-onboarding-clean-v5'
 
 function isAppView(value: string | null): value is AppView {
   return value === 'today' || value === 'board' || value === 'calendar' || value === 'flow' || value === 'dashboard' || value === 'pomodoro'
@@ -182,14 +181,40 @@ function App() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
-  const fetchProfile = async (uid: string) => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', uid).single()
+  const fetchProfile = async (uid: string, email?: string | null, fullName?: string | null) => {
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle()
+
     if (data) {
       setProfile(data)
-      let hasSeenCurrentOnboarding = false
-      try { hasSeenCurrentOnboarding = localStorage.getItem('nex_onboarding_version_seen') === ONBOARDING_VERSION } catch { /* ignore */ }
-      if (!data.onboarding_completed || !hasSeenCurrentOnboarding) setShowOnboarding(true)
+      setShowOnboarding(data.onboarding_completed !== true)
+      return
     }
+
+    if (error) console.error('Profile fetch error:', error)
+
+    const fallbackProfile = {
+      id: uid,
+      email: email ?? '',
+      full_name: fullName ?? email?.split('@')[0] ?? 'New user',
+      avatar_url: null,
+      onboarding_completed: false,
+    }
+
+    const { data: created, error: createError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: fallbackProfile.id,
+        email: fallbackProfile.email,
+        full_name: fallbackProfile.full_name,
+        onboarding_completed: false,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' })
+      .select('*')
+      .single()
+
+    if (createError) console.error('Profile create error:', createError)
+    setProfile(created ?? fallbackProfile)
+    setShowOnboarding(true)
   }
 
   const fetchProfiles = async (userIds: string[]) => {
@@ -211,12 +236,20 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session) { setUserId(session.user.id); fetchProfile(session.user.id); fetchWorkspaces() }
+      if (session) {
+        setUserId(session.user.id)
+        void fetchProfile(session.user.id, session.user.email, session.user.user_metadata?.full_name)
+        fetchWorkspaces()
+      }
       else navigate('/auth')
     }
     checkAuth()
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) { setUserId(session.user.id); fetchProfile(session.user.id); fetchWorkspaces() }
+      if (session) {
+        setUserId(session.user.id)
+        void fetchProfile(session.user.id, session.user.email, session.user.user_metadata?.full_name)
+        fetchWorkspaces()
+      }
       else navigate('/auth')
     })
     return () => subscription.unsubscribe()
@@ -565,7 +598,6 @@ function App() {
             onProfileUpdated={setProfile} nexEnabled={nexEnabled} onToggleNex={toggleNex}
             defaultView={defaultViewPref === 'dashboard' || defaultViewPref === 'flow' ? 'board' : defaultViewPref}
             onReplayOnboarding={() => {
-              try { localStorage.removeItem('nex_onboarding_version_seen') } catch { /* ignore */ }
               setShowSettings(false)
               setShowOnboarding(true)
             }}
