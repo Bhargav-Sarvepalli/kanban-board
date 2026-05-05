@@ -34,10 +34,10 @@ const NAV_ITEMS: { id: 'dashboard' | 'today' | 'board' | 'calendar' | 'flow' | '
     label: 'Dashboard',
     icon: (a) => (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="1" width="6" height="6" rx="1.5" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
-        <rect x="9" y="1" width="6" height="6" rx="1.5" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
-        <rect x="1" y="9" width="6" height="6" rx="1.5" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
-        <rect x="9" y="9" width="6" height="6" rx="1.5" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
+        <rect x="1" y="1" width="6" height="6" rx="1.5" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
+        <rect x="9" y="1" width="6" height="6" rx="1.5" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
+        <rect x="1" y="9" width="6" height="6" rx="1.5" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
+        <rect x="9" y="9" width="6" height="6" rx="1.5" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
       </svg>
     ),
   },
@@ -46,10 +46,10 @@ const NAV_ITEMS: { id: 'dashboard' | 'today' | 'board' | 'calendar' | 'flow' | '
     label: 'Today',
     icon: (a) => (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="1.5" y="2.5" width="13" height="12" rx="2" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
-        <path d="M5 1.5v2M11 1.5v2" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4" strokeLinecap="round"/>
-        <path d="M1.5 6.5h13" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
-        <circle cx="8" cy="10" r="1.5" fill={a ? '#7c3aed' : '#6b6b7b'}/>
+        <rect x="1.5" y="2.5" width="13" height="12" rx="2" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
+        <path d="M5 1.5v2M11 1.5v2" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4" strokeLinecap="round"/>
+        <path d="M1.5 6.5h13" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
+        <circle cx="8" cy="10" r="1.5" fill={a ? '#8b5cf6' : '#8f8fa6'}/>
       </svg>
     ),
   },
@@ -58,9 +58,9 @@ const NAV_ITEMS: { id: 'dashboard' | 'today' | 'board' | 'calendar' | 'flow' | '
     label: 'Board',
     icon: (a) => (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="1" width="4" height="14" rx="1.5" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
-        <rect x="6" y="1" width="4" height="10" rx="1.5" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
-        <rect x="11" y="1" width="4" height="7" rx="1.5" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
+        <rect x="1" y="1" width="4" height="14" rx="1.5" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
+        <rect x="6" y="1" width="4" height="10" rx="1.5" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
+        <rect x="11" y="1" width="4" height="7" rx="1.5" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
       </svg>
     ),
   },
@@ -69,9 +69,9 @@ const NAV_ITEMS: { id: 'dashboard' | 'today' | 'board' | 'calendar' | 'flow' | '
     label: 'Flow',
     icon: (a) => (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M1 8h3M12 8h3" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4" strokeLinecap="round"/>
-        <circle cx="8" cy="8" r="3" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
-        <path d="M4 4l2.5 2.5M10 4l-2.5 2.5M4 12l2.5-2.5M10 12l-2.5-2.5" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.2" strokeLinecap="round"/>
+        <path d="M1 8h3M12 8h3" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4" strokeLinecap="round"/>
+        <circle cx="8" cy="8" r="3" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
+        <path d="M4 4l2.5 2.5M10 4l-2.5 2.5M4 12l2.5-2.5M10 12l-2.5-2.5" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.2" strokeLinecap="round"/>
       </svg>
     ),
   },
@@ -80,11 +80,11 @@ const NAV_ITEMS: { id: 'dashboard' | 'today' | 'board' | 'calendar' | 'flow' | '
     label: 'Calendar',
     icon: (a) => (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="1.5" y="2.5" width="13" height="12" rx="2" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
-        <path d="M5 1.5v2M11 1.5v2M1.5 6.5h13" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4" strokeLinecap="round"/>
-        <rect x="4" y="9" width="2" height="2" rx="0.5" fill={a ? '#7c3aed' : '#6b6b7b'}/>
-        <rect x="7" y="9" width="2" height="2" rx="0.5" fill={a ? '#7c3aed' : '#6b6b7b'}/>
-        <rect x="10" y="9" width="2" height="2" rx="0.5" fill={a ? '#7c3aed' : '#6b6b7b'}/>
+        <rect x="1.5" y="2.5" width="13" height="12" rx="2" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
+        <path d="M5 1.5v2M11 1.5v2M1.5 6.5h13" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4" strokeLinecap="round"/>
+        <rect x="4" y="9" width="2" height="2" rx="0.5" fill={a ? '#8b5cf6' : '#8f8fa6'}/>
+        <rect x="7" y="9" width="2" height="2" rx="0.5" fill={a ? '#8b5cf6' : '#8f8fa6'}/>
+        <rect x="10" y="9" width="2" height="2" rx="0.5" fill={a ? '#8b5cf6' : '#8f8fa6'}/>
       </svg>
     ),
   },
@@ -93,8 +93,8 @@ const NAV_ITEMS: { id: 'dashboard' | 'today' | 'board' | 'calendar' | 'flow' | '
     label: 'Timer',
     icon: (a) => (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <circle cx="8" cy="8.5" r="5.5" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4"/>
-        <path d="M8 5.5v3.2l2.1 1.2M6 1.5h4" stroke={a ? '#7c3aed' : '#6b6b7b'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="8" cy="8.5" r="5.5" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
+        <path d="M8 5.5v3.2l2.1 1.2M6 1.5h4" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
   },
@@ -106,7 +106,7 @@ const S = {
     minWidth: collapsed ? '56px' : '240px',
     height: '100vh',
     background: '#111118',
-    borderRight: '1px solid #1e1e2e',
+    borderRight: '1px solid #2d2d40',
     display: 'flex',
     flexDirection: 'column',
     transition: 'width 0.2s ease, min-width 0.2s ease',
@@ -122,7 +122,7 @@ const S = {
     fontSize: '10px',
     fontFamily: 'Inter, sans-serif',
     fontWeight: 600,
-    color: '#3d3d52',
+    color: '#76768c',
     letterSpacing: '0.08em',
     padding: '8px 8px 4px',
     display: collapsed ? 'none' : 'block',
@@ -135,15 +135,15 @@ const S = {
     gap: '10px',
     padding: collapsed ? '8px 0' : '7px 10px',
     justifyContent: collapsed ? 'center' : 'flex-start',
-    background: active ? 'rgba(124,58,237,0.12)' : 'transparent',
+    background: active ? 'rgba(124,58,237,0.16)' : 'transparent',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
     transition: 'background 0.1s',
-    color: active ? '#a78bfa' : '#6b6b7b',
+    color: active ? '#c4b5fd' : '#9b9bae',
     fontSize: '13px',
     fontFamily: 'Inter, sans-serif',
-    fontWeight: active ? 500 : 400,
+    fontWeight: active ? 650 : 500,
     letterSpacing: '-0.01em',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -151,7 +151,7 @@ const S = {
   }),
   divider: (): React.CSSProperties => ({
     height: '1px',
-    background: '#1e1e2e',
+    background: '#2d2d40',
     margin: '4px 8px',
   }),
 }
@@ -180,7 +180,7 @@ export default function Sidebar({
     <aside style={S.sidebar(collapsed)}>
 
       {/* ── TOP: Logo + collapse toggle ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', padding: collapsed ? '16px 0' : '16px 12px', borderBottom: '1px solid #1e1e2e', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', padding: collapsed ? '16px 0' : '16px 12px', borderBottom: '1px solid #2d2d40', flexShrink: 0 }}>
         {!collapsed && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'linear-gradient(135deg, #7c3aed, #db2777)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: 'white', flexShrink: 0 }}>N</div>
@@ -191,9 +191,9 @@ export default function Sidebar({
         )}
         <button
           onClick={() => setCollapsed(c => !c)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3d3d52', padding: '4px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#6b6b7b' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3d3d52' }}>
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8f8fa6', padding: '4px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#c4b5fd' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#8f8fa6' }}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             {collapsed
               ? <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -204,7 +204,7 @@ export default function Sidebar({
       </div>
 
       {/* ── WORKSPACE ── */}
-      <div style={{ padding: '8px', borderBottom: '1px solid #1e1e2e', flexShrink: 0 }}>
+      <div style={{ padding: '8px', borderBottom: '1px solid #2d2d40', flexShrink: 0 }}>
         <button
           onClick={() => !collapsed && setShowWorkspaces(s => !s)}
           style={{ ...S.navBtn(false, collapsed), padding: collapsed ? '8px 0' : '6px 8px', justifyContent: collapsed ? 'center' : 'space-between' }}>
@@ -233,7 +233,7 @@ export default function Sidebar({
           </div>
           {!collapsed && (
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: showWorkspaces ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>
-              <path d="M2 4l4 4 4-4" stroke="#3d3d52" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 4l4 4 4-4" stroke="#8f8fa6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           )}
         </button>
@@ -296,7 +296,7 @@ export default function Sidebar({
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px' }}>
                 <button
                   onClick={() => setShowProjects(s => !s)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3d3d52', fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 600, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '5px', padding: 0, textTransform: 'uppercase' }}>
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8f8fa6', fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 700, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '5px', padding: 0, textTransform: 'uppercase' }}>
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: showProjects ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
                     <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
@@ -304,9 +304,9 @@ export default function Sidebar({
                 </button>
                 <button
                   onClick={onNewProject}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3d3d52', padding: '2px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8f8fa6', padding: '2px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#7c3aed' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3d3d52' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#8f8fa6' }}
                   title="New project">
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                     <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -352,7 +352,7 @@ export default function Sidebar({
       )}
 
       {/* ── BOTTOM: Settings + User ── */}
-      <div style={{ borderTop: '1px solid #1e1e2e', padding: '8px', flexShrink: 0 }}>
+      <div style={{ borderTop: '1px solid #2d2d40', padding: '8px', flexShrink: 0 }}>
         <button
           onClick={onSettings}
           title={collapsed ? 'Settings' : undefined}
@@ -360,10 +360,10 @@ export default function Sidebar({
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="2.5" stroke="#6b6b7b" strokeWidth="1.4"/>
-            <path d="M8 1.5v1.25M8 13.25V14.5M14.5 8h-1.25M2.75 8H1.5M12.36 3.64l-.88.88M4.52 11.48l-.88.88M12.36 12.36l-.88-.88M4.52 4.52l-.88-.88" stroke="#6b6b7b" strokeWidth="1.4" strokeLinecap="round"/>
+            <circle cx="8" cy="8" r="2.5" stroke="#8f8fa6" strokeWidth="1.4"/>
+            <path d="M8 1.5v1.25M8 13.25V14.5M14.5 8h-1.25M2.75 8H1.5M12.36 3.64l-.88.88M4.52 11.48l-.88.88M12.36 12.36l-.88-.88M4.52 4.52l-.88-.88" stroke="#8f8fa6" strokeWidth="1.4" strokeLinecap="round"/>
           </svg>
-          {!collapsed && <span style={{ fontSize: '13px', fontFamily: 'Inter, sans-serif', color: '#6b6b7b' }}>Settings</span>}
+          {!collapsed && <span style={{ fontSize: '13px', fontFamily: 'Inter, sans-serif', color: '#9b9bae' }}>Settings</span>}
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: collapsed ? '8px 0' : '6px 8px', marginTop: '2px', justifyContent: collapsed ? 'center' : 'flex-start' }}>
@@ -375,19 +375,42 @@ export default function Sidebar({
               </p>
             </div>
           )}
-          {!collapsed && (
-            <button
-              onClick={onLogout}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3d3d52', padding: '2px', borderRadius: '4px', display: 'flex', flexShrink: 0 }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#dc2626' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3d3d52' }}
-              title="Sign out">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M5 2H2.5A1.5 1.5 0 001 3.5v7A1.5 1.5 0 002.5 12H5M9 4l3 3-3 3M13 7H5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          )}
         </div>
+        <button
+          onClick={onLogout}
+          title="Sign out"
+          style={{
+            width: '100%',
+            marginTop: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            gap: '8px',
+            padding: collapsed ? '8px 0' : '8px 10px',
+            borderRadius: '8px',
+            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'rgba(255,255,255,0.035)',
+            color: '#b5b5c8',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontFamily: 'Inter, sans-serif',
+            fontWeight: 600,
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = '#fecaca'
+            e.currentTarget.style.borderColor = 'rgba(248,113,113,0.38)'
+            e.currentTarget.style.background = 'rgba(248,113,113,0.08)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = '#b5b5c8'
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+            e.currentTarget.style.background = 'rgba(255,255,255,0.035)'
+          }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+            <path d="M5 2H2.5A1.5 1.5 0 001 3.5v7A1.5 1.5 0 002.5 12H5M9 4l3 3-3 3M13 7H5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          {!collapsed && 'Sign out'}
+        </button>
       </div>
     </aside>
   )

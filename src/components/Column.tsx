@@ -81,9 +81,9 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: P
         width: 'min(300px, 85vw)',
         minWidth: 'min(300px, 85vw)',
         minHeight: '70vh',
-        background: isOver ? config.bg : 'rgba(255,255,255,0.03)',
-        border: `1px solid ${isOver ? config.border : 'rgba(255,255,255,0.1)'}`,
-        boxShadow: isOver ? `0 0 30px ${config.glow}` : '0 2px 12px rgba(0,0,0,0.3)',
+        background: isOver ? config.bg : 'rgba(255,255,255,0.045)',
+        border: `1px solid ${isOver ? config.border : 'rgba(255,255,255,0.16)'}`,
+        boxShadow: isOver ? `0 0 30px ${config.glow}` : '0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
         borderRadius: '16px',
         overflow: 'hidden',
         flexShrink: 0,
@@ -95,8 +95,8 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: P
       {/* Column header */}
       <div style={{
         padding: '14px 16px',
-        borderBottom: '1px solid rgba(255,255,255,0.07)',
-        background: 'rgba(255,255,255,0.03)',
+        borderBottom: '1px solid rgba(255,255,255,0.13)',
+        background: 'rgba(255,255,255,0.045)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -140,7 +140,7 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: P
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center', gap: '10px',
               borderRadius: '12px',
-              border: `1px dashed ${isOver ? config.border : 'rgba(255,255,255,0.07)'}`,
+              border: `1px dashed ${isOver ? config.border : 'rgba(255,255,255,0.14)'}`,
               background: isOver ? config.bg : isDone ? 'rgba(16,185,129,0.03)' : 'transparent',
               minHeight: '200px',
               cursor: isDone ? 'default' : 'pointer',
@@ -169,7 +169,7 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: P
                 {config.emptyTitle}
               </p>
               <p style={{
-                color: 'rgba(255,255,255,0.2)', fontSize: '11px',
+                color: 'rgba(255,255,255,0.5)', fontSize: '11px',
                 fontFamily: 'Space Grotesk', margin: 0, lineHeight: 1.5,
               }}>
                 {config.emptyDesc}
@@ -230,7 +230,7 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: P
                 onClick={() => onAddTask(id)}
                 style={{
                   padding: '8px', borderRadius: '8px',
-                  border: '1px dashed rgba(255,255,255,0.08)',
+                  border: '1px dashed rgba(255,255,255,0.16)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                   cursor: 'pointer', marginTop: '4px', transition: 'all 0.2s',
                 }}
@@ -239,7 +239,7 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: P
                   e.currentTarget.style.background = config.bg
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.16)'
                   e.currentTarget.style.background = 'transparent'
                 }}
               >

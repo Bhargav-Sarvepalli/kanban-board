@@ -66,15 +66,15 @@ function TaskCard({ task, onDeleted, onOpen, profiles = {}, userId = null }: Pro
           opacity: isDragging ? 0.4 : 1,
           position: 'relative',
           borderRadius: '12px',
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.16)',
           borderLeft: `2px solid ${priorityColor}`,
           padding: '12px',
           cursor: 'pointer',
           overflow: 'hidden',
           transition: 'border-color 0.2s, background 0.2s',
         }}
-        whileHover={{ background: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.18)' }}
+        whileHover={{ background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.24)' }}
         layout
       >
         {/* Priority glow */}
@@ -89,7 +89,7 @@ function TaskCard({ task, onDeleted, onOpen, profiles = {}, userId = null }: Pro
           {/* Drag handle */}
           <div
             {...listeners} {...attributes}
-            style={{ color: 'rgba(255,255,255,0.35)', cursor: 'grab', fontSize: '12px', marginTop: '2px', flexShrink: 0, userSelect: 'none' }}
+            style={{ color: 'rgba(255,255,255,0.55)', cursor: 'grab', fontSize: '12px', marginTop: '2px', flexShrink: 0, userSelect: 'none' }}
           >
             ⠿
           </div>
@@ -113,13 +113,13 @@ function TaskCard({ task, onDeleted, onOpen, profiles = {}, userId = null }: Pro
               onPointerDown={e => { e.stopPropagation(); setShowConfirm(true) }}
               style={{
                 background: 'none', border: 'none',
-                color: 'rgba(255,255,255,0.25)',
+                color: 'rgba(255,255,255,0.48)',
                 cursor: 'pointer', fontSize: '10px',
                 padding: '2px 4px', flexShrink: 0,
                 borderRadius: '4px', transition: 'color 0.15s',
               }}
               onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.25)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.48)')}
             >
               ✕
             </button>
@@ -129,7 +129,7 @@ function TaskCard({ task, onDeleted, onOpen, profiles = {}, userId = null }: Pro
         {/* Description preview */}
         {task.description && (
           <p style={{
-            color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontFamily: 'Space Grotesk',
+            color: 'rgba(255,255,255,0.66)', fontSize: '11px', fontFamily: 'Space Grotesk',
             margin: '0 0 8px 20px', lineHeight: 1.5, overflow: 'hidden',
             display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
           }}>
@@ -177,7 +177,7 @@ function TaskCard({ task, onDeleted, onOpen, profiles = {}, userId = null }: Pro
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             marginLeft: '20px', marginTop: '6px', paddingTop: '6px',
-            borderTop: '1px solid rgba(255,255,255,0.07)',
+            borderTop: '1px solid rgba(255,255,255,0.14)',
           }}>
             {task.last_edited_by && profiles[task.last_edited_by] ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -186,7 +186,7 @@ function TaskCard({ task, onDeleted, onOpen, profiles = {}, userId = null }: Pro
                   avatarUrl={profiles[task.last_edited_by].avatar_url}
                   size={14}
                 />
-                <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '9px', fontFamily: 'Space Mono' }}>
+                <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '9px', fontFamily: 'Space Mono' }}>
                   edited by {profiles[task.last_edited_by].full_name?.split(' ')[0] ?? profiles[task.last_edited_by].email?.split('@')[0]}
                 </span>
               </div>
@@ -194,7 +194,7 @@ function TaskCard({ task, onDeleted, onOpen, profiles = {}, userId = null }: Pro
 
             {task.assignee_id && profiles[task.assignee_id] && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ color: 'rgba(255,255,255,0.22)', fontSize: '9px', fontFamily: 'Space Mono' }}>→</span>
+                <span style={{ color: 'rgba(255,255,255,0.48)', fontSize: '9px', fontFamily: 'Space Mono' }}>→</span>
                 <Avatar
                   name={profiles[task.assignee_id].full_name ?? profiles[task.assignee_id].email}
                   avatarUrl={profiles[task.assignee_id].avatar_url}
