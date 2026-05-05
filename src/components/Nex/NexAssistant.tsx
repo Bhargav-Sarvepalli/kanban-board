@@ -149,8 +149,9 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     if (!clean) return true
     const words = clean.split(' ').filter(Boolean)
     if (clean.length < 4) return true
-    if (words.length === 1 && !['nex', 'next', 'stop', 'pause', 'yes', 'no'].includes(clean)) return true
-    const noise = new Set(['um', 'uh', 'hmm', 'mm', 'yeah', 'okay', 'ok', 'hello', 'hey'])
+    const conversationalSingles = ['nex', 'next', 'stop', 'pause', 'yes', 'no', 'sorry', 'thanks', 'thankyou', 'hello', 'hey', 'ok', 'okay']
+    if (words.length === 1 && !conversationalSingles.includes(clean)) return true
+    const noise = new Set(['um', 'uh', 'hmm', 'mm'])
     return words.length <= 2 && words.every(w => noise.has(w))
   }, [])
 
@@ -219,7 +220,14 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
       historyRef.current = newHistory.slice(-MAX_HISTORY)
       if (action) handleAction(action)
       addMessage('nex', speech)
-      speak(speech, () => setTimeout(startListeningCycle, 450))
+      const fallbackDelay = Math.min(Math.max(speech.length * 65, 1600), 7000)
+      const fallbackTimer = setTimeout(() => {
+        if (globeStateRef.current === 'idle') startListeningCycle()
+      }, fallbackDelay)
+      speak(speech, () => {
+        clearTimeout(fallbackTimer)
+        setTimeout(startListeningCycle, 450)
+      })
     } catch (err) {
       console.error('[Nex]', err)
       const errMsg = 'Systems encountered an error.'
@@ -309,7 +317,13 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     void loadContext().then(ctx => {
       const greeting = ctx ? buildGreeting(ctx) : 'What can I help you with?'
       addMessage('nex', greeting)
-      speak(greeting, () => setTimeout(startListeningCycle, 350))
+      const fallbackTimer = setTimeout(() => {
+        if (globeStateRef.current === 'idle') startListeningCycle()
+      }, 2800)
+      speak(greeting, () => {
+        clearTimeout(fallbackTimer)
+        setTimeout(startListeningCycle, 350)
+      })
     })
   }, [showTooltip, isPro, userId, speak, stopListening, startListeningCycle, loadContext, addMessage, warmupTTS, expanded, messages.length])
 

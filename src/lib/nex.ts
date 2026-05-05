@@ -308,6 +308,14 @@ function localNexFallback(
     }
   }
 
+  if (/\b(sorry|my bad|apologies)\b/.test(lower)) {
+    return { speech: "You're good. No need to apologize." }
+  }
+
+  if (/\b(thanks|thank you|appreciate it)\b/.test(lower)) {
+    return { speech: "Anytime. I'm here." }
+  }
+
   if (/\b(wait|hold on|stay calm|pause|one sec|give me a second)\b/.test(lower)) {
     return { speech: "No rush. I'm here when you're ready." }
   }
