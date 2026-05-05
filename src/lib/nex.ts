@@ -286,9 +286,14 @@ function localNexFallback(
   workspaceId: string | null,
 ): { speech: string; action?: NexActionResult } | null {
   const lower = transcript.toLowerCase()
+  const wantsTaskCreation = /\b(create|add|make|new)\b/.test(lower) && /\b(task|todo|to do)\b/.test(lower)
   const wantsProjectSetup =
     /\b(create|start|setup|set up|new|plan|build)\b/.test(lower) &&
     /\b(project|launch|workspace project|project wizard|setup wizard)\b/.test(lower)
+
+  if (wantsTaskCreation && !wantsProjectSetup) {
+    return { speech: "Tell me the task title and I'll add it." }
+  }
 
   if (wantsProjectSetup) {
     if (!workspaceId) {
