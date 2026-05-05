@@ -12,6 +12,7 @@ export type NexTool =
   | 'suggest_next_task'
   | 'open_project_wizard'
   | 'open_workspace_panel'
+  | 'add_subtasks_to_task'
 
 export interface TaskContext {
   tasks: {
@@ -77,9 +78,11 @@ const NEX_SYSTEM_PROMPT = (ctx: TaskContext) => {
 Personality: Calm, precise, quietly intelligent. Jarvis-like: efficient, occasionally dry wit. Never verbose. No filler phrases.
 
 Rules:
-- Plain text only. No asterisks, bullets, markdown. Output read aloud via TTS.
+- Plain text only. No markdown formatting. Output may be read aloud via TTS.
 - Never open with: Sure, Of course, Certainly, Great, Absolutely, Happy to.
-- Every response under 2 sentences unless a full briefing.
+- Every response under 2 sentences unless a full briefing or a task breakdown.
+- Be conversational, not just transactional. If the user is exploring, help them think before acting.
+- Ask one short follow-up when the user intent is ambiguous. Act directly when the intent is clear.
 - You have FULL conversation memory. You remember everything said in this session.
 - When user refers to "that task", "the one I just mentioned", "the overdue one", use context from earlier in the conversation.
 - Never say you don't remember something that was said in this conversation.
@@ -104,6 +107,8 @@ Manager and standup behavior:
 - High-priority or overdue unfinished tasks are risk items.
 - If asked for standup, briefing, project health, or what to tell the team, use get_standup_briefing.
 - If asked to create, modify, move, or delete work, use tools when intent is clear.
+- If asked to break down a task, give 4-6 concrete execution steps. If the user asks to add/save those subtasks, use add_subtasks_to_task.
+- Good subtasks are small, verifiable, and ordered. Avoid vague steps like "work on it" or "finish task".
 
 When disambiguating tasks with the same name:
 - "the overdue one" = task with due_date < today
@@ -111,7 +116,7 @@ When disambiguating tasks with the same name:
 - "the one without a date" = task with due_date = null
 - Always confirm which specific task you're acting on before deleting
 
-Creating tasks: extract title (remove filler words), priority (urgent→high, default→normal), due_date (resolve relative dates).
+Creating tasks: extract title (remove filler words), priority (urgent->high, default->normal), due_date (resolve relative dates).
 
 Modifying tasks: use update_task for title, priority, due date, or description. Use update_task_status for column movement.
 
@@ -124,7 +129,8 @@ ${ctx.tasks.length === 0
         const isOverdue = t.due_date && t.due_date < today2 && t.status !== 'done'
         const isDueToday = t.due_date === today2
         const flag = isOverdue ? ' [OVERDUE]' : isDueToday ? ' [DUE TODAY]' : ''
-        return `[ID:${t.id}] [${t.status}] ${t.title} - ${t.priority ?? 'normal'}${t.due_date ? ` - due ${t.due_date}${flag}` : ' - no date'}`
+        const desc = t.description ? ` - note: ${t.description.slice(0, 140)}` : ''
+        return `[ID:${t.id}] [${t.status}] ${t.title} - ${t.priority ?? 'normal'}${t.due_date ? ` - due ${t.due_date}${flag}` : ' - no date'}${desc}`
       }).join('\n')}`.trim()
 }
 
@@ -221,6 +227,19 @@ const NEX_TOOLS = [
     description: 'Open the guided Project Creation Wizard for workspace project setup, including project details, collaborators, Flow phases, and feature branches.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
+  {
+    name: 'add_subtasks_to_task',
+    description: 'Append a clear execution checklist to an existing task description. Use when the user asks Nex to add, save, or attach subtasks/steps to a task.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        task_id:         { type: 'string', description: 'Exact task ID from context. Prefer this over title hint.' },
+        task_title_hint: { type: 'string', description: 'Partial title for fuzzy matching only if ID unknown.' },
+        subtasks:        { type: 'array', items: { type: 'string' }, description: '4-6 concise execution steps.' },
+      },
+      required: ['subtasks'],
+    },
+  },
 ]
 
 export function stripMarkdown(text: string): string {
@@ -280,6 +299,15 @@ function localNexFallback(
     }
   }
 
+  if (/\b(subtask|subtasks|break down|breakdown|steps|checklist|execute)\b/.test(lower)) {
+    const hinted = ctx.tasks.find(t => lower.includes(t.title.toLowerCase())) ??
+      ctx.tasks.find(t => t.status !== 'done') ??
+      null
+    if (!hinted) return { speech: 'Give me the task name and I will break it into execution steps.' }
+    const steps = buildSubtaskList(hinted.title, hinted.description ?? '')
+    return { speech: `${hinted.title}: ${steps.map((s, i) => `${i + 1}. ${s}`).join(' ')}` }
+  }
+
   if (/\b(standup|briefing|status|project health)\b/.test(lower)) {
     const today = fmt(new Date())
     const open = ctx.tasks.filter(t => t.status !== 'done')
@@ -308,6 +336,44 @@ function localNexFallback(
   }
 
   return null
+}
+
+function buildSubtaskList(title: string, description: string): string[] {
+  const source = `${title} ${description}`.toLowerCase()
+  if (source.includes('bug') || source.includes('fix')) {
+    return [
+      'Reproduce the issue and note the exact screen or action that triggers it',
+      'Find the component or data path responsible for the broken behavior',
+      'Patch the smallest safe area of code',
+      'Test the original failure case and one nearby edge case',
+      'Update the task with what changed and any remaining risk',
+    ]
+  }
+  if (source.includes('design') || source.includes('ui') || source.includes('responsive')) {
+    return [
+      'Define the user goal and the primary action for the screen',
+      'Check spacing, contrast, text hierarchy, and mobile behavior',
+      'Implement the layout in the existing visual system',
+      'Test desktop and mobile states for overflow or low visibility',
+      'Polish interaction states and empty/loading states',
+    ]
+  }
+  if (source.includes('nex') || source.includes('ai') || source.includes('assistant')) {
+    return [
+      'Write the exact user phrases Nex should understand',
+      'Map each phrase to either a response, a tool action, or a follow-up question',
+      'Add safeguards for ambiguous or risky actions',
+      'Test voice input, typed prompts, and failure fallback',
+      'Tune the response tone so it sounds concise and natural',
+    ]
+  }
+  return [
+    'Clarify the expected outcome and acceptance criteria',
+    'Break the work into the smallest independent implementation pieces',
+    'Complete the first working version with the current app patterns',
+    'Test the main path and the most likely edge case',
+    'Document the result and decide the next follow-up',
+  ]
 }
 
 export async function executeNexTool(
@@ -385,6 +451,43 @@ export async function executeNexTool(
       return {
         result: 'Opening project setup. I will help shape the project, phases, team, and feature branches.',
         action: { type: 'open_project_wizard', data: { workspaceId } },
+      }
+    }
+
+    case 'add_subtasks_to_task': {
+      let taskId = input.task_id as string | undefined
+      if (!taskId && input.task_title_hint) {
+        const hint = (input.task_title_hint as string).toLowerCase()
+        const match = ctx.tasks.find(t => t.title.toLowerCase().includes(hint))
+        if (match) taskId = match.id
+      }
+      if (!taskId) return { result: "I need the task name before I can add subtasks." }
+
+      const task = ctx.tasks.find(t => t.id === taskId)
+      if (!task) return { result: "I couldn't find that task on this board." }
+
+      const rawSubtasks = Array.isArray(input.subtasks) ? input.subtasks : []
+      const subtasks = rawSubtasks
+        .map(item => String(item).trim())
+        .filter(Boolean)
+        .slice(0, 6)
+      const finalSubtasks = subtasks.length > 0 ? subtasks : buildSubtaskList(task.title, task.description ?? '')
+      const checklist = finalSubtasks.map((s, i) => `${i + 1}. ${s}`).join('\n')
+      const existingDescription = task.description?.trim() ?? ''
+      const marker = 'Execution checklist:'
+      const description = existingDescription.includes(marker)
+        ? existingDescription.replace(new RegExp(`${marker}[\\s\\S]*$`), `${marker}\n${checklist}`)
+        : `${existingDescription ? `${existingDescription}\n\n` : ''}${marker}\n${checklist}`
+
+      const { error } = await supabase.from('tasks').update({
+        description,
+        last_edited_by: userId,
+        last_edited_at: new Date().toISOString(),
+      }).eq('id', taskId)
+      if (error) return { result: `I couldn't add the subtasks. ${error.message}` }
+      return {
+        result: `Added an execution checklist to ${task.title}.`,
+        action: { type: 'add_subtasks_to_task', data: { taskId, subtasks: finalSubtasks } },
       }
     }
 

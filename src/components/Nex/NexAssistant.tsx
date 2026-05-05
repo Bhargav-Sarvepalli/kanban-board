@@ -175,7 +175,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
 
   const handleAction = useCallback((action: NexActionResult) => {
     void loadContext()
-    if (action.type === 'create_task' || action.type === 'delete_task' || action.type === 'update_task_status' || action.type === 'update_task') {
+    if (action.type === 'create_task' || action.type === 'delete_task' || action.type === 'update_task_status' || action.type === 'update_task' || action.type === 'add_subtasks_to_task') {
       onTaskCreated?.()
     }
     if (action.type === 'open_project_wizard') {
