@@ -270,6 +270,56 @@ function FlowSVG() {
 }
 
 // ─── LANDING ──────────────────────────────────────────────────
+function HeroProductPreview({ isMobile }: { isMobile: boolean }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 34, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: 1.05, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      style={{ width: 'min(980px, 100%)', margin: isMobile ? '34px auto 0' : '48px auto 0', position: 'relative' }}
+    >
+      <div style={{
+        position: 'absolute',
+        inset: '-1px',
+        borderRadius: '22px',
+        background: 'linear-gradient(135deg, rgba(236,72,153,0.42), rgba(124,58,237,0.3), rgba(6,182,212,0.22))',
+        filter: 'blur(18px)',
+        opacity: 0.45,
+      }} />
+      <div style={{
+        position: 'relative',
+        borderRadius: '20px',
+        border: '1px solid rgba(255,255,255,0.12)',
+        background: 'linear-gradient(180deg, rgba(15,16,28,0.88), rgba(6,7,13,0.94))',
+        boxShadow: '0 34px 110px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.08)',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '14px',
+          padding: isMobile ? '12px 14px' : '14px 18px',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {['#ff5f57','#febc2e','#28c840'].map((c, i) => <span key={i} style={{ width: '8px', height: '8px', borderRadius: '50%', background: c, opacity: 0.75 }} />)}
+            <span style={{ marginLeft: '8px', color: 'rgba(255,255,255,0.36)', fontSize: '10px', letterSpacing: '0.12em', fontWeight: 800, fontFamily: 'Inter, system-ui, sans-serif' }}>NEXTASK FLOW</span>
+          </div>
+          {!isMobile && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'rgba(255,255,255,0.38)', fontSize: '11px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+              <span style={{ color: '#22c55e', fontWeight: 800 }}>6 done</span>
+              <span>0 blocked</span>
+              <span style={{ color: '#a78bfa', fontWeight: 800 }}>live standup ready</span>
+            </div>
+          )}
+        </div>
+        <FlowSVG />
+      </div>
+    </motion.div>
+  )
+}
+
 export default function Landing() {
   const navigate = useNavigate()
   const [mx, setMx] = useState(0)
@@ -356,102 +406,121 @@ export default function Landing() {
       </motion.nav>
 
       {/* ══ HERO ══════════════════════════════════════════════ */}
-      <section style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <section style={{ position: 'relative', minHeight: isMobile ? 'auto' : '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: isMobile ? '94px 0 42px' : '118px 0 76px' }}>
         <div style={{ position: 'absolute', inset: 0 }}>
           <Canvas camera={{ position: [0, 0, 9], fov: 50 }}>
             <HeroScene mx={mx} my={my} />
           </Canvas>
         </div>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 40%, rgba(5,5,10,0) 0%, rgba(5,5,10,0.6) 50%, rgba(5,5,10,0.98) 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 30%, rgba(5,5,10,0) 0%, rgba(5,5,10,0.54) 48%, rgba(5,5,10,0.98) 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(5,5,10,0.16), rgba(5,5,10,0.72) 62%, #05050a 100%)' }} />
 
-        <div style={{ position: 'relative', zIndex: 10, textAlign: 'center', maxWidth: '900px', width: '100%', padding: isMobile ? '100px 24px 80px' : '0 32px' }}>
+        <div style={{ position: 'relative', zIndex: 10, textAlign: 'center', maxWidth: '1120px', width: '100%', padding: isMobile ? '0 22px' : '0 42px' }}>
 
           {/* Headline — two lines, product truth */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18, duration: 0.7 }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: isMobile ? '18px' : '22px', padding: '8px 12px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.045)', boxShadow: '0 0 28px rgba(124,58,237,0.16)' }}>
+            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 16px rgba(34,197,94,0.7)' }} />
+            <span style={{ color: 'rgba(255,255,255,0.66)', fontSize: '12px', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 760, letterSpacing: '0.01em' }}>Built for managers who run standups from the work itself</span>
+          </motion.div>
+
           <div style={{ overflow: 'hidden', marginBottom: '2px' }}>
             <motion.h1
               initial={{ y: '100%' }} animate={{ y: 0 }}
               transition={{ duration: 1.05, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-              style={{ ...H('white', { size: isMobile ? 'clamp(44px,13vw,64px)' : 'clamp(64px,8.5vw,108px)' }), color: '#f0f0f8' }}>
-              Project tracking,
+              style={{ ...H('white', { size: isMobile ? 'clamp(42px,12vw,62px)' : 'clamp(72px,8vw,118px)' }), color: '#f7f7fb' }}>
+              Stop asking
             </motion.h1>
           </div>
           <div style={{ overflow: 'hidden', marginBottom: isMobile ? '28px' : '40px' }}>
             <motion.h1
               initial={{ y: '100%' }} animate={{ y: 0 }}
               transition={{ duration: 1.05, ease: [0.16, 1, 0.3, 1], delay: 0.46 }}
-              style={{ ...H('white', { size: isMobile ? 'clamp(44px,13vw,64px)' : 'clamp(64px,8.5vw,108px)' }), background: 'linear-gradient(128deg, #a78bfa 20%, #f472b6 80%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              finally clear.
+              style={{ ...H('white', { size: isMobile ? 'clamp(42px,12vw,62px)' : 'clamp(72px,8vw,118px)' }), background: 'linear-gradient(128deg, #f472b6 8%, #a78bfa 48%, #22d3ee 92%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              for updates.
             </motion.h1>
           </div>
 
           <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: 0.75 }}
-            style={{ ...Body(isMobile ? '15px' : '19px'), maxWidth: '520px', margin: '0 auto', marginBottom: isMobile ? '36px' : '52px', color: 'rgba(255,255,255,0.48)', fontWeight: 400 }}>
-            See every feature, every phase, every blocker — on a single live timeline. Built for teams that need clarity, not more tools.
+            style={{ ...Body(isMobile ? '15px' : '20px'), maxWidth: '660px', margin: '0 auto', marginBottom: isMobile ? '26px' : '34px', color: 'rgba(255,255,255,0.58)', fontWeight: 430 }}>
+            NexTask turns tasks, phases, blockers, meetings, and AI summaries into one calm command center. Open Flow before standup and know exactly what moved, what stalled, and what should merge next.
           </motion.p>
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }}
             style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <motion.button whileHover={{ scale: 1.03, boxShadow: '0 0 36px rgba(124,58,237,0.45)' }} whileTap={{ scale: 0.97 }} onClick={() => navigate('/auth')}
-              style={{ background: '#7c3aed', border: 'none', borderRadius: '11px', padding: isMobile ? '14px 32px' : '16px 44px', color: 'white', cursor: 'pointer', fontSize: isMobile ? '15px' : '16px', fontWeight: 700, fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '-0.01em', boxShadow: '0 0 28px rgba(124,58,237,0.3)' }}>
-              Start for free
+              style={{ background: 'linear-gradient(135deg, #ec4899, #7c3aed 54%, #06b6d4)', border: 'none', borderRadius: '13px', padding: isMobile ? '14px 30px' : '16px 42px', color: 'white', cursor: 'pointer', fontSize: isMobile ? '15px' : '16px', fontWeight: 820, fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '-0.01em', boxShadow: '0 20px 54px rgba(124,58,237,0.38)' }}>
+              Try the live app
             </motion.button>
             <motion.button whileHover={{ scale: 1.03, borderColor: 'rgba(255,255,255,0.22)' }} whileTap={{ scale: 0.97 }}
               onClick={() => document.getElementById('flow-section')?.scrollIntoView({ behavior: 'smooth' })}
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '11px', padding: isMobile ? '14px 28px' : '16px 36px', color: 'rgba(255,255,255,0.58)', cursor: 'pointer', fontSize: isMobile ? '15px' : '16px', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 500 }}>
-              See it in action
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '13px', padding: isMobile ? '14px 24px' : '16px 32px', color: 'rgba(255,255,255,0.72)', cursor: 'pointer', fontSize: isMobile ? '15px' : '16px', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 720 }}>
+              See Flow
             </motion.button>
           </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.22, duration: 0.6 }}
+            style={{ display: 'flex', justifyContent: 'center', gap: isMobile ? '8px' : '14px', flexWrap: 'wrap', marginTop: isMobile ? '20px' : '24px' }}>
+            {['Google sign-in', 'Personal + teams', 'AI standup brief', 'No setup required'].map(item => (
+              <span key={item} style={{ padding: '7px 10px', borderRadius: '999px', background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', fontSize: '12px', fontWeight: 720, fontFamily: 'Inter, system-ui, sans-serif' }}>{item}</span>
+            ))}
+          </motion.div>
+
+          <HeroProductPreview isMobile={isMobile} />
         </div>
 
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '200px', background: 'linear-gradient(to bottom, transparent, #05050a)', zIndex: 5 }} />
       </section>
 
       {/* ══ FLOW SECTION ════════════════════════════════════ */}
-      <section id="flow-section" style={{ padding: sectionPad, borderTop: divider }}>
-        <div style={{ maxWidth: '1080px', margin: '0 auto', padding: p }}>
+      <section id="flow-section" style={{ padding: isMobile ? '82px 0' : '118px 0', borderTop: divider, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 18% 8%, rgba(236,72,153,0.1), transparent 28%), radial-gradient(circle at 82% 12%, rgba(6,182,212,0.1), transparent 28%)', pointerEvents: 'none' }} />
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: p, position: 'relative' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '0.88fr 1.12fr', gap: isMobile ? '34px' : '54px', alignItems: 'center' }}>
+            <FadeUp style={{ maxWidth: '520px' }}>
+              <p style={{ ...Body('12px', 'rgba(255,255,255,0.28)'), letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '18px', fontWeight: 800 }}>Flow</p>
+              <Reveal style={{ ...H('white', { size: isMobile ? 'clamp(32px,9vw,46px)' : 'clamp(42px,4.8vw,68px)', mb: '18px' }) }}>
+                Run standup from the project map.
+              </Reveal>
+              <p style={{ ...Body('17px', 'rgba(255,255,255,0.5)'), maxWidth: '480px', marginBottom: '26px' }}>
+                Flow gives managers the same instant read developers get from a git graph: what branched out, what is active, what is blocked, and what is ready to merge.
+              </p>
 
-          <FadeUp style={{ marginBottom: isMobile ? '48px' : '72px', maxWidth: '560px' }}>
-            <p style={{ ...Body('12px', 'rgba(255,255,255,0.22)'), letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '18px' }}>Flow</p>
-            <Reveal style={{ ...H('white', { size: isMobile ? 'clamp(28px,8vw,42px)' : 'clamp(36px,4vw,58px)', mb: '18px' }) }}>
-              Your whole project. One view.
-            </Reveal>
-            <p style={{ ...Body('17px', 'rgba(255,255,255,0.42)'), maxWidth: '460px' }}>
-              Features branch off the project timeline and merge back when done. Phases tell you where you are. Task nodes show who's working on what.
-            </p>
-          </FadeUp>
+              <div style={{ display: 'grid', gap: '10px', marginBottom: '28px' }}>
+                {[
+                  { k: '01', t: 'See ownership fast', b: 'Every feature branch has progress, status, and the next action.' },
+                  { k: '02', t: 'Click into the board', b: 'Open a feature and move task cards without losing project context.' },
+                  { k: '03', t: 'Merge when complete', b: 'Done features become visible wins instead of buried task history.' },
+                ].map(item => (
+                  <div key={item.k} style={{ display: 'grid', gridTemplateColumns: '38px 1fr', gap: '12px', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}>
+                    <div style={{ width: '30px', height: '30px', borderRadius: '10px', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, rgba(236,72,153,0.22), rgba(6,182,212,0.16))', color: '#e9d5ff', fontSize: '11px', fontWeight: 900, fontFamily: 'Inter, system-ui, sans-serif' }}>{item.k}</div>
+                    <div>
+                      <p style={{ margin: 0, color: 'rgba(255,255,255,0.84)', fontSize: '14px', fontWeight: 800, fontFamily: 'Inter, system-ui, sans-serif' }}>{item.t}</p>
+                      <p style={{ margin: '4px 0 0', color: 'rgba(255,255,255,0.42)', fontSize: '13px', lineHeight: 1.55, fontFamily: 'Inter, system-ui, sans-serif' }}>{item.b}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-          {/* Flow diagram */}
-          <FadeUp delay={0.1} style={{ background: 'rgba(255,255,255,0.02)', border: divider, borderRadius: '16px', padding: isMobile ? '20px 10px 24px' : '32px 28px 36px', position: 'relative', overflow: 'hidden', marginBottom: isMobile ? '48px' : '72px' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.35), transparent)' }} />
-            {/* Window chrome */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '20px' }}>
-              {['#ff5f57','#febc2e','#28c840'].map((c, i) => <div key={i} style={{ width: '8px', height: '8px', borderRadius: '50%', background: c, opacity: 0.7 }} />)}
-              <span style={{ marginLeft: '8px', ...Body('10px', 'rgba(255,255,255,0.2)'), letterSpacing: '0.1em', textTransform: 'uppercase' }}>NexTask — Flow</span>
-            </div>
-            <FlowSVG />
-            {/* Legend */}
-            <div style={{ display: 'flex', gap: '20px', marginTop: '18px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              {[['#4ade80','Done'],['#a78bfa','Active'],['rgba(255,255,255,0.2)','Planned'],['#7c3aed','Merged']].map(([c,l]) => (
-                <div key={l} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: c }} />
-                  <span style={{ ...Body('11px', 'rgba(255,255,255,0.3)') }}>{l}</span>
+              <motion.button whileHover={{ scale: 1.02, boxShadow: '0 0 34px rgba(124,58,237,0.35)' }} whileTap={{ scale: 0.98 }} onClick={() => navigate('/auth')}
+                style={{ background: 'rgba(124,58,237,0.22)', border: '1px solid rgba(167,139,250,0.34)', borderRadius: '12px', padding: '13px 18px', color: '#ede9fe', cursor: 'pointer', fontSize: '14px', fontWeight: 820, fontFamily: 'Inter, system-ui, sans-serif' }}>
+                Try Flow in NexTask
+              </motion.button>
+            </FadeUp>
+
+            <FadeUp delay={0.1} style={{ position: 'relative' }}>
+              <div style={{ position: 'absolute', inset: '-18px', borderRadius: '28px', background: 'linear-gradient(135deg, rgba(236,72,153,0.18), rgba(124,58,237,0.16), rgba(6,182,212,0.1))', filter: 'blur(24px)', opacity: 0.78 }} />
+              <div style={{ position: 'relative', background: 'rgba(255,255,255,0.026)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: isMobile ? '16px 8px 20px' : '20px 18px 24px', overflow: 'hidden', boxShadow: '0 28px 90px rgba(0,0,0,0.54)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '12px', padding: '0 6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                    {['#ff5f57','#febc2e','#28c840'].map((c, i) => <div key={i} style={{ width: '8px', height: '8px', borderRadius: '50%', background: c, opacity: 0.72 }} />)}
+                    <span style={{ marginLeft: '8px', ...Body('10px', 'rgba(255,255,255,0.24)'), letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 850 }}>Standup ready</span>
+                  </div>
+                  {!isMobile && <span style={{ color: '#22c55e', fontSize: '11px', fontWeight: 840, fontFamily: 'Inter, system-ui, sans-serif' }}>6/14 tasks done</span>}
                 </div>
-              ))}
-            </div>
-          </FadeUp>
-
-          {/* Three truths below the diagram */}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: isMobile ? '28px' : '40px' }}>
-            {[
-              { title: 'Know what\'s blocked', body: 'At-risk and blocked features are visible the moment they fall behind. No check-in needed.' },
-              { title: 'Standup in minutes', body: 'One click opens fullscreen slides — one per person. Active tasks, blockers, what\'s next.' },
-              { title: 'Phases, not columns', body: 'Features are grouped by milestone. You always know where the project stands against the plan.' },
-            ].map((c, i) => (
-              <FadeUp key={c.title} delay={i * 0.08}>
-                <p style={{ ...Body('15px', 'rgba(255,255,255,0.7)'), fontWeight: 600, letterSpacing: '-0.01em', marginBottom: '8px' }}>{c.title}</p>
-                <p style={{ ...Body('14px', 'rgba(255,255,255,0.36)'), lineHeight: 1.7 }}>{c.body}</p>
-              </FadeUp>
-            ))}
+                <FlowSVG />
+              </div>
+            </FadeUp>
           </div>
         </div>
       </section>
