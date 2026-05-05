@@ -184,31 +184,10 @@ function Reveal({ children, delay = 0, style }: { children: string; delay?: numb
 // Zone 3 (x 590–680): Phase 1 branch — Calendar (Planned, 0%)
 // Trunk Y = 145 (centre). Branch offset = ±88px
 
+// ─── FLOW SVG — all values verified by calculation, no variables ──────────────
+// TY=145. Kickoff@56. Fork@80. Line 132→204. Merge M204,bY C224,bY 284,145 300,145.
+// Designing@400. Gap = 100px. Designing branches fork@430, line 482→590. Phase1@620.
 function FlowSVG() {
-  const TY = 145  // trunk Y
-
-  // Milestones — clear zones between them
-  const milestones = [
-    { x: 56,  label: 'Kickoff',   done: true,  active: false },
-    { x: 400, label: 'Designing', done: false,  active: true  },
-    { x: 620, label: 'Phase 1',   done: false,  active: false },
-    { x: 730, label: 'Review',    done: false,  active: false },
-  ]
-
-  const branches = [
-    // Kickoff zone: fork@80, branch line 132–220, merge@240 → trunk rejoins@284
-    // Gap: 284 → 400 (116px clear before Designing)
-    { name: 'Auth & Login', color: '#4ade80', pct: 100, merged: true,  above: true,  forkX: 80,  mergeX: 240 as number | null, endX: undefined as number | undefined },
-    { name: 'Kanban Board', color: '#4ade80', pct: 100, merged: true,  above: false, forkX: 80,  mergeX: 240 as number | null, endX: undefined },
-    // Designing zone: fork@430, no merge, line ends@590
-    { name: 'Flow Engine',  color: '#7c3aed', pct: 65,  merged: false, above: true,  forkX: 430, mergeX: null,                 endX: 590 },
-    { name: 'Dashboard',    color: '#a78bfa', pct: 42,  merged: false, above: false, forkX: 430, mergeX: null,                 endX: 590 },
-    // Phase 1 zone: fork@645, no merge, line ends@755
-    { name: 'Calendar',     color: '#2563eb', pct: 0,   merged: false, above: true,  forkX: 645, mergeX: null,                 endX: 755 },
-  ]
-
-  const OFFSET = 88  // vertical distance from trunk to branch
-
   return (
     <svg viewBox="0 0 800 295" style={{ width: '100%', display: 'block' }}>
       <defs>
@@ -216,140 +195,97 @@ function FlowSVG() {
           <feGaussianBlur stdDeviation="3" result="b"/>
           <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
-        {branches.map(b => (
-          <linearGradient key={b.name} id={`g-${b.name.replace(/\s+/g,'')}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%"   stopColor={b.color} stopOpacity={b.merged ? 0.85 : 0.7} />
-            <stop offset="100%" stopColor={b.color} stopOpacity={b.merged ? 0.5 : 0.2} />
-          </linearGradient>
-        ))}
       </defs>
 
-      {/* Trunk glow */}
-      <line x1={28} y1={TY} x2={775} y2={TY} stroke="#7c3aed" strokeWidth={22} strokeOpacity={0.045} strokeLinecap="round" />
-      {/* Done — green up to Designing@400 */}
-      <line x1={28} y1={TY} x2={400} y2={TY} stroke="#4ade80" strokeWidth={2} strokeLinecap="round" />
-      {/* Active — violet up to Phase1@620 */}
-      <line x1={400} y1={TY} x2={620} y2={TY} stroke="#a78bfa" strokeWidth={2} strokeLinecap="round" />
-      {/* Planned — dashed */}
-      <line x1={620} y1={TY} x2={770} y2={TY} stroke="rgba(255,255,255,0.1)" strokeWidth={2} strokeDasharray="4 4" strokeLinecap="round" />
-      <polygon points="782,145 770,138 770,152" fill="rgba(255,255,255,0.22)" />
+      {/* ── TRUNK ── */}
+      <line x1={28}  y1={145} x2={800} y2={145} stroke="#7c3aed" strokeWidth={20} strokeOpacity={0.04} strokeLinecap="round"/>
+      <line x1={28}  y1={145} x2={400} y2={145} stroke="#4ade80" strokeWidth={2}  strokeLinecap="round"/>
+      <line x1={400} y1={145} x2={620} y2={145} stroke="#a78bfa" strokeWidth={2}  strokeLinecap="round"/>
+      <line x1={620} y1={145} x2={780} y2={145} stroke="rgba(255,255,255,0.1)" strokeWidth={2} strokeDasharray="4 4" strokeLinecap="round"/>
+      <polygon points="792,145 780,138 780,152" fill="rgba(255,255,255,0.2)"/>
 
-      {/* ── Milestone nodes ── */}
-      {milestones.map(ms => (
-        <g key={ms.label}>
-          {ms.active && (
-            <circle cx={ms.x} cy={TY} r={22} fill="#7c3aed" fillOpacity={0.08} />
-          )}
-          <circle cx={ms.x} cy={TY} r={ms.active ? 15 : 10}
-            fill={ms.done ? '#15803d' : ms.active ? '#7c3aed' : 'rgba(10,6,20,0.96)'}
-            stroke={ms.done ? '#4ade80' : ms.active ? '#a78bfa' : 'rgba(255,255,255,0.1)'}
-            strokeWidth={1.5}
-            filter={ms.active ? 'url(#glow2)' : undefined}
-          />
-          {/* Icon text */}
-          <text x={ms.x} y={TY + 4.5} textAnchor="middle"
-            fill={ms.done || ms.active ? 'white' : 'rgba(255,255,255,0.2)'}
-            fontSize={ms.active ? 11 : 8} fontWeight="bold" fontFamily="Inter,sans-serif">
-            {ms.done ? '✓' : ms.active ? '⚡' : '○'}
-          </text>
-          {/* Label below */}
-          <text x={ms.x} y={ms.active ? TY + 34 : TY + 28} textAnchor="middle"
-            fill={ms.active ? '#c4b5fd' : ms.done ? '#86efac' : 'rgba(255,255,255,0.22)'}
-            fontSize={9} fontWeight={ms.active ? 600 : 400} fontFamily="Inter,sans-serif">
-            {ms.label}
-          </text>
-        </g>
-      ))}
+      {/* ── MILESTONES ── */}
+      <circle cx={56}  cy={145} r={10} fill="#15803d" stroke="#4ade80" strokeWidth={1.5}/>
+      <text x={56}  y={149} textAnchor="middle" fill="white" fontSize={8} fontWeight="bold" fontFamily="Inter,sans-serif">✓</text>
+      <text x={56}  y={169} textAnchor="middle" fill="#86efac" fontSize={9} fontFamily="Inter,sans-serif">Kickoff</text>
 
-      {/* ── Branches ── */}
-      {branches.map(b => {
-        const bY   = TY + (b.above ? -OFFSET : OFFSET)
-        const endX = b.mergeX ?? b.endX ?? (b.forkX + 180)
-        // Horizontal span of the branch line (after fork curve ends, before merge curve starts)
-        const lineStart = b.forkX + 52
-        const lineEnd   = b.merged ? endX - 36 : endX
-        const chipMidX  = (lineStart + lineEnd) / 2
-        const CW = 128  // chip width
+      <circle cx={400} cy={145} r={22} fill="#7c3aed" fillOpacity={0.08}/>
+      <circle cx={400} cy={145} r={15} fill="#7c3aed" stroke="#a78bfa" strokeWidth={1.5} filter="url(#glow2)"/>
+      <text x={400} y={149} textAnchor="middle" fill="white" fontSize={11} fontWeight="bold" fontFamily="Inter,sans-serif">⚡</text>
+      <text x={400} y={181} textAnchor="middle" fill="#c4b5fd" fontSize={9} fontWeight="600" fontFamily="Inter,sans-serif">Designing</text>
 
-        return (
-          <g key={b.name}>
-            {/* Fork curve out from trunk */}
-            <path
-              d={`M ${b.forkX} ${TY} C ${b.forkX + 44} ${TY}, ${b.forkX + 52} ${bY}, ${lineStart} ${bY}`}
-              fill="none" stroke={b.color}
-              strokeWidth={1.5} strokeOpacity={b.merged ? 0.7 : 0.5}
-            />
+      <circle cx={620} cy={145} r={10} fill="rgba(10,6,20,0.96)" stroke="rgba(255,255,255,0.1)" strokeWidth={1.5}/>
+      <text x={620} y={149} textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize={8} fontFamily="Inter,sans-serif">○</text>
+      <text x={620} y={169} textAnchor="middle" fill="rgba(255,255,255,0.22)" fontSize={9} fontFamily="Inter,sans-serif">Phase 1</text>
 
-            {/* Branch horizontal line */}
-            <line x1={lineStart} y1={bY} x2={lineEnd} y2={bY}
-              stroke={`url(#g-${b.name.replace(/\s+/g,'')})`}
-              strokeWidth={1.5}
-            />
+      <circle cx={730} cy={145} r={9} fill="rgba(10,6,20,0.96)" stroke="rgba(255,255,255,0.08)" strokeWidth={1.5}/>
+      <text x={730} y={149} textAnchor="middle" fill="rgba(255,255,255,0.15)" fontSize={7} fontFamily="Inter,sans-serif">○</text>
+      <text x={730} y={167} textAnchor="middle" fill="rgba(255,255,255,0.18)" fontSize={8} fontFamily="Inter,sans-serif">Review</text>
 
-            {/* Merge curve — control points stay inside the branch zone */}
-            {b.merged && b.mergeX && (
-              <path
-                d={`M ${lineEnd} ${bY} C ${lineEnd + 20} ${bY}, ${b.mergeX + 44} ${TY}, ${b.mergeX + 60} ${TY}`}
-                fill="none" stroke={b.color}
-                strokeWidth={1.5} strokeOpacity={0.55}
-              />
-            )}
+      {/* ── KICKOFF BRANCHES — fork@80, line 132→204, merge ends@300, gap to Designing=100px ── */}
 
-            {/* Task nodes along branch */}
-            {b.pct > 0 && [0.25, 0.52, 0.78].map((t, ni) => {
-              const nx   = lineStart + (lineEnd - lineStart) * t
-              const done = (ni + 1) <= (b.pct / 100) * 3
-              return (
-                <circle key={ni} cx={nx} cy={bY} r={4.5}
-                  fill={done ? b.color : 'rgba(10,6,20,0.92)'}
-                  stroke={b.color} strokeWidth={1.2}
-                  strokeOpacity={done ? 0.3 : 0.45}
-                />
-              )
-            })}
+      {/* Auth & Login — above, bY=57 */}
+      <path d="M 80 145 C 124 145, 132 57, 132 57" fill="none" stroke="#4ade80" strokeWidth={1.5} strokeOpacity={0.7}/>
+      <line x1={132} y1={57} x2={204} y2={57} stroke="#4ade80" strokeWidth={1.5} strokeOpacity={0.6}/>
+      <path d="M 204 57 C 224 57, 284 145, 300 145" fill="none" stroke="#4ade80" strokeWidth={1.5} strokeOpacity={0.55}/>
+      <circle cx={150} cy={57} r={4.5} fill="#4ade80" strokeOpacity={0}/>
+      <circle cx={168} cy={57} r={4.5} fill="#4ade80" strokeOpacity={0}/>
+      <circle cx={186} cy={57} r={4.5} fill="#4ade80" strokeOpacity={0}/>
+      <rect  x={104}  y={21} width={48} height={14} rx={4} fill="#4ade8022"/>
+      <text x={128}  y={31} textAnchor="middle" fill="#4ade80" fontSize={7.5} fontFamily="Inter,sans-serif" fontWeight={700} letterSpacing="0.08em">MERGED</text>
+      <rect  x={104}  y={39} width={128} height={36} rx={8} fill="#4ade8020" stroke="#4ade80" strokeWidth={0.9} strokeOpacity={0.7}/>
+      <text x={113}  y={54} fill="rgba(255,255,255,0.82)" fontSize={9.5} fontFamily="Inter,sans-serif" fontWeight={500}>Auth &amp; Login</text>
+      <rect  x={113}  y={63} width={76} height={2.5} rx={1.25} fill="rgba(255,255,255,0.07)"/>
+      <rect  x={113}  y={63} width={76} height={2.5} rx={1.25} fill="#4ade80"/>
+      <text x={222}  y={67} textAnchor="end" fill="#4ade80" fontSize={9} fontFamily="Inter,sans-serif" fontWeight={700}>100%</text>
 
-            {/* Feature chip */}
-            <rect
-              x={chipMidX - CW/2} y={bY - 20} width={CW} height={38} rx={8}
-              fill={b.color + (b.merged ? '20' : '0e')}
-              stroke={b.color} strokeWidth={b.merged ? 0.9 : 0.6}
-              strokeOpacity={b.merged ? 0.7 : 0.38}
-            />
-            {/* Feature name */}
-            <text x={chipMidX - CW/2 + 10} y={bY - 4} fill="rgba(255,255,255,0.82)"
-              fontSize={9.5} fontFamily="Inter,sans-serif" fontWeight={500}>{b.name}</text>
-            {/* Progress bar track */}
-            <rect x={chipMidX - CW/2 + 10} y={bY + 8} width={CW - 52} height={2.5} rx={1.25}
-              fill="rgba(255,255,255,0.07)" />
-            {/* Progress fill */}
-            {b.pct > 0 && (
-              <rect x={chipMidX - CW/2 + 10} y={bY + 8} width={(CW - 52) * b.pct / 100} height={2.5} rx={1.25}
-                fill={b.color} />
-            )}
-            {/* Percent label */}
-            <text x={chipMidX + CW/2 - 9} y={bY + 12} textAnchor="end" fill={b.color}
-              fontSize={9} fontFamily="Inter,sans-serif" fontWeight={700}>{b.pct}%</text>
+      {/* Kanban Board — below, bY=233 */}
+      <path d="M 80 145 C 124 145, 132 233, 132 233" fill="none" stroke="#4ade80" strokeWidth={1.5} strokeOpacity={0.7}/>
+      <line x1={132} y1={233} x2={204} y2={233} stroke="#4ade80" strokeWidth={1.5} strokeOpacity={0.6}/>
+      <path d="M 204 233 C 224 233, 284 145, 300 145" fill="none" stroke="#4ade80" strokeWidth={1.5} strokeOpacity={0.55}/>
+      <circle cx={150} cy={233} r={4.5} fill="#4ade80" strokeOpacity={0}/>
+      <circle cx={168} cy={233} r={4.5} fill="#4ade80" strokeOpacity={0}/>
+      <circle cx={186} cy={233} r={4.5} fill="#4ade80" strokeOpacity={0}/>
+      <rect  x={104}  y={247} width={48} height={14} rx={4} fill="#4ade8022"/>
+      <text x={128}  y={257} textAnchor="middle" fill="#4ade80" fontSize={7.5} fontFamily="Inter,sans-serif" fontWeight={700} letterSpacing="0.08em">MERGED</text>
+      <rect  x={104}  y={215} width={128} height={36} rx={8} fill="#4ade8020" stroke="#4ade80" strokeWidth={0.9} strokeOpacity={0.7}/>
+      <text x={113}  y={230} fill="rgba(255,255,255,0.82)" fontSize={9.5} fontFamily="Inter,sans-serif" fontWeight={500}>Kanban Board</text>
+      <rect  x={113}  y={239} width={76} height={2.5} rx={1.25} fill="rgba(255,255,255,0.07)"/>
+      <rect  x={113}  y={239} width={76} height={2.5} rx={1.25} fill="#4ade80"/>
+      <text x={222}  y={243} textAnchor="end" fill="#4ade80" fontSize={9} fontFamily="Inter,sans-serif" fontWeight={700}>100%</text>
 
-            {/* MERGED badge above chip */}
-            {b.merged && (
-              <>
-                <rect x={chipMidX - 24} y={bY - 36} width={48} height={14} rx={4}
-                  fill={b.color + '22'} />
-                <text x={chipMidX} y={bY - 25} textAnchor="middle" fill={b.color}
-                  fontSize={7.5} fontFamily="Inter,sans-serif" fontWeight={700} letterSpacing="0.08em">
-                  MERGED
-                </text>
-              </>
-            )}
+      {/* ── DESIGNING BRANCHES — fork@430, line 482→590, no merge ── */}
 
-            {/* PLANNED label for 0% */}
-            {b.pct === 0 && !b.merged && (
-              <text x={chipMidX} y={bY + 5} textAnchor="middle" fill="rgba(255,255,255,0.28)"
-                fontSize={8.5} fontFamily="Inter,sans-serif">Planned</text>
-            )}
-          </g>
-        )
-      })}
+      {/* Flow Engine — above, bY=57 */}
+      <path d="M 430 145 C 474 145, 482 57, 482 57" fill="none" stroke="#7c3aed" strokeWidth={1.5} strokeOpacity={0.5}/>
+      <line x1={482} y1={57} x2={590} y2={57} stroke="#7c3aed" strokeWidth={1.5} strokeOpacity={0.45}/>
+      <circle cx={509} cy={57} r={4.5} fill="#7c3aed" strokeOpacity={0}/>
+      <circle cx={536} cy={57} r={4.5} fill="#7c3aed" strokeOpacity={0}/>
+      <circle cx={563} cy={57} r={4.5} fill="rgba(10,6,20,0.92)" stroke="#7c3aed" strokeWidth={1.2} strokeOpacity={0.45}/>
+      <rect  x={472}  y={39} width={128} height={36} rx={8} fill="#7c3aed0e" stroke="#7c3aed" strokeWidth={0.6} strokeOpacity={0.38}/>
+      <text x={481}  y={54} fill="rgba(255,255,255,0.82)" fontSize={9.5} fontFamily="Inter,sans-serif" fontWeight={500}>Flow Engine</text>
+      <rect  x={481}  y={63} width={76} height={2.5} rx={1.25} fill="rgba(255,255,255,0.07)"/>
+      <rect  x={481}  y={63} width={49.4} height={2.5} rx={1.25} fill="#7c3aed"/>
+      <text x={590}  y={67} textAnchor="end" fill="#7c3aed" fontSize={9} fontFamily="Inter,sans-serif" fontWeight={700}>65%</text>
+
+      {/* Dashboard — below, bY=233 */}
+      <path d="M 430 145 C 474 145, 482 233, 482 233" fill="none" stroke="#a78bfa" strokeWidth={1.5} strokeOpacity={0.5}/>
+      <line x1={482} y1={233} x2={590} y2={233} stroke="#a78bfa" strokeWidth={1.5} strokeOpacity={0.45}/>
+      <circle cx={509} cy={233} r={4.5} fill="#a78bfa" strokeOpacity={0}/>
+      <circle cx={536} cy={233} r={4.5} fill="rgba(10,6,20,0.92)" stroke="#a78bfa" strokeWidth={1.2} strokeOpacity={0.45}/>
+      <circle cx={563} cy={233} r={4.5} fill="rgba(10,6,20,0.92)" stroke="#a78bfa" strokeWidth={1.2} strokeOpacity={0.45}/>
+      <rect  x={472}  y={215} width={128} height={36} rx={8} fill="#a78bfa0e" stroke="#a78bfa" strokeWidth={0.6} strokeOpacity={0.38}/>
+      <text x={481}  y={230} fill="rgba(255,255,255,0.82)" fontSize={9.5} fontFamily="Inter,sans-serif" fontWeight={500}>Dashboard</text>
+      <rect  x={481}  y={239} width={76} height={2.5} rx={1.25} fill="rgba(255,255,255,0.07)"/>
+      <rect  x={481}  y={239} width={31.9} height={2.5} rx={1.25} fill="#a78bfa"/>
+      <text x={590}  y={243} textAnchor="end" fill="#a78bfa" fontSize={9} fontFamily="Inter,sans-serif" fontWeight={700}>42%</text>
+
+      {/* ── PHASE 1 BRANCH — fork@645, line 697→755, planned ── */}
+      <path d="M 645 145 C 689 145, 697 57, 697 57" fill="none" stroke="#2563eb" strokeWidth={1.5} strokeOpacity={0.4}/>
+      <line x1={697} y1={57} x2={755} y2={57} stroke="#2563eb" strokeWidth={1.5} strokeOpacity={0.3}/>
+      <rect  x={661}  y={39} width={100} height={36} rx={8} fill="#2563eb0e" stroke="#2563eb" strokeWidth={0.6} strokeOpacity={0.28}/>
+      <text x={670}  y={54} fill="rgba(255,255,255,0.5)" fontSize={9.5} fontFamily="Inter,sans-serif" fontWeight={500}>Calendar</text>
+      <text x={711}  y={64} textAnchor="middle" fill="rgba(255,255,255,0.28)" fontSize={8} fontFamily="Inter,sans-serif">Planned  0%</text>
     </svg>
   )
 }
