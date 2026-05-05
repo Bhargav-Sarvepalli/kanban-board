@@ -189,103 +189,82 @@ function Reveal({ children, delay = 0, style }: { children: string; delay?: numb
 // Designing@400. Gap = 100px. Designing branches fork@430, line 482→590. Phase1@620.
 function FlowSVG() {
   return (
-    <svg viewBox="0 0 800 295" style={{ width: '100%', display: 'block' }}>
+    <svg viewBox="0 0 800 320" role="img" aria-label="NexTask Flow project map" style={{ width: '100%', display: 'block' }}>
       <defs>
-        <filter id="glow2">
-          <feGaussianBlur stdDeviation="3" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        <linearGradient id="flowTrunkLanding" x1="24" y1="160" x2="776" y2="160" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#16a34a" />
+          <stop offset="46%" stopColor="#7c3aed" />
+          <stop offset="100%" stopColor="#334155" />
+        </linearGradient>
+        <linearGradient id="flowCardActiveLanding" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="rgba(124,58,237,0.24)" />
+          <stop offset="100%" stopColor="rgba(6,182,212,0.08)" />
+        </linearGradient>
+        <filter id="landingNodeGlow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="6" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
       </defs>
 
-      {/* ── TRUNK ── */}
-      <line x1={28}  y1={145} x2={800} y2={145} stroke="#7c3aed" strokeWidth={20} strokeOpacity={0.04} strokeLinecap="round"/>
-      <line x1={28}  y1={145} x2={400} y2={145} stroke="#4ade80" strokeWidth={2}  strokeLinecap="round"/>
-      <line x1={400} y1={145} x2={620} y2={145} stroke="#a78bfa" strokeWidth={2}  strokeLinecap="round"/>
-      <line x1={620} y1={145} x2={780} y2={145} stroke="rgba(255,255,255,0.1)" strokeWidth={2} strokeDasharray="4 4" strokeLinecap="round"/>
-      <polygon points="792,145 780,138 780,152" fill="rgba(255,255,255,0.2)"/>
+      <rect x={18} y={18} width={764} height={284} rx={18} fill="rgba(255,255,255,0.018)" stroke="rgba(255,255,255,0.055)" />
+      <path d="M 42 160 H 758" stroke="#111827" strokeWidth={22} strokeLinecap="round" opacity={0.74} />
+      <path d="M 42 160 H 758" stroke="url(#flowTrunkLanding)" strokeWidth={5} strokeLinecap="round" />
+      <path d="M 632 160 H 758" stroke="rgba(255,255,255,0.2)" strokeWidth={5} strokeLinecap="round" strokeDasharray="10 12" />
 
-      {/* ── MILESTONES ── */}
-      <circle cx={56}  cy={145} r={10} fill="#15803d" stroke="#4ade80" strokeWidth={1.5}/>
-      <text x={56}  y={149} textAnchor="middle" fill="white" fontSize={8} fontWeight="bold" fontFamily="Inter,sans-serif">✓</text>
-      <text x={56}  y={169} textAnchor="middle" fill="#86efac" fontSize={9} fontFamily="Inter,sans-serif">Kickoff</text>
+      <g fontFamily="Inter, system-ui, sans-serif">
+        <text x={46} y={42} fill="rgba(255,255,255,0.32)" fontSize={10} fontWeight={800} letterSpacing="0.18em">FLOW MAP</text>
+        <text x={46} y={60} fill="rgba(255,255,255,0.56)" fontSize={11}>Features branch from phases and merge when complete.</text>
+      </g>
 
-      <circle cx={400} cy={145} r={22} fill="#7c3aed" fillOpacity={0.08}/>
-      <circle cx={400} cy={145} r={15} fill="#7c3aed" stroke="#a78bfa" strokeWidth={1.5} filter="url(#glow2)"/>
-      <text x={400} y={149} textAnchor="middle" fill="white" fontSize={11} fontWeight="bold" fontFamily="Inter,sans-serif">⚡</text>
-      <text x={400} y={181} textAnchor="middle" fill="#c4b5fd" fontSize={9} fontWeight="600" fontFamily="Inter,sans-serif">Designing</text>
+      <path d="M 104 160 C 126 160 124 72 160 72 H 292 C 326 72 314 160 348 160" fill="none" stroke="#22c55e" strokeWidth={2.4} strokeLinecap="round" opacity={0.62} />
+      <path d="M 132 160 C 156 160 150 244 188 244 H 292 C 326 244 314 160 348 160" fill="none" stroke="#22c55e" strokeWidth={2.4} strokeLinecap="round" opacity={0.62} />
+      {[104,132,348].map((x, i) => <circle key={`green-${i}`} cx={x} cy={160} r={5.2} fill="#22c55e" />)}
 
-      <circle cx={620} cy={145} r={10} fill="rgba(10,6,20,0.96)" stroke="rgba(255,255,255,0.1)" strokeWidth={1.5}/>
-      <text x={620} y={149} textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize={8} fontFamily="Inter,sans-serif">○</text>
-      <text x={620} y={169} textAnchor="middle" fill="rgba(255,255,255,0.22)" fontSize={9} fontFamily="Inter,sans-serif">Phase 1</text>
+      <rect x={154} y={46} width={154} height={52} rx={11} fill="rgba(34,197,94,0.11)" stroke="rgba(34,197,94,0.42)" />
+      <circle cx={176} cy={72} r={12} fill="#22c55e" filter="url(#landingNodeGlow)" />
+      <text x={198} y={69} fill="rgba(255,255,255,0.9)" fontSize={12} fontFamily="Inter, system-ui, sans-serif" fontWeight={760}>Auth and login</text>
+      <text x={198} y={85} fill="#86efac" fontSize={9} fontFamily="Inter, system-ui, sans-serif" fontWeight={800}>MERGED 100%</text>
 
-      <circle cx={730} cy={145} r={9} fill="rgba(10,6,20,0.96)" stroke="rgba(255,255,255,0.08)" strokeWidth={1.5}/>
-      <text x={730} y={149} textAnchor="middle" fill="rgba(255,255,255,0.15)" fontSize={7} fontFamily="Inter,sans-serif">○</text>
-      <text x={730} y={167} textAnchor="middle" fill="rgba(255,255,255,0.18)" fontSize={8} fontFamily="Inter,sans-serif">Review</text>
+      <rect x={154} y={218} width={154} height={52} rx={11} fill="rgba(34,197,94,0.11)" stroke="rgba(34,197,94,0.42)" />
+      <circle cx={176} cy={244} r={12} fill="#22c55e" filter="url(#landingNodeGlow)" />
+      <text x={198} y={241} fill="rgba(255,255,255,0.9)" fontSize={12} fontFamily="Inter, system-ui, sans-serif" fontWeight={760}>Kanban core</text>
+      <text x={198} y={257} fill="#86efac" fontSize={9} fontFamily="Inter, system-ui, sans-serif" fontWeight={800}>MERGED 100%</text>
 
-      {/* ── KICKOFF BRANCHES — fork@80, line 132→204, merge ends@300, gap to Designing=100px ── */}
+      <path d="M 430 160 C 456 160 448 82 486 82 H 632" fill="none" stroke="#8b5cf6" strokeWidth={2.2} strokeLinecap="round" opacity={0.58} />
+      <path d="M 458 160 C 484 160 478 238 516 238 H 632" fill="none" stroke="#06b6d4" strokeWidth={2.2} strokeLinecap="round" opacity={0.52} />
+      {[430,458,632].map((x, i) => <circle key={`active-${i}`} cx={x} cy={160} r={5.2} fill={i === 1 ? '#06b6d4' : '#8b5cf6'} />)}
 
-      {/* Auth & Login — above, bY=57 */}
-      <path d="M 80 145 C 124 145, 132 57, 132 57" fill="none" stroke="#4ade80" strokeWidth={1.5} strokeOpacity={0.7}/>
-      <line x1={132} y1={57} x2={204} y2={57} stroke="#4ade80" strokeWidth={1.5} strokeOpacity={0.6}/>
-      <path d="M 204 57 C 224 57, 284 145, 300 145" fill="none" stroke="#4ade80" strokeWidth={1.5} strokeOpacity={0.55}/>
-      <circle cx={150} cy={57} r={4.5} fill="#4ade80" strokeOpacity={0}/>
-      <circle cx={168} cy={57} r={4.5} fill="#4ade80" strokeOpacity={0}/>
-      <circle cx={186} cy={57} r={4.5} fill="#4ade80" strokeOpacity={0}/>
-      <rect  x={104}  y={21} width={48} height={14} rx={4} fill="#4ade8022"/>
-      <text x={128}  y={31} textAnchor="middle" fill="#4ade80" fontSize={7.5} fontFamily="Inter,sans-serif" fontWeight={700} letterSpacing="0.08em">MERGED</text>
-      <rect  x={104}  y={39} width={128} height={36} rx={8} fill="#4ade8020" stroke="#4ade80" strokeWidth={0.9} strokeOpacity={0.7}/>
-      <text x={113}  y={54} fill="rgba(255,255,255,0.82)" fontSize={9.5} fontFamily="Inter,sans-serif" fontWeight={500}>Auth &amp; Login</text>
-      <rect  x={113}  y={63} width={76} height={2.5} rx={1.25} fill="rgba(255,255,255,0.07)"/>
-      <rect  x={113}  y={63} width={76} height={2.5} rx={1.25} fill="#4ade80"/>
-      <text x={222}  y={67} textAnchor="end" fill="#4ade80" fontSize={9} fontFamily="Inter,sans-serif" fontWeight={700}>100%</text>
+      <rect x={486} y={56} width={156} height={52} rx={11} fill="url(#flowCardActiveLanding)" stroke="rgba(139,92,246,0.44)" />
+      <circle cx={508} cy={82} r={12} fill="#8b5cf6" filter="url(#landingNodeGlow)" />
+      <text x={530} y={79} fill="rgba(255,255,255,0.9)" fontSize={12} fontFamily="Inter, system-ui, sans-serif" fontWeight={760}>Flow engine</text>
+      <rect x={530} y={91} width={72} height={3} rx={1.5} fill="rgba(255,255,255,0.11)" />
+      <rect x={530} y={91} width={49} height={3} rx={1.5} fill="#8b5cf6" />
+      <text x={630} y={96} textAnchor="end" fill="#c4b5fd" fontSize={9} fontFamily="Inter, system-ui, sans-serif" fontWeight={820}>68%</text>
 
-      {/* Kanban Board — below, bY=233 */}
-      <path d="M 80 145 C 124 145, 132 233, 132 233" fill="none" stroke="#4ade80" strokeWidth={1.5} strokeOpacity={0.7}/>
-      <line x1={132} y1={233} x2={204} y2={233} stroke="#4ade80" strokeWidth={1.5} strokeOpacity={0.6}/>
-      <path d="M 204 233 C 224 233, 284 145, 300 145" fill="none" stroke="#4ade80" strokeWidth={1.5} strokeOpacity={0.55}/>
-      <circle cx={150} cy={233} r={4.5} fill="#4ade80" strokeOpacity={0}/>
-      <circle cx={168} cy={233} r={4.5} fill="#4ade80" strokeOpacity={0}/>
-      <circle cx={186} cy={233} r={4.5} fill="#4ade80" strokeOpacity={0}/>
-      <rect  x={104}  y={247} width={48} height={14} rx={4} fill="#4ade8022"/>
-      <text x={128}  y={257} textAnchor="middle" fill="#4ade80" fontSize={7.5} fontFamily="Inter,sans-serif" fontWeight={700} letterSpacing="0.08em">MERGED</text>
-      <rect  x={104}  y={215} width={128} height={36} rx={8} fill="#4ade8020" stroke="#4ade80" strokeWidth={0.9} strokeOpacity={0.7}/>
-      <text x={113}  y={230} fill="rgba(255,255,255,0.82)" fontSize={9.5} fontFamily="Inter,sans-serif" fontWeight={500}>Kanban Board</text>
-      <rect  x={113}  y={239} width={76} height={2.5} rx={1.25} fill="rgba(255,255,255,0.07)"/>
-      <rect  x={113}  y={239} width={76} height={2.5} rx={1.25} fill="#4ade80"/>
-      <text x={222}  y={243} textAnchor="end" fill="#4ade80" fontSize={9} fontFamily="Inter,sans-serif" fontWeight={700}>100%</text>
+      <rect x={516} y={212} width={156} height={52} rx={11} fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.34)" />
+      <circle cx={538} cy={238} r={12} fill="#06b6d4" filter="url(#landingNodeGlow)" />
+      <text x={560} y={235} fill="rgba(255,255,255,0.9)" fontSize={12} fontFamily="Inter, system-ui, sans-serif" fontWeight={760}>Standup brief</text>
+      <rect x={560} y={247} width={72} height={3} rx={1.5} fill="rgba(255,255,255,0.11)" />
+      <rect x={560} y={247} width={31} height={3} rx={1.5} fill="#06b6d4" />
+      <text x={660} y={252} textAnchor="end" fill="#67e8f9" fontSize={9} fontFamily="Inter, system-ui, sans-serif" fontWeight={820}>43%</text>
 
-      {/* ── DESIGNING BRANCHES — fork@430, line 482→590, no merge ── */}
+      <g fontFamily="Inter, system-ui, sans-serif">
+        <circle cx={72} cy={160} r={17} fill="#0b1220" stroke="#22c55e" strokeWidth={2} />
+        <circle cx={72} cy={160} r={7} fill="#22c55e" />
+        <text x={72} y={194} textAnchor="middle" fill="#86efac" fontSize={10} fontWeight={800}>Kickoff</text>
 
-      {/* Flow Engine — above, bY=57 */}
-      <path d="M 430 145 C 474 145, 482 57, 482 57" fill="none" stroke="#7c3aed" strokeWidth={1.5} strokeOpacity={0.5}/>
-      <line x1={482} y1={57} x2={590} y2={57} stroke="#7c3aed" strokeWidth={1.5} strokeOpacity={0.45}/>
-      <circle cx={509} cy={57} r={4.5} fill="#7c3aed" strokeOpacity={0}/>
-      <circle cx={536} cy={57} r={4.5} fill="#7c3aed" strokeOpacity={0}/>
-      <circle cx={563} cy={57} r={4.5} fill="rgba(10,6,20,0.92)" stroke="#7c3aed" strokeWidth={1.2} strokeOpacity={0.45}/>
-      <rect  x={472}  y={39} width={128} height={36} rx={8} fill="#7c3aed0e" stroke="#7c3aed" strokeWidth={0.6} strokeOpacity={0.38}/>
-      <text x={481}  y={54} fill="rgba(255,255,255,0.82)" fontSize={9.5} fontFamily="Inter,sans-serif" fontWeight={500}>Flow Engine</text>
-      <rect  x={481}  y={63} width={76} height={2.5} rx={1.25} fill="rgba(255,255,255,0.07)"/>
-      <rect  x={481}  y={63} width={49.4} height={2.5} rx={1.25} fill="#7c3aed"/>
-      <text x={590}  y={67} textAnchor="end" fill="#7c3aed" fontSize={9} fontFamily="Inter,sans-serif" fontWeight={700}>65%</text>
+        <circle cx={400} cy={160} r={24} fill="#1f123f" stroke="#a78bfa" strokeWidth={2.2} filter="url(#landingNodeGlow)" />
+        <circle cx={400} cy={160} r={7} fill="#a78bfa" />
+        <text x={400} y={198} textAnchor="middle" fill="#ddd6fe" fontSize={10} fontWeight={850}>Designing</text>
 
-      {/* Dashboard — below, bY=233 */}
-      <path d="M 430 145 C 474 145, 482 233, 482 233" fill="none" stroke="#a78bfa" strokeWidth={1.5} strokeOpacity={0.5}/>
-      <line x1={482} y1={233} x2={590} y2={233} stroke="#a78bfa" strokeWidth={1.5} strokeOpacity={0.45}/>
-      <circle cx={509} cy={233} r={4.5} fill="#a78bfa" strokeOpacity={0}/>
-      <circle cx={536} cy={233} r={4.5} fill="rgba(10,6,20,0.92)" stroke="#a78bfa" strokeWidth={1.2} strokeOpacity={0.45}/>
-      <circle cx={563} cy={233} r={4.5} fill="rgba(10,6,20,0.92)" stroke="#a78bfa" strokeWidth={1.2} strokeOpacity={0.45}/>
-      <rect  x={472}  y={215} width={128} height={36} rx={8} fill="#a78bfa0e" stroke="#a78bfa" strokeWidth={0.6} strokeOpacity={0.38}/>
-      <text x={481}  y={230} fill="rgba(255,255,255,0.82)" fontSize={9.5} fontFamily="Inter,sans-serif" fontWeight={500}>Dashboard</text>
-      <rect  x={481}  y={239} width={76} height={2.5} rx={1.25} fill="rgba(255,255,255,0.07)"/>
-      <rect  x={481}  y={239} width={31.9} height={2.5} rx={1.25} fill="#a78bfa"/>
-      <text x={590}  y={243} textAnchor="end" fill="#a78bfa" fontSize={9} fontFamily="Inter,sans-serif" fontWeight={700}>42%</text>
+        <circle cx={632} cy={160} r={16} fill="#080a12" stroke="rgba(255,255,255,0.22)" strokeWidth={1.6} />
+        <circle cx={632} cy={160} r={4} fill="rgba(255,255,255,0.28)" />
+        <text x={632} y={194} textAnchor="middle" fill="rgba(255,255,255,0.34)" fontSize={10} fontWeight={760}>Build</text>
 
-      {/* ── PHASE 1 BRANCH — fork@645, line 697→755, planned ── */}
-      <path d="M 645 145 C 689 145, 697 57, 697 57" fill="none" stroke="#2563eb" strokeWidth={1.5} strokeOpacity={0.4}/>
-      <line x1={697} y1={57} x2={755} y2={57} stroke="#2563eb" strokeWidth={1.5} strokeOpacity={0.3}/>
-      <rect  x={661}  y={39} width={100} height={36} rx={8} fill="#2563eb0e" stroke="#2563eb" strokeWidth={0.6} strokeOpacity={0.28}/>
-      <text x={670}  y={54} fill="rgba(255,255,255,0.5)" fontSize={9.5} fontFamily="Inter,sans-serif" fontWeight={500}>Calendar</text>
-      <text x={711}  y={64} textAnchor="middle" fill="rgba(255,255,255,0.28)" fontSize={8} fontFamily="Inter,sans-serif">Planned  0%</text>
+        <circle cx={736} cy={160} r={14} fill="#080a12" stroke="rgba(255,255,255,0.14)" strokeWidth={1.4} />
+        <circle cx={736} cy={160} r={3} fill="rgba(255,255,255,0.18)" />
+        <text x={736} y={191} textAnchor="middle" fill="rgba(255,255,255,0.24)" fontSize={9} fontWeight={760}>Launch</text>
+      </g>
     </svg>
   )
 }
