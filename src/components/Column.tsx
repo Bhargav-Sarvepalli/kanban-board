@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import type { Task, Status } from '../types'
 import TaskCard from './TaskCard'
@@ -11,6 +12,7 @@ interface Props {
   onAddTask: (status: Status) => void
   profiles?: Record<string, Profile>
   userId?: string | null
+  maxVisibleTasks?: number
 }
 
 const columnConfig: Record<Status, {
@@ -70,18 +72,21 @@ const columnConfig: Record<Status, {
   },
 }
 
-function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: Props) {
+function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId, maxVisibleTasks = 6 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id })
+  const [expanded, setExpanded] = useState(false)
   const config = columnConfig[id]
   const isDone = id === 'done'
+  const shouldLimit = tasks.length > maxVisibleTasks
+  const visibleTasks = shouldLimit && !expanded ? tasks.slice(0, maxVisibleTasks) : tasks
+  const hiddenCount = tasks.length - visibleTasks.length
 
   return (
     <div
       style={{
-        width: 'min(300px, 85vw)',
-        minWidth: 'min(300px, 85vw)',
-        height: '100%',
-        minHeight: '70vh',
+        width: 'clamp(320px, 23vw, 370px)',
+        minWidth: 'clamp(320px, 23vw, 370px)',
+        minHeight: 'calc(100vh - 230px)',
         background: isOver ? config.bg : 'rgba(255,255,255,0.045)',
         border: `1px solid ${isOver ? config.border : 'rgba(255,255,255,0.16)'}`,
         boxShadow: isOver ? `0 0 30px ${config.glow}` : '0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
@@ -90,6 +95,7 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: P
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
+        alignSelf: 'stretch',
         transition: 'all 0.3s',
       }}
     >
@@ -130,7 +136,7 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: P
         style={{
           flex: 1, padding: '12px',
           display: 'flex', flexDirection: 'column', gap: '8px',
-          minHeight: '400px',
+          minHeight: '360px',
         }}
       >
         {tasks.length === 0 ? (
@@ -195,7 +201,7 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: P
           </div>
         ) : (
           <>
-            {tasks.map(task => (
+            {visibleTasks.map(task => (
               <TaskCard
                 key={task.id}
                 task={task}
@@ -205,6 +211,28 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: P
                 userId={userId}
               />
             ))}
+
+            {shouldLimit && (
+              <button
+                type="button"
+                onClick={() => setExpanded(v => !v)}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: `1px solid ${config.border}`,
+                  background: expanded ? 'rgba(255,255,255,0.055)' : config.bg,
+                  color: config.color,
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontFamily: 'Inter, sans-serif',
+                  fontWeight: 700,
+                  letterSpacing: '0',
+                  boxShadow: expanded ? 'none' : `0 0 18px ${config.glow}`,
+                }}
+              >
+                {expanded ? 'Show fewer' : `Show ${hiddenCount} more`}
+              </button>
+            )}
 
             {/* Done column celebration */}
             {isDone && tasks.length > 0 && (

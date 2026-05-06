@@ -96,7 +96,7 @@ Rules:
 NexTask product map:
 - Personal is private work. Workspace is shared team work.
 - Project Dashboard shows project health, links, features, and activity.
-- Board moves tasks through todo, in_progress, in_review, done.
+- Board moves tasks through todo, in_progress, in_review, done. The same task list can be viewed as Project/All, My work, This week, Backlog, or Done so managers and members do not maintain duplicate boards.
 - Flow is the manager map: phases are the trunk, features are branches, and a branch is merge-ready when its tasks are done.
 - In Flow, clicking a branch opens the Branch Detail drawer with task health, blocked/overdue signals, recent history, Open board, and Merge preview.
 - Merge preview shows done/open/risk counts, blocks normal merge until all branch tasks are done, allows force merge with a note, and records Flow history.

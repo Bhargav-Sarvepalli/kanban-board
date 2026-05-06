@@ -28,9 +28,21 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 type AppView = 'today' | 'board' | 'calendar' | 'flow' | 'dashboard' | 'pomodoro'
+type BoardFocus = 'project' | 'mine' | 'week' | 'backlog' | 'done'
 
 function isAppView(value: string | null): value is AppView {
   return value === 'today' || value === 'board' || value === 'calendar' || value === 'flow' || value === 'dashboard' || value === 'pomodoro'
+}
+
+function isBoardFocus(value: string | null): value is BoardFocus {
+  return value === 'project' || value === 'mine' || value === 'week' || value === 'backlog' || value === 'done'
+}
+
+function parseTaskDate(value?: string | null) {
+  if (!value) return null
+  const [y, m, d] = value.split('-').map(Number)
+  if (!y || !m || !d) return null
+  return new Date(y, m - 1, d)
 }
 
 function App() {
@@ -84,6 +96,7 @@ function App() {
 
   const [defaultViewPref, setDefaultViewPref] = useState<AppView>(getSavedDefaultView)
   const [view, setView] = useState<AppView>(defaultViewPref)
+  const [boardFocus, setBoardFocus] = useState<BoardFocus>('project')
 
   const effectiveView = (view === 'flow' && !currentProject) ? 'board'
     : (view === 'dashboard' && !currentProject) ? 'today'
@@ -97,6 +110,7 @@ function App() {
       workspace?: Workspace | null
       project?: Project | null
       feature?: { id: string; name: string } | null
+      board?: BoardFocus
       replace?: boolean
     },
   ) => {
@@ -110,6 +124,8 @@ function App() {
       params.set('feature', opts.feature.id)
       params.set('featureName', opts.feature.name)
     }
+    const boardForUrl = opts?.board ?? boardFocus
+    if (nextView === 'board') params.set('board', boardForUrl)
     const next = `/app?${params.toString()}`
     if (`${location.pathname}${location.search}` !== next) {
       navigate(next, { replace: opts?.replace ?? false })
@@ -124,9 +140,13 @@ function App() {
     const projectId = params.get('project')
     const featureId = params.get('feature')
     const featureName = params.get('featureName')
+    const routeBoardFocus = params.get('board')
 
     if (isAppView(routeView) && routeView !== view) {
       queueMicrotask(() => setView(routeView))
+    }
+    if (isBoardFocus(routeBoardFocus) && routeBoardFocus !== boardFocus) {
+      queueMicrotask(() => setBoardFocus(routeBoardFocus))
     }
 
     if (!workspaceId && currentWorkspace) {
@@ -159,7 +179,7 @@ function App() {
     } else if (isAppView(routeView) && routeView !== 'board') {
       queueMicrotask(() => setBranchFilter(null))
     }
-  }, [location.pathname, location.search, workspaces, projects, currentWorkspace, currentWorkspace?.id, currentProject, currentProject?.id, view])
+  }, [location.pathname, location.search, workspaces, projects, currentWorkspace, currentWorkspace?.id, currentProject, currentProject?.id, view, boardFocus])
 
   const prevWsRef = useRef<string | undefined>(currentWorkspace?.id)
   useEffect(() => {
@@ -344,31 +364,107 @@ function App() {
       mode: currentProject ? 'feature' as const : 'assignee' as const,
     }
     setBranchFilter(nextFilter)
+    setBoardFocus('project')
     setView('board')
     updateAppUrl('board', {
       feature: nextFilter?.mode === 'feature' ? { id: nextFilter.id, name: nextFilter.name } : null,
+      board: 'project',
     })
   }
 
   const handleViewChange = (v: AppView) => {
     setView(v)
     if (v !== 'board') setBranchFilter(null)
-    updateAppUrl(v, { feature: null })
+    updateAppUrl(v, { feature: null, board: boardFocus })
   }
 
   const total     = tasks.length
   const completed = tasks.filter(t => t.status === 'done').length
+  const today     = new Date(new Date().setHours(0, 0, 0, 0))
+  const weekEnd   = new Date(today)
+  weekEnd.setDate(today.getDate() + 7)
   const overdue   = tasks.filter(t => {
-    if (!t.due_date) return false
-    const [y, m, d] = t.due_date.split('-').map(Number)
-    return new Date(y, m - 1, d) < new Date(new Date().setHours(0, 0, 0, 0))
+    const due = parseTaskDate(t.due_date)
+    return due ? due < today && t.status !== 'done' : false
   }).length
 
-  const filteredTasks = branchFilter
+  const scopedTasks = branchFilter
     ? tasks.filter(t => branchFilter.mode === 'feature'
         ? t.feature_id === branchFilter.id
         : t.assignee_id === branchFilter.id)
     : tasks
+
+  const isMyTask = (task: Task) => {
+    if (!userId) return false
+    if (task.assignee_id) return task.assignee_id === userId
+    return task.user_id === userId
+  }
+  const isDueThisWeek = (task: Task) => {
+    const due = parseTaskDate(task.due_date)
+    return Boolean(due && due <= weekEnd && task.status !== 'done')
+  }
+  const isBacklogTask = (task: Task) => !task.due_date && task.status !== 'done'
+  const matchesSearch = (task: Task) => {
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return task.title.toLowerCase().includes(q) || (task.description ?? '').toLowerCase().includes(q)
+  }
+  const byDueThenCreated = (a: Task, b: Task) => {
+    const ad = parseTaskDate(a.due_date)?.getTime() ?? Number.MAX_SAFE_INTEGER
+    const bd = parseTaskDate(b.due_date)?.getTime() ?? Number.MAX_SAFE_INTEGER
+    if (ad !== bd) return ad - bd
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  }
+  const filterByBoardFocus = (task: Task) => {
+    if (boardFocus === 'mine') return isMyTask(task)
+    if (boardFocus === 'week') return isDueThisWeek(task)
+    if (boardFocus === 'backlog') return isBacklogTask(task)
+    if (boardFocus === 'done') return task.status === 'done'
+    return true
+  }
+  const boardTasks = scopedTasks
+    .filter(filterByBoardFocus)
+    .filter(matchesSearch)
+    .sort(boardFocus === 'week' ? byDueThenCreated : (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+
+  const boardCounts: Record<BoardFocus, number> = {
+    project: scopedTasks.length,
+    mine: scopedTasks.filter(isMyTask).length,
+    week: scopedTasks.filter(isDueThisWeek).length,
+    backlog: scopedTasks.filter(isBacklogTask).length,
+    done: scopedTasks.filter(t => t.status === 'done').length,
+  }
+  const openBoardTasks = scopedTasks.filter(t => t.status !== 'done').length
+  const boardDoneTasks = scopedTasks.filter(t => t.status === 'done').length
+  const boardProgress = scopedTasks.length > 0 ? Math.round((boardDoneTasks / scopedTasks.length) * 100) : 0
+  const boardTitle = branchFilter
+    ? `${branchFilter.mode === 'feature' ? 'Feature' : 'Owner'} board`
+    : currentProject
+      ? 'Project board'
+      : currentWorkspace
+        ? 'Workspace board'
+        : 'Personal board'
+  const boardDescription = boardFocus === 'mine'
+    ? 'Only work owned by you, pulled from the same shared task list.'
+    : boardFocus === 'week'
+      ? 'Due, overdue, and review work that needs attention in the next 7 days.'
+      : boardFocus === 'backlog'
+        ? 'Open work without a date yet. Keep ideas here until they are ready to schedule.'
+        : boardFocus === 'done'
+          ? 'Completed work, kept out of the active execution board.'
+          : currentProject
+            ? 'The shared execution board for this project. Flow branches open into this same board.'
+            : currentWorkspace
+              ? 'Shared workspace tasks that are not tied to a project.'
+              : 'Your private board for personal tasks and solo projects.'
+  const boardFocusOptions: { id: BoardFocus; label: string; hint: string }[] = [
+    { id: 'project', label: currentProject ? 'Project' : currentWorkspace ? 'Workspace' : 'All', hint: 'Shared source' },
+    { id: 'mine', label: 'My work', hint: 'Assigned to me' },
+    { id: 'week', label: 'This week', hint: 'Due soon' },
+    { id: 'backlog', label: 'Backlog', hint: 'No due date' },
+    { id: 'done', label: 'Done', hint: 'Completed' },
+  ]
+  const visibleColumns = boardFocus === 'done' ? COLUMNS.filter(col => col.id === 'done') : COLUMNS
 
   const isFlow      = effectiveView === 'flow'
   const isDashboard = effectiveView === 'dashboard'
@@ -488,8 +584,64 @@ function App() {
         {/* CONTENT AREA */}
         <div style={{ flex: 1, overflow: isFull ? 'hidden' : 'auto', padding: isFull ? '0' : '20px 24px', minHeight: 0 }}>
 
-          {branchFilter && effectiveView === 'board' && (
-            <div style={{ marginBottom: '14px' }}>
+          {effectiveView === 'board' && (
+            <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '14px' }}>
+              <div style={{ minWidth: '260px', flex: '1 1 320px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '5px' }}>
+                  <h2 style={{ color: '#f7f7fb', fontSize: '18px', lineHeight: 1.2, fontWeight: 750, margin: 0, letterSpacing: '-0.02em' }}>
+                    {boardTitle}
+                  </h2>
+                  {branchFilter && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'rgba(124,58,237,0.16)', border: '1px solid rgba(167,139,250,0.42)', borderRadius: '999px', padding: '4px 9px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#a78bfa', boxShadow: '0 0 10px rgba(167,139,250,0.75)' }} />
+                      <span style={{ color: '#ddd6fe', fontSize: '12px', fontWeight: 700 }}>{branchFilter.name}</span>
+                      <button type="button" onClick={() => { setBranchFilter(null); updateAppUrl('board', { feature: null, board: boardFocus }) }} aria-label="Clear board filter"
+                        style={{ background: 'none', border: 'none', color: '#c4b5fd', cursor: 'pointer', fontSize: '12px', padding: 0, lineHeight: 1 }}>
+                        x
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <p style={{ color: '#b8b8cc', fontSize: '13px', lineHeight: 1.45, margin: 0, maxWidth: '720px' }}>
+                  {boardDescription}
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', border: '1px solid rgba(255,255,255,0.16)', borderRadius: '12px', background: 'rgba(255,255,255,0.045)' }}>
+                  <div>
+                    <p style={{ color: '#f7f7fb', fontSize: '12px', fontWeight: 800, margin: 0 }}>{boardProgress}%</p>
+                    <p style={{ color: '#9f9fb6', fontSize: '10px', margin: 0 }}>progress</p>
+                  </div>
+                  <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.14)' }} />
+                  <div>
+                    <p style={{ color: '#f7f7fb', fontSize: '12px', fontWeight: 800, margin: 0 }}>{openBoardTasks}</p>
+                    <p style={{ color: '#9f9fb6', fontSize: '10px', margin: 0 }}>open</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.04)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+                  {boardFocusOptions.map(opt => {
+                    const active = boardFocus === opt.id
+                    return (
+                      <button key={opt.id} type="button"
+                        onClick={() => {
+                          setBoardFocus(opt.id)
+                          updateAppUrl('board', { board: opt.id, feature: branchFilter?.mode === 'feature' ? { id: branchFilter.id, name: branchFilter.name } : null })
+                        }}
+                        title={opt.hint}
+                        style={{ border: active ? '1px solid rgba(167,139,250,0.72)' : '1px solid transparent', background: active ? 'rgba(124,58,237,0.26)' : 'transparent', color: active ? '#f7f7fb' : '#b8b8cc', borderRadius: '9px', padding: '8px 10px', cursor: 'pointer', minWidth: '78px', fontSize: '12px', fontFamily: 'Inter, sans-serif', fontWeight: active ? 800 : 650 }}>
+                        <span>{opt.label}</span>
+                        <span style={{ marginLeft: '6px', color: active ? '#c4b5fd' : '#8d8da3', fontSize: '11px', fontFamily: 'JetBrains Mono, monospace' }}>{boardCounts[opt.id]}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {branchFilter && effectiveView === 'board' && branchFilter.id === '__legacy__' && (
+            <div style={{ display: 'none', marginBottom: '14px' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '5px', padding: '3px 10px' }}>
                 <span style={{ color: '#a78bfa', fontSize: '12px' }}>
                   {branchFilter.mode === 'feature' ? 'Feature' : 'Owner'}: {branchFilter.name}
@@ -509,13 +661,14 @@ function App() {
             <TodayView tasks={tasks} onOpen={setSelectedTask} onAddTask={() => handleAddTask('todo')} userId={userId} onTaskUpdated={refetchTasks} />
           ) : effectiveView === 'board' ? (
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-              <div style={{ display: 'flex', alignItems: 'stretch', gap: '14px', overflowX: 'auto', paddingBottom: '16px', minHeight: '70vh' }}>
-                {COLUMNS.map((col, i) => (
+              <div style={{ display: 'flex', alignItems: 'stretch', gap: '14px', overflowX: 'auto', paddingBottom: '18px', minHeight: 'calc(100vh - 230px)' }}>
+                {visibleColumns.map((col, i) => (
                   <motion.div key={col.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: i * 0.05 }} style={{ display: 'flex' }}>
                     <Column id={col.id}
-                      tasks={filteredTasks.filter(t => t.status === col.id).filter(t => t.title.toLowerCase().includes(search.toLowerCase()))}
+                      tasks={boardTasks.filter(t => t.status === col.id)}
                       onDeleted={refetchTasks} onOpen={setSelectedTask}
-                      onAddTask={handleAddTask} profiles={profiles} userId={userId} />
+                      onAddTask={handleAddTask} profiles={profiles} userId={userId}
+                      maxVisibleTasks={boardFocus === 'done' ? 10 : 6} />
                   </motion.div>
                 ))}
               </div>
