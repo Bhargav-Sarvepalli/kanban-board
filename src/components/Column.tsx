@@ -81,7 +81,7 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: P
         width: 'min(300px, 85vw)',
         minWidth: 'min(300px, 85vw)',
         height: '100%',
-        minHeight: 0,
+        minHeight: '70vh',
         background: isOver ? config.bg : 'rgba(255,255,255,0.045)',
         border: `1px solid ${isOver ? config.border : 'rgba(255,255,255,0.16)'}`,
         boxShadow: isOver ? `0 0 30px ${config.glow}` : '0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
@@ -130,9 +130,7 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId }: P
         style={{
           flex: 1, padding: '12px',
           display: 'flex', flexDirection: 'column', gap: '8px',
-          minHeight: 0,
-          overflowY: 'auto',
-          overscrollBehavior: 'contain',
+          minHeight: '400px',
         }}
       >
         {tasks.length === 0 ? (

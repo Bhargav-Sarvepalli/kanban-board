@@ -508,9 +508,9 @@ function App() {
             <TodayView tasks={tasks} onOpen={setSelectedTask} onAddTask={() => handleAddTask('todo')} userId={userId} onTaskUpdated={refetchTasks} />
           ) : effectiveView === 'board' ? (
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-              <div style={{ display: 'flex', alignItems: 'stretch', gap: '14px', overflowX: 'auto', paddingBottom: '16px', height: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'stretch', gap: '14px', overflowX: 'auto', paddingBottom: '16px', minHeight: '70vh' }}>
                 {COLUMNS.map((col, i) => (
-                  <motion.div key={col.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: i * 0.05 }} style={{ height: '100%', display: 'flex' }}>
+                  <motion.div key={col.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: i * 0.05 }} style={{ display: 'flex' }}>
                     <Column id={col.id}
                       tasks={filteredTasks.filter(t => t.status === col.id).filter(t => t.title.toLowerCase().includes(search.toLowerCase()))}
                       onDeleted={refetchTasks} onOpen={setSelectedTask}
