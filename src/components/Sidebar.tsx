@@ -287,33 +287,31 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* ── PROJECTS (only when workspace active) ── */}
-      {currentWorkspace && (
-        <>
-          <div style={S.divider()} />
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            {!collapsed && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px' }}>
-                <button
-                  onClick={() => setShowProjects(s => !s)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8f8fa6', fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 700, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '5px', padding: 0, textTransform: 'uppercase' }}>
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: showProjects ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
-                    <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Projects
-                </button>
-                <button
-                  onClick={onNewProject}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8f8fa6', padding: '2px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#7c3aed' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#8f8fa6' }}
-                  title="New project">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                </button>
-              </div>
-            )}
+      {/* ── PROJECTS ── */}
+      <div style={S.divider()} />
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {!collapsed && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px' }}>
+            <button
+              onClick={() => setShowProjects(s => !s)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8f8fa6', fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 700, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '5px', padding: 0, textTransform: 'uppercase' }}>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: showProjects ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+                <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Projects
+            </button>
+            <button
+              onClick={onNewProject}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8f8fa6', padding: '2px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#7c3aed' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#8f8fa6' }}
+              title="New project">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
+        )}
 
             {showProjects && (
               <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 8px' }}>
@@ -347,13 +345,9 @@ export default function Sidebar({
                 ))}
               </div>
             )}
-          </div>
-        </>
-      )}
+      </div>
 
       {/* ── BOTTOM: Settings + User ── */}
-      {!currentWorkspace && <div style={{ flex: 1, minHeight: 0 }} />}
-
       <div style={{ borderTop: '1px solid #2d2d40', padding: '8px', flexShrink: 0 }}>
         <button
           onClick={onSettings}

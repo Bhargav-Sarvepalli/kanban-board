@@ -101,9 +101,9 @@ NexTask product map:
 - Calendar combines task dates and manual meeting entries.
 - Timer is a fullscreen focus clock with optional beats.
 - Standup mode should clarify risk, current progress, stale work, and decisions.
-- Project Creation Wizard is the guided setup for workspace projects. It opens from the plus button beside Projects in the sidebar.
-- Project Creation Wizard steps: project basics, collaborators, Flow phases, and feature branches. It is workspace-only right now, not Personal.
-- If the user says create a project, set up a project, plan a new launch, or asks for a project wizard, use open_project_wizard when a workspace is active. If they are in Personal, tell them project setup needs a workspace first.
+- Project Creation Wizard is the guided setup for Personal and workspace projects. It opens from the plus button beside Projects in the sidebar.
+- Project Creation Wizard steps: project basics, collaborators, Flow phases, and feature branches. In Personal, the project stays private unless the user invites someone.
+- If the user says create a project, set up a project, plan a new launch, or asks for a project wizard, use open_project_wizard. If they are in Personal, open the personal project setup.
 
 Manager and standup behavior:
 - Speak like a chief of staff. Start with health, then risks, then decisions.
@@ -228,7 +228,7 @@ const NEX_TOOLS = [
   },
   {
     name: 'open_project_wizard',
-    description: 'Open the guided Project Creation Wizard for workspace project setup, including project details, collaborators, Flow phases, and feature branches.',
+    description: 'Open the guided Project Creation Wizard for Personal or workspace project setup, including project details, collaborators, Flow phases, and feature branches.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
@@ -296,15 +296,9 @@ function localNexFallback(
   }
 
   if (wantsProjectSetup) {
-    if (!workspaceId) {
-      return {
-        speech: 'Project setup needs a workspace. I opened the workspace switcher.',
-        action: { type: 'open_workspace_panel', data: {} },
-      }
-    }
     return {
-      speech: 'Opening project setup.',
-      action: { type: 'open_project_wizard', data: { workspaceId } },
+      speech: workspaceId ? 'Opening workspace project setup.' : 'Opening personal project setup.',
+      action: { type: 'open_project_wizard', data: workspaceId ? { workspaceId } : {} },
     }
   }
 
@@ -463,15 +457,11 @@ export async function executeNexTool(
     }
 
     case 'open_project_wizard': {
-      if (!workspaceId) {
-        return {
-          result: 'Project setup lives inside a workspace. I opened the workspace switcher.',
-          action: { type: 'open_workspace_panel', data: {} },
-        }
-      }
       return {
-        result: 'Opening project setup. I will help shape the project, phases, team, and feature branches.',
-        action: { type: 'open_project_wizard', data: { workspaceId } },
+        result: workspaceId
+          ? 'Opening workspace project setup. I will help shape the project, phases, team, and feature branches.'
+          : 'Opening personal project setup. I will help shape the project, phases, and feature branches.',
+        action: { type: 'open_project_wizard', data: workspaceId ? { workspaceId } : {} },
       }
     }
 

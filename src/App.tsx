@@ -530,7 +530,7 @@ function App() {
             <CalendarView tasks={tasks} onOpenTask={setSelectedTask} contextKey={currentProject?.id ?? currentWorkspace?.id ?? userId ?? 'personal'} />
           ) : effectiveView === 'flow' && currentProject ? (
             <div style={{ height: '100%' }}>
-              <FlowGraph workspaceId={currentWorkspace?.id ?? ''} userId={userId}
+              <FlowGraph workspaceId={currentWorkspace?.id ?? null} userId={userId}
                 onBranchClick={handleBranchClick} projectId={currentProject.id}
                 onOpenStandup={() => setShowStandup(true)} />
             </div>
@@ -582,8 +582,8 @@ function App() {
         )}
       </AnimatePresence>
       <AnimatePresence>
-        {showProjectWizard && userId && currentWorkspace && (
-          <ProjectCreationWizard userId={userId} workspaceId={currentWorkspace.id}
+        {showProjectWizard && userId && (
+          <ProjectCreationWizard userId={userId} workspaceId={currentWorkspace?.id ?? null}
             onClose={() => setShowProjectWizard(false)}
             onCreated={p => { setShowProjectWizard(false); refetchProjects(); setCurrentProject(p); setBranchFilter(null); setView('board'); updateAppUrl('board', { project: p, feature: null }) }} />
         )}
@@ -616,7 +616,7 @@ function App() {
           <NexAssistant workspaceId={currentWorkspace?.id ?? null} userId={userId}
             projectId={currentProject?.id ?? null}
             isPro={isPro} nexEnabled={nexEnabled} onTaskCreated={refetchTasks}
-            onOpenProjectWizard={() => { if (currentWorkspace) setShowProjectWizard(true) }}
+            onOpenProjectWizard={() => setShowProjectWizard(true)}
             onOpenWorkspacePanel={() => setShowWorkspacePanel(true)}
             panelOpen={showSettings} />
         </NexErrorBoundary>
