@@ -661,9 +661,18 @@ function App() {
             <TodayView tasks={tasks} onOpen={setSelectedTask} onAddTask={() => handleAddTask('todo')} userId={userId} onTaskUpdated={refetchTasks} />
           ) : effectiveView === 'board' ? (
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-              <div style={{ display: 'flex', alignItems: 'stretch', gap: '14px', overflowX: 'auto', paddingBottom: '18px', minHeight: 'calc(100vh - 230px)' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: visibleColumns.length === 1 ? 'minmax(320px, 520px)' : 'repeat(4, minmax(260px, 1fr))',
+                alignItems: 'stretch',
+                gap: '12px',
+                overflowX: 'auto',
+                paddingBottom: '18px',
+                minHeight: 'calc(100vh - 230px)',
+                width: '100%',
+              }}>
                 {visibleColumns.map((col, i) => (
-                  <motion.div key={col.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: i * 0.05 }} style={{ display: 'flex' }}>
+                  <motion.div key={col.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: i * 0.05 }} style={{ display: 'flex', minWidth: 0 }}>
                     <Column id={col.id}
                       tasks={boardTasks.filter(t => t.status === col.id)}
                       onDeleted={refetchTasks} onOpen={setSelectedTask}

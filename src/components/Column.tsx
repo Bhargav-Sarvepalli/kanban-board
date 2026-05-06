@@ -84,9 +84,10 @@ function Column({ id, tasks, onDeleted, onOpen, onAddTask, profiles, userId, max
   return (
     <div
       style={{
-        width: 'clamp(320px, 23vw, 370px)',
-        minWidth: 'clamp(320px, 23vw, 370px)',
+        width: '100%',
+        minWidth: 0,
         minHeight: 'calc(100vh - 230px)',
+        boxSizing: 'border-box',
         background: isOver ? config.bg : 'rgba(255,255,255,0.045)',
         border: `1px solid ${isOver ? config.border : 'rgba(255,255,255,0.16)'}`,
         boxShadow: isOver ? `0 0 30px ${config.glow}` : '0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
