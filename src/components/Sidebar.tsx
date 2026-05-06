@@ -106,7 +106,7 @@ const S = {
     minWidth: collapsed ? '56px' : '240px',
     height: '100vh',
     background: '#111118',
-    borderRight: '1px solid #2d2d40',
+    borderRight: '1px solid #3f3f5a',
     display: 'flex',
     flexDirection: 'column',
     transition: 'width 0.2s ease, min-width 0.2s ease',
@@ -180,7 +180,7 @@ export default function Sidebar({
     <aside style={S.sidebar(collapsed)}>
 
       {/* ── TOP: Logo + collapse toggle ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', padding: collapsed ? '16px 0' : '16px 12px', borderBottom: '1px solid #2d2d40', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', padding: collapsed ? '16px 0' : '16px 12px', borderBottom: '1px solid #3f3f5a', flexShrink: 0 }}>
         {!collapsed && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'linear-gradient(135deg, #7c3aed, #db2777)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: 'white', flexShrink: 0 }}>N</div>
@@ -204,7 +204,7 @@ export default function Sidebar({
       </div>
 
       {/* ── WORKSPACE ── */}
-      <div style={{ padding: '8px', borderBottom: '1px solid #2d2d40', flexShrink: 0 }}>
+      <div style={{ padding: '8px', borderBottom: '1px solid #3f3f5a', flexShrink: 0 }}>
         <button
           onClick={() => !collapsed && setShowWorkspaces(s => !s)}
           style={{ ...S.navBtn(false, collapsed), padding: collapsed ? '8px 0' : '6px 8px', justifyContent: collapsed ? 'center' : 'space-between' }}>
@@ -348,7 +348,7 @@ export default function Sidebar({
       </div>
 
       {/* ── BOTTOM: Settings + User ── */}
-      <div style={{ borderTop: '1px solid #2d2d40', padding: '8px', flexShrink: 0 }}>
+      <div style={{ borderTop: '1px solid #3f3f5a', padding: '8px', flexShrink: 0 }}>
         <button
           onClick={onSettings}
           title={collapsed ? 'Settings' : undefined}
@@ -384,7 +384,7 @@ export default function Sidebar({
             gap: '8px',
             padding: collapsed ? '8px 0' : '8px 10px',
             borderRadius: '8px',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.18)',
             background: 'rgba(255,255,255,0.035)',
             color: '#b5b5c8',
             cursor: 'pointer',
@@ -399,7 +399,7 @@ export default function Sidebar({
           }}
           onMouseLeave={e => {
             e.currentTarget.style.color = '#b5b5c8'
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'
             e.currentTarget.style.background = 'rgba(255,255,255,0.035)'
           }}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>

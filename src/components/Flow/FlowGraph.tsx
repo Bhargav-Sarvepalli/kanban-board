@@ -9,6 +9,7 @@ interface FlowGraphProps {
   onBranchClick: (branch: FlowBranch) => void
   projectId?: string | null
   onOpenStandup?: () => void
+  onBranchDrawerOpenChange?: (open: boolean) => void
 }
 
 const NODE_R        = 20
@@ -153,7 +154,7 @@ function overallHealth(branches: FlowBranch[]) {
        :             { label: 'BEHIND',   color: '#ef4444' }
 }
 
-export default function FlowGraph({ workspaceId, userId, onBranchClick, projectId, onOpenStandup }: FlowGraphProps) {
+export default function FlowGraph({ workspaceId, userId, onBranchClick, projectId, onOpenStandup, onBranchDrawerOpenChange }: FlowGraphProps) {
   const { branches, milestones, totalTasks, totalDone, overallProgress, loading, error, refetch } = useFlowData(workspaceId, projectId)
 
   const [hovBranch,  setHovBranch]  = useState<string | null>(null)
@@ -345,6 +346,11 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     setFocusBranchId(branch.id)
   }
 
+  useEffect(() => {
+    onBranchDrawerOpenChange?.(!!selectedBranch)
+    return () => onBranchDrawerOpenChange?.(false)
+  }, [selectedBranch, onBranchDrawerOpenChange])
+
   const logFlowEvent = useCallback(async (branch: FlowBranch, event_type: string, title: string, detail: string | null) => {
     if (!projectId) return
     const event: FlowEvent = {
@@ -490,7 +496,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       {/* ── TOP BAR ── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)',
+        padding: '10px 24px', borderBottom: '1px solid rgba(255,255,255,0.14)',
         flexShrink: 0, flexWrap: 'wrap', gap: '10px',
       }}>
         {/* Left: overall health + progress + key stats */}
@@ -506,7 +512,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                     <stop offset="100%" stopColor="#22c55e" />
                   </linearGradient>
                 </defs>
-                <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+                <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="3" />
                 <circle cx="22" cy="22" r="18" fill="none" stroke="url(#fg-circle-grad)" strokeWidth="3"
                   strokeDasharray={`${(overallProgress / 100) * 113.1} 113.1`} strokeLinecap="round"
                   style={{ transition: 'stroke-dasharray 1s ease' }} />
@@ -516,12 +522,12 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
               </div>
             </div>
             <div>
-              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.18em', margin: '0 0 2px' }}>OVERALL</p>
+              <p style={{ color: 'rgba(255,255,255,0.68)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.18em', margin: '0 0 2px' }}>OVERALL</p>
               <p style={{ color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700, margin: 0 }}>{totalDone}/{totalTasks} tasks</p>
             </div>
           </div>
 
-          <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.1)' }} />
+          <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.18)' }} />
 
           {/* Health badge */}
           <div style={{
@@ -558,7 +564,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             ].map(s => (
               <div key={s.label} style={{ textAlign: 'center' }}>
                 <p style={{ color: s.color, fontSize: '18px', fontFamily: 'Space Mono', fontWeight: 700, margin: 0 }}>{s.value}</p>
-                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '8px', fontFamily: 'Space Mono', letterSpacing: '0.12em', margin: 0 }}>{s.label}</p>
+                <p style={{ color: 'rgba(255,255,255,0.62)', fontSize: '8px', fontFamily: 'Space Mono', letterSpacing: '0.12em', margin: 0 }}>{s.label}</p>
               </div>
             ))}
           </div>
@@ -568,21 +574,21 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {projectId && (
             <button onClick={() => setAttentionOnly(v => !v)}
-              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: attentionOnly ? 'rgba(248,113,113,0.16)' : 'rgba(255,255,255,0.09)', border: `1px solid ${attentionOnly ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: '8px', color: attentionOnly ? '#fecaca' : 'rgba(255,255,255,0.78)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 700, transition: 'all 0.2s' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: attentionOnly ? 'rgba(248,113,113,0.18)' : 'rgba(255,255,255,0.11)', border: `1px solid ${attentionOnly ? 'rgba(248,113,113,0.58)' : 'rgba(255,255,255,0.28)'}`, borderRadius: '8px', color: attentionOnly ? '#fecaca' : 'rgba(255,255,255,0.88)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 700, transition: 'all 0.2s' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: attentionOnly ? '#f87171' : 'rgba(255,255,255,0.4)' }} />
               ATTENTION
             </button>
           )}
           {myBranchIds.size > 0 && (
             <button onClick={() => setMyTasksOnly(v => !v)}
-              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: myTasksOnly ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.07)', border: `1px solid ${myTasksOnly ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: myTasksOnly ? '#a78bfa' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 600, transition: 'all 0.2s' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: myTasksOnly ? 'rgba(139,92,246,0.22)' : 'rgba(255,255,255,0.1)', border: `1px solid ${myTasksOnly ? 'rgba(139,92,246,0.58)' : 'rgba(255,255,255,0.24)'}`, borderRadius: '8px', color: myTasksOnly ? '#c4b5fd' : 'rgba(255,255,255,0.78)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 650, transition: 'all 0.2s' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: myTasksOnly ? '#8b5cf6' : 'rgba(255,255,255,0.4)' }} />
               MY TASKS
             </button>
           )}
           {branches.length > 0 && (
             <button onClick={() => onOpenStandup?.()}
-              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: 'rgba(139,92,246,0.16)', border: '1px solid rgba(139,92,246,0.4)', borderRadius: '8px', color: '#ddd6fe', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 750, transition: 'all 0.2s' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.56)', borderRadius: '8px', color: '#ede9fe', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 750, transition: 'all 0.2s' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#a78bfa' }} />
               STANDUP
             </button>
@@ -593,40 +599,40 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       {/* ── BRANCH / FEATURE PILLS ── */}
       <div style={{
         display: 'flex', gap: '8px', padding: '8px 24px',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        borderBottom: '1px solid rgba(255,255,255,0.12)',
         overflowX: 'auto', flexShrink: 0, alignItems: 'stretch',
       }}>
         {projectId && (
           <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch', flexShrink: 0 }}>
-            <div style={{ width: showBriefDetails ? '430px' : '330px', padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)' }}>
+            <div style={{ width: showBriefDetails ? '430px' : '330px', padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.055)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '7px' }}>
-                <p style={{ margin: 0, color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>STANDUP BRIEF</p>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.68)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>STANDUP BRIEF</p>
                 <button onClick={() => setShowBriefDetails(v => !v)}
-                  style={{ height: '18px', padding: '0 7px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.62)', fontSize: '8px', fontFamily: 'Space Mono', fontWeight: 700, cursor: 'pointer' }}>
+                  style={{ height: '18px', padding: '0 7px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.24)', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.82)', fontSize: '8px', fontFamily: 'Space Mono', fontWeight: 700, cursor: 'pointer' }}>
                   {showBriefDetails ? 'LESS' : 'DETAILS'}
                 </button>
               </div>
               {standupItems.map(item => (
                 <div key={item.label} style={{ display: 'grid', gridTemplateColumns: '6px 112px minmax(0, 1fr)', alignItems: 'start', gap: '7px', marginTop: '5px' }}>
                   <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: item.color, flexShrink: 0 }} />
-                  <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '10px', fontFamily: 'Space Mono' }}>{item.label}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.74)', fontSize: '10px', fontFamily: 'Space Mono' }}>{item.label}</span>
                   <span title={item.value} style={{ color: 'white', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 650, overflow: 'hidden', textOverflow: showBriefDetails ? undefined : 'ellipsis', whiteSpace: showBriefDetails ? 'normal' : 'nowrap', lineHeight: 1.35 }}>{item.value}</span>
                 </div>
               ))}
             </div>
 
             {focusBranch && focusSignals && (
-              <div style={{ width: showBriefDetails ? '430px' : '380px', padding: '9px 12px', borderRadius: '8px', border: `1px solid ${focusSignals.atRisk ? 'rgba(248,113,113,0.24)' : 'rgba(255,255,255,0.1)'}`, background: focusSignals.atRisk ? 'rgba(248,113,113,0.055)' : 'rgba(255,255,255,0.035)' }}>
-                <p style={{ margin: '0 0 7px', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>FOCUS FEATURE</p>
+              <div style={{ width: showBriefDetails ? '430px' : '380px', padding: '9px 12px', borderRadius: '8px', border: `1px solid ${focusSignals.atRisk ? 'rgba(248,113,113,0.46)' : 'rgba(255,255,255,0.2)'}`, background: focusSignals.atRisk ? 'rgba(248,113,113,0.075)' : 'rgba(255,255,255,0.055)' }}>
+                <p style={{ margin: '0 0 7px', color: 'rgba(255,255,255,0.68)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>FOCUS FEATURE</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: focusSignals.atRisk ? '#f87171' : focusBranch.color, flexShrink: 0 }} />
                   <span title={focusBranch.name} style={{ color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 750, overflow: 'hidden', textOverflow: showBriefDetails ? undefined : 'ellipsis', whiteSpace: showBriefDetails ? 'normal' : 'nowrap', lineHeight: 1.25, minWidth: 0 }}>{focusBranch.name}</span>
                   <button onClick={() => openBranchDrawer(focusBranch)}
-                    style={{ marginLeft: 'auto', height: '22px', padding: '0 8px', borderRadius: '7px', border: '1px solid rgba(139,92,246,0.35)', background: 'rgba(139,92,246,0.12)', color: '#c4b5fd', fontSize: '9px', fontFamily: 'Space Mono', fontWeight: 700, cursor: 'pointer' }}>
+                    style={{ marginLeft: 'auto', height: '22px', padding: '0 8px', borderRadius: '7px', border: '1px solid rgba(139,92,246,0.56)', background: 'rgba(139,92,246,0.2)', color: '#ede9fe', fontSize: '9px', fontFamily: 'Space Mono', fontWeight: 700, cursor: 'pointer' }}>
                     OPEN
                   </button>
                 </div>
-                <div style={{ display: 'flex', gap: '10px', marginTop: '8px', color: 'rgba(255,255,255,0.55)', fontSize: '10px', fontFamily: 'Space Mono' }}>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '8px', color: 'rgba(255,255,255,0.72)', fontSize: '10px', fontFamily: 'Space Mono' }}>
                   <span>{focusBranch.done}/{focusBranch.total} tasks</span>
                   <span>{focusSignals.blocked} blocked</span>
                   <span>{focusSignals.overdue} overdue</span>
@@ -668,12 +674,12 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                     </div>
                 }
               </div>
-              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>
+              <span style={{ color: 'rgba(255,255,255,0.94)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 650 }}>
                 {b.name.length > 16 ? b.name.slice(0, 15) + '…' : b.name}
               </span>
               {/* Health dot — key signal for leads/managers scanning the pill bar */}
               <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: bh.color, flexShrink: 0 }} title={bh.label} />
-              <div style={{ width: '36px', height: '3px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
+              <div style={{ width: '36px', height: '3px', background: 'rgba(255,255,255,0.22)', borderRadius: '2px' }}>
                 <div style={{ width: `${b.progress}%`, height: '100%', background: b.color, borderRadius: '2px' }} />
               </div>
               <span style={{ color: b.color, fontSize: '11px', fontFamily: 'Space Mono', fontWeight: 700 }}>{b.progress}%</span>
@@ -709,11 +715,11 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
             { l: 'Review',  c: '#fbbf24' },
             ...(projectId ? [{ l: 'Merged', c: '#22c55e' }] : []),
             { l: 'Overdue', c: '#f87171' },
-            { l: 'Planned', c: 'rgba(255,255,255,0.35)' },
+            { l: 'Planned', c: 'rgba(255,255,255,0.58)' },
           ].map(s => (
             <div key={s.l} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: s.c }} />
-              <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', fontFamily: 'Space Mono' }}>{s.l}</span>
+              <span style={{ color: 'rgba(255,255,255,0.68)', fontSize: '10px', fontFamily: 'Space Mono' }}>{s.l}</span>
             </div>
           ))}
         </div>
@@ -926,8 +932,8 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                   <foreignObject x={chipStartX} y={chipY} width={chipWidth} height={92} style={{ overflow: 'visible', pointerEvents: 'auto' }}>
                     <div style={{
                       display: 'grid', gridTemplateColumns: '28px minmax(0, 1fr) auto auto', alignItems: 'center', columnGap: '7px',
-                      background: isMerged ? 'rgba(34,197,94,0.12)' : signals.atRisk ? 'rgba(248,113,113,0.11)' : `${branch.color}1a`,
-                      border: `1.5px solid ${isMerged ? '#22c55e' : signals.atRisk ? '#f87171' : branch.color}${isHov ? 'cc' : '55'}`,
+                      background: isMerged ? 'rgba(34,197,94,0.18)' : signals.atRisk ? 'rgba(248,113,113,0.16)' : `${branch.color}2b`,
+                      border: `1.5px solid ${isMerged ? '#22c55e' : signals.atRisk ? '#f87171' : branch.color}${isHov ? 'ee' : '88'}`,
                       borderRadius: '10px', padding: '7px 10px 7px 7px',
                       backdropFilter: 'blur(12px)',
                       whiteSpace: 'nowrap',
@@ -952,7 +958,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                       </div>
                       {/* Name */}
                       <span style={{
-                        color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 800,
+                        color: '#ffffff', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 850,
                         minWidth: 0, maxWidth: '145px', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>
                         {branch.name}
@@ -960,10 +966,10 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                       {/* Health dot — color-coded so managers can scan instantly */}
                       <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isMerged ? '#22c55e' : signals.stale ? '#f59e0b' : bh.color, flexShrink: 0 }} title={isMerged ? 'Merged' : signals.stale ? 'No recent update' : bh.label} />
                       {/* Progress */}
-                      <span style={{ color: branch.color, fontSize: '10px', fontFamily: 'Space Mono', fontWeight: 700 }}>
+                      <span style={{ color: isMerged ? '#86efac' : branch.color, fontSize: '10px', fontFamily: 'Space Mono', fontWeight: 800 }}>
                         {branch.progress}%
                       </span>
-                      <span style={{ gridColumn: '2 / -1', color: signals.stale ? '#fbbf24' : 'rgba(255,255,255,0.52)', fontSize: '8px', fontFamily: 'Space Mono', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ gridColumn: '2 / -1', color: signals.stale ? '#fde68a' : 'rgba(255,255,255,0.72)', fontSize: '9px', fontFamily: 'Space Mono', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {isMerged ? 'Merged into trunk' : signals.empty ? 'No flow tasks' : `${signals.blocked} blocked · ${relativeUpdate(signals.quietHours)}`}
                       </span>
                       {projectId && (canMerge || isMerged || mergingId === branch.id) && (
@@ -978,9 +984,9 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                             height: '18px',
                             padding: '0 8px',
                             borderRadius: '9px',
-                            border: `1px solid ${canMerge || isMerged ? 'rgba(34,197,94,0.45)' : 'rgba(255,255,255,0.08)'}`,
-                            background: canMerge || isMerged ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.03)',
-                            color: canMerge || isMerged ? '#4ade80' : 'rgba(255,255,255,0.28)',
+                            border: `1px solid ${canMerge || isMerged ? 'rgba(34,197,94,0.62)' : 'rgba(255,255,255,0.18)'}`,
+                            background: canMerge || isMerged ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.06)',
+                            color: canMerge || isMerged ? '#86efac' : 'rgba(255,255,255,0.5)',
                             cursor: !isMerged ? 'pointer' : 'not-allowed',
                             fontSize: '8px',
                             fontFamily: 'Space Mono',
@@ -1103,16 +1109,16 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       {selectedBranch && selectedSignals && selectedHealth && (
         <aside style={{
           position: 'absolute', top: '96px', right: '18px', bottom: '44px',
-          width: 'min(420px, calc(100vw - 36px))', zIndex: 35,
+          width: 'min(420px, calc(100vw - 36px))', zIndex: 10005,
           display: 'flex', flexDirection: 'column',
           borderRadius: '16px',
-          border: `1px solid ${selectedMerged ? 'rgba(34,197,94,0.36)' : selectedSignals.atRisk ? 'rgba(248,113,113,0.34)' : 'rgba(255,255,255,0.16)'}`,
-          background: 'rgba(13,13,20,0.96)',
-          boxShadow: '0 26px 80px rgba(0,0,0,0.72)',
+          border: `1px solid ${selectedMerged ? 'rgba(34,197,94,0.58)' : selectedSignals.atRisk ? 'rgba(248,113,113,0.55)' : 'rgba(255,255,255,0.28)'}`,
+          background: 'rgba(13,13,20,0.985)',
+          boxShadow: '0 26px 90px rgba(0,0,0,0.78), inset 0 1px 0 rgba(255,255,255,0.05)',
           backdropFilter: 'blur(20px)',
           overflow: 'hidden',
         }}>
-          <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.16)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
               <div style={{
                 width: '34px', height: '34px', borderRadius: '50%',
@@ -1125,28 +1131,28 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                 {selectedBranch.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <p style={{ margin: '0 0 4px', color: 'rgba(255,255,255,0.48)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.16em' }}>BRANCH DETAIL</p>
+                <p style={{ margin: '0 0 4px', color: 'rgba(255,255,255,0.7)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.16em' }}>BRANCH DETAIL</p>
                 <h3 style={{ margin: 0, color: 'white', fontSize: '18px', fontFamily: 'Space Grotesk', fontWeight: 800, lineHeight: 1.15 }}>{selectedBranch.name}</h3>
               </div>
               <button onClick={() => setSelectedBranchId(null)}
-                style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.58)', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}>
+                style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.24)', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.82)', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}>
                 x
               </button>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-              <span style={{ color: selectedMerged ? '#4ade80' : selectedHealth.color, background: `${selectedMerged ? '#22c55e' : selectedHealth.color}1f`, border: `1px solid ${selectedMerged ? 'rgba(34,197,94,0.42)' : selectedHealth.color + '66'}`, borderRadius: '999px', padding: '4px 8px', fontSize: '9px', fontFamily: 'Space Mono', fontWeight: 800 }}>
+              <span style={{ color: selectedMerged ? '#86efac' : selectedHealth.color, background: `${selectedMerged ? '#22c55e' : selectedHealth.color}28`, border: `1px solid ${selectedMerged ? 'rgba(34,197,94,0.62)' : selectedHealth.color + '88'}`, borderRadius: '999px', padding: '4px 8px', fontSize: '9px', fontFamily: 'Space Mono', fontWeight: 800 }}>
                 {selectedMerged ? 'MERGED' : selectedHealth.label}
               </span>
-              <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '11px', fontFamily: 'Space Mono' }}>{selectedBranch.done}/{selectedBranch.total} done</span>
-              <span style={{ color: selectedSignals.overdue ? '#f87171' : 'rgba(255,255,255,0.45)', fontSize: '11px', fontFamily: 'Space Mono' }}>{selectedSignals.overdue} overdue</span>
-              <span style={{ color: selectedSignals.blocked ? '#fbbf24' : 'rgba(255,255,255,0.45)', fontSize: '11px', fontFamily: 'Space Mono' }}>{selectedSignals.blocked} blocked</span>
+              <span style={{ color: 'rgba(255,255,255,0.74)', fontSize: '11px', fontFamily: 'Space Mono' }}>{selectedBranch.done}/{selectedBranch.total} done</span>
+              <span style={{ color: selectedSignals.overdue ? '#fca5a5' : 'rgba(255,255,255,0.65)', fontSize: '11px', fontFamily: 'Space Mono' }}>{selectedSignals.overdue} overdue</span>
+              <span style={{ color: selectedSignals.blocked ? '#fde68a' : 'rgba(255,255,255,0.65)', fontSize: '11px', fontFamily: 'Space Mono' }}>{selectedSignals.blocked} blocked</span>
             </div>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <section style={{ padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)' }}>
-              <p style={{ margin: '0 0 8px', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>MERGE READINESS</p>
+            <section style={{ padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.055)' }}>
+              <p style={{ margin: '0 0 8px', color: 'rgba(255,255,255,0.68)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>MERGE READINESS</p>
               <p style={{ margin: 0, color: selectedMerged ? '#4ade80' : selectedBranch.total === 0 ? '#fbbf24' : selectedSignals.open === 0 ? '#4ade80' : '#fca5a5', fontSize: '14px', fontFamily: 'Space Grotesk', fontWeight: 750 }}>
                 {selectedMerged
                   ? 'This branch is already merged into the trunk.'
@@ -1157,54 +1163,54 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                       : `${selectedSignals.open} open task${selectedSignals.open === 1 ? '' : 's'} before merge.`}
               </p>
               {selectedBranch.merge_note && (
-                <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.55)', fontSize: '12px', lineHeight: 1.45 }}>{selectedBranch.merge_note}</p>
+                <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.72)', fontSize: '12px', lineHeight: 1.45 }}>{selectedBranch.merge_note}</p>
               )}
             </section>
 
             <section>
-              <p style={{ margin: '0 0 8px', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>TASKS IN BRANCH</p>
+              <p style={{ margin: '0 0 8px', color: 'rgba(255,255,255,0.68)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>TASKS IN BRANCH</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
                 {selectedBranch.tasks.length === 0 ? (
-                  <div style={{ padding: '12px', borderRadius: '10px', border: '1px dashed rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.42)', fontSize: '12px' }}>
+                  <div style={{ padding: '12px', borderRadius: '10px', border: '1px dashed rgba(255,255,255,0.26)', color: 'rgba(255,255,255,0.62)', fontSize: '12px' }}>
                     No tasks are attached to this Flow branch yet.
                   </div>
                 ) : selectedBranch.tasks.map(task => (
-                  <div key={task.id} style={{ display: 'grid', gridTemplateColumns: '8px minmax(0, 1fr) auto', gap: '9px', alignItems: 'center', padding: '9px 10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: task.status === 'done' ? 'rgba(34,197,94,0.06)' : isOverdue(task) ? 'rgba(248,113,113,0.08)' : 'rgba(255,255,255,0.035)' }}>
+                  <div key={task.id} style={{ display: 'grid', gridTemplateColumns: '8px minmax(0, 1fr) auto', gap: '9px', alignItems: 'center', padding: '9px 10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.18)', background: task.status === 'done' ? 'rgba(34,197,94,0.1)' : isOverdue(task) ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.055)' }}>
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isOverdue(task) ? '#f87171' : statusBorder(task.status) }} />
                     <div style={{ minWidth: 0 }}>
-                      <p style={{ margin: 0, color: 'rgba(255,255,255,0.86)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 650, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</p>
-                      <p style={{ margin: '2px 0 0', color: 'rgba(255,255,255,0.38)', fontSize: '9px', fontFamily: 'Space Mono' }}>{task.status.replace('_', ' ')}{task.due_date ? ` - due ${formatFlowDate(task.due_date)}` : ''}</p>
+                      <p style={{ margin: 0, color: 'rgba(255,255,255,0.95)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</p>
+                      <p style={{ margin: '2px 0 0', color: 'rgba(255,255,255,0.62)', fontSize: '9px', fontFamily: 'Space Mono' }}>{task.status.replace('_', ' ')}{task.due_date ? ` - due ${formatFlowDate(task.due_date)}` : ''}</p>
                     </div>
-                    <span style={{ color: task.priority === 'high' ? '#f87171' : 'rgba(255,255,255,0.42)', fontSize: '9px', fontFamily: 'Space Mono', textTransform: 'uppercase' }}>{task.priority}</span>
+                    <span style={{ color: task.priority === 'high' ? '#fca5a5' : 'rgba(255,255,255,0.66)', fontSize: '9px', fontFamily: 'Space Mono', textTransform: 'uppercase' }}>{task.priority}</span>
                   </div>
                 ))}
               </div>
             </section>
 
             <section>
-              <p style={{ margin: '0 0 8px', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>RECENT FLOW HISTORY</p>
+              <p style={{ margin: '0 0 8px', color: 'rgba(255,255,255,0.68)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>RECENT FLOW HISTORY</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
                 {selectedEvents.length === 0 ? (
-                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.32)', fontSize: '12px' }}>No Flow events recorded for this branch yet.</p>
+                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.58)', fontSize: '12px' }}>No Flow events recorded for this branch yet.</p>
                 ) : selectedEvents.map(event => (
-                  <div key={event.id} style={{ padding: '8px 10px', borderRadius: '9px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
-                    <p style={{ margin: 0, color: 'rgba(255,255,255,0.78)', fontSize: '12px', fontWeight: 650 }}>{event.title}</p>
-                    <p style={{ margin: '2px 0 0', color: 'rgba(255,255,255,0.36)', fontSize: '9px', fontFamily: 'Space Mono' }}>{event.event_type.replace('_', ' ')} - {formatFlowDate(event.created_at)}</p>
-                    {event.detail && <p style={{ margin: '5px 0 0', color: 'rgba(255,255,255,0.46)', fontSize: '11px', lineHeight: 1.4 }}>{event.detail}</p>}
+                  <div key={event.id} style={{ padding: '8px 10px', borderRadius: '9px', border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.05)' }}>
+                    <p style={{ margin: 0, color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: 700 }}>{event.title}</p>
+                    <p style={{ margin: '2px 0 0', color: 'rgba(255,255,255,0.6)', fontSize: '9px', fontFamily: 'Space Mono' }}>{event.event_type.replace('_', ' ')} - {formatFlowDate(event.created_at)}</p>
+                    {event.detail && <p style={{ margin: '5px 0 0', color: 'rgba(255,255,255,0.66)', fontSize: '11px', lineHeight: 1.4 }}>{event.detail}</p>}
                   </div>
                 ))}
               </div>
             </section>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.16)' }}>
             <button onClick={() => onBranchClick(selectedBranch)}
-              style={{ height: '38px', borderRadius: '10px', border: '1px solid rgba(139,92,246,0.35)', background: 'rgba(139,92,246,0.14)', color: '#d8b4fe', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 800 }}>
+              style={{ height: '38px', borderRadius: '10px', border: '1px solid rgba(139,92,246,0.58)', background: 'rgba(139,92,246,0.22)', color: '#ede9fe', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 800 }}>
               Open board
             </button>
             <button onClick={() => { setMergePreviewId(selectedBranch.id); setMergeNote(selectedBranch.merge_note ?? '') }}
               disabled={selectedMerged || selectedBranch.total === 0}
-              style={{ height: '38px', borderRadius: '10px', border: `1px solid ${selectedMerged || selectedBranch.total === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(34,197,94,0.42)'}`, background: selectedMerged || selectedBranch.total === 0 ? 'rgba(255,255,255,0.04)' : 'rgba(34,197,94,0.13)', color: selectedMerged || selectedBranch.total === 0 ? 'rgba(255,255,255,0.32)' : '#86efac', cursor: selectedMerged || selectedBranch.total === 0 ? 'not-allowed' : 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 800 }}>
+              style={{ height: '38px', borderRadius: '10px', border: `1px solid ${selectedMerged || selectedBranch.total === 0 ? 'rgba(255,255,255,0.16)' : 'rgba(34,197,94,0.62)'}`, background: selectedMerged || selectedBranch.total === 0 ? 'rgba(255,255,255,0.06)' : 'rgba(34,197,94,0.18)', color: selectedMerged || selectedBranch.total === 0 ? 'rgba(255,255,255,0.52)' : '#bbf7d0', cursor: selectedMerged || selectedBranch.total === 0 ? 'not-allowed' : 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 800 }}>
               Merge preview
             </button>
           </div>

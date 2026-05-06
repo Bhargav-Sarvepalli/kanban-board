@@ -46,6 +46,7 @@ function App() {
   const [showSettings,       setShowSettings]       = useState(false)
   const [showOnboarding,     setShowOnboarding]     = useState(false)
   const [showStandup,        setShowStandup]        = useState(false)
+  const [flowDrawerOpen,     setFlowDrawerOpen]     = useState(false)
 
   const [search,        setSearch]        = useState('')
   const [activeTask,    setActiveTask]    = useState<Task | null>(null)
@@ -418,21 +419,21 @@ function App() {
         <div style={{
           height: '52px', flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 20px', borderBottom: '1px solid #2d2d40',
+          padding: '0 20px', borderBottom: '1px solid #3f3f5a',
           background: '#0a0a0f',
         }}>
           {/* Breadcrumb */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: '#7b7b92', fontSize: '13px' }}>
+            <span style={{ color: '#aaaac0', fontSize: '13px' }}>
               {currentWorkspace?.name ?? 'Personal'}
             </span>
             {currentProject && (
               <>
-                <span style={{ color: '#2a2a3d' }}>/</span>
-                <span style={{ color: '#a4a4b8', fontSize: '13px' }}>{currentProject.name}</span>
+                <span style={{ color: '#575773' }}>/</span>
+                <span style={{ color: '#c6c6d8', fontSize: '13px' }}>{currentProject.name}</span>
               </>
             )}
-            <span style={{ color: '#2a2a3d' }}>/</span>
+            <span style={{ color: '#575773' }}>/</span>
             <span style={{ color: '#e2e2e8', fontSize: '13px', fontWeight: 500, textTransform: 'capitalize' }}>
               {effectiveView}
             </span>
@@ -443,29 +444,29 @@ function App() {
             {/* Stats */}
             <div style={{ display: 'flex', gap: '16px' }}>
               {[
-                { label: 'Total',   val: total,     color: '#a4a4b8' },
-                { label: 'Done',    val: completed, color: '#16a34a' },
-                { label: 'Overdue', val: overdue,   color: overdue > 0 ? '#ef4444' : '#7b7b92' },
+                { label: 'Total',   val: total,     color: '#c4c4d8' },
+                { label: 'Done',    val: completed, color: '#22c55e' },
+                { label: 'Overdue', val: overdue,   color: overdue > 0 ? '#ff4d5b' : '#aaaac0' },
               ].map(s => (
                 <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <span style={{ color: s.color, fontSize: '13px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>{String(s.val).padStart(2, '0')}</span>
-                  <span style={{ color: '#8c8ca3', fontSize: '11px' }}>{s.label}</span>
+                  <span style={{ color: '#aaaac0', fontSize: '11px' }}>{s.label}</span>
                 </div>
               ))}
             </div>
 
-            <div style={{ width: '1px', height: '16px', background: '#2d2d40' }} />
+            <div style={{ width: '1px', height: '16px', background: '#3f3f5a' }} />
 
             {/* Search */}
             <div style={{ position: 'relative' }}>
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                <circle cx="5.5" cy="5.5" r="3.5" stroke="#8c8ca3" strokeWidth="1.3"/>
-                <path d="M8.5 8.5l2 2" stroke="#8c8ca3" strokeWidth="1.3" strokeLinecap="round"/>
+                <circle cx="5.5" cy="5.5" r="3.5" stroke="#b5b5c9" strokeWidth="1.3"/>
+                <path d="M8.5 8.5l2 2" stroke="#b5b5c9" strokeWidth="1.3" strokeLinecap="round"/>
               </svg>
               <input type="text" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)}
-                style={{ background: '#14141d', border: '1px solid #34344a', borderRadius: '6px', paddingLeft: '28px', paddingRight: '10px', paddingTop: '5px', paddingBottom: '5px', color: '#f1f1f6', fontSize: '12px', outline: 'none', width: '160px', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}
-                onFocus={e => { e.currentTarget.style.borderColor = '#6d5bd0'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.18), inset 0 1px 0 rgba(255,255,255,0.06)' }}
-                onBlur={e => { e.currentTarget.style.borderColor = '#34344a'; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.04)' }} />
+                style={{ background: '#171721', border: '1px solid #4b4b66', borderRadius: '6px', paddingLeft: '28px', paddingRight: '10px', paddingTop: '5px', paddingBottom: '5px', color: '#f6f6fb', fontSize: '12px', outline: 'none', width: '160px', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07)' }}
+                onFocus={e => { e.currentTarget.style.borderColor = '#8b5cf6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.24), inset 0 1px 0 rgba(255,255,255,0.08)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = '#4b4b66'; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.07)' }} />
             </div>
 
             {userId && profile?.email && (
@@ -532,7 +533,8 @@ function App() {
             <div style={{ height: '100%' }}>
               <FlowGraph workspaceId={currentWorkspace?.id ?? null} userId={userId}
                 onBranchClick={handleBranchClick} projectId={currentProject.id}
-                onOpenStandup={() => setShowStandup(true)} />
+                onOpenStandup={() => setShowStandup(true)}
+                onBranchDrawerOpenChange={setFlowDrawerOpen} />
             </div>
           ) : effectiveView === 'pomodoro' ? (
             <PomodoroView />
@@ -618,7 +620,7 @@ function App() {
             isPro={isPro} nexEnabled={nexEnabled} onTaskCreated={refetchTasks}
             onOpenProjectWizard={() => setShowProjectWizard(true)}
             onOpenWorkspacePanel={() => setShowWorkspacePanel(true)}
-            panelOpen={showSettings} />
+            panelOpen={showSettings || flowDrawerOpen} />
         </NexErrorBoundary>
       )}
     </div>
