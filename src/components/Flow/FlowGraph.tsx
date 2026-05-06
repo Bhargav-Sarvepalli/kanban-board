@@ -38,7 +38,8 @@ function isOverdue(t: FlowTask) {
 
 // Health label per branch — useful for managers and leads
 function branchHealth(branch: FlowBranch): { label: string; color: string } {
-  if (branch.total > 0 && branch.done === branch.total) return { label: 'MERGED', color: '#22c55e' }
+  if (branch.status === 'merged' || branch.merged_at) return { label: 'MERGED', color: '#22c55e' }
+  if (branch.total > 0 && branch.done === branch.total) return { label: 'READY', color: '#22c55e' }
   const hasOverdue = branch.tasks.some(t => isOverdue(t))
   const hasBlocked = branch.tasks.some(t => t.priority === 'high' && t.status === 'todo')
   if (hasOverdue || hasBlocked) return { label: 'BLOCKED', color: '#ef4444' }
@@ -91,6 +92,51 @@ function loadMergedBranchIds(projectId?: string | null): Set<string> {
   }
 }
 
+interface FlowEvent {
+  id: string
+  branch_id: string | null
+  event_type: string
+  title: string
+  detail: string | null
+  actor_id: string | null
+  created_at: string
+}
+
+function isBranchMerged(branch: FlowBranch, mergedIds: Set<string>) {
+  return mergedIds.has(branch.id) || branch.status === 'merged' || !!branch.merged_at
+}
+
+function loadLocalFlowEvents(projectId?: string | null): FlowEvent[] {
+  if (!projectId || typeof window === 'undefined') return []
+  try {
+    const stored = window.localStorage.getItem(`flow-events:${projectId}`)
+    return stored ? JSON.parse(stored) as FlowEvent[] : []
+  } catch {
+    return []
+  }
+}
+
+function saveLocalFlowEvent(projectId: string, event: FlowEvent) {
+  if (typeof window === 'undefined') return
+  const next = [event, ...loadLocalFlowEvents(projectId)].slice(0, 60)
+  window.localStorage.setItem(`flow-events:${projectId}`, JSON.stringify(next))
+}
+
+function mergeFlowEvents(...groups: FlowEvent[][]) {
+  const byId = new Map<string, FlowEvent>()
+  groups.flat().forEach(event => byId.set(event.id, event))
+  return [...byId.values()]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 60)
+}
+
+function formatFlowDate(value?: string | null) {
+  if (!value) return 'No date'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 interface NodeLayout { task: FlowTask; x: number; y: number }
 interface MilestoneLayout { id: string; label: string; x: number }
 interface BranchLayout {
@@ -123,6 +169,10 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const [svgH,       setSvgH]       = useState(500)
   const [mergingId,  setMergingId]  = useState<string | null>(null)
   const [mergeError, setMergeError] = useState<string | null>(null)
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null)
+  const [mergePreviewId, setMergePreviewId] = useState<string | null>(null)
+  const [mergeNote, setMergeNote] = useState('')
+  const [flowEvents, setFlowEvents] = useState<FlowEvent[]>([])
   const [showBriefDetails, setShowBriefDetails] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showRiskInfo, setShowRiskInfo] = useState(false)
@@ -160,6 +210,38 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       window.localStorage.setItem(`flow-merged:${projectId}`, JSON.stringify([...next]))
       return next
     })
+  }, [projectId])
+
+  useEffect(() => {
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      setMergedBranchIds(loadMergedBranchIds(projectId))
+      setFlowEvents(loadLocalFlowEvents(projectId))
+      setSelectedBranchId(null)
+      setMergePreviewId(null)
+    })
+    return () => { cancelled = true }
+  }, [projectId])
+
+  useEffect(() => {
+    if (!projectId) return
+    let cancelled = false
+    supabase
+      .from('flow_events')
+      .select('id, branch_id, event_type, title, detail, actor_id, created_at')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+      .limit(60)
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) {
+          console.warn('[FlowGraph] flow_events unavailable:', error.message)
+          return
+        }
+        setFlowEvents(mergeFlowEvents(data ?? [], loadLocalFlowEvents(projectId)))
+      })
+    return () => { cancelled = true }
   }, [projectId])
 
   const canvasH = Math.max(svgH, 1040)
@@ -225,7 +307,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const activeTasks  = branches.reduce((s, b) => s + b.tasks.filter(t => t.status === 'in_progress').length, 0)
   const overdueTasks = branches.reduce((s, b) => s + b.tasks.filter(t => isOverdue(t)).length, 0)
   const blockedCount = branches.filter(b => branchHealth(b).label === 'BLOCKED').length
-  const mergedCount  = branches.filter(b => mergedBranchIds.has(b.id)).length
+  const mergedCount  = branches.filter(b => isBranchMerged(b, mergedBranchIds)).length
   const branchSignalMap = useMemo(() => new Map(branches.map(b => [b.id, branchSignals(b)])), [branches])
   const attentionBranches = useMemo(
     () => branches.filter(b => branchSignalMap.get(b.id)?.atRisk || branchSignalMap.get(b.id)?.empty),
@@ -236,7 +318,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     [branches, branchSignalMap],
   )
   const completedBranches = useMemo(
-    () => branches.filter(b => b.total > 0 && b.done === b.total && !mergedBranchIds.has(b.id)),
+    () => branches.filter(b => b.total > 0 && b.done === b.total && !isBranchMerged(b, mergedBranchIds)),
     [branches, mergedBranchIds],
   )
   const focusBranch = branches.find(b => b.id === focusBranchId) ?? attentionBranches[0] ?? branches[0] ?? null
@@ -255,11 +337,44 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     ? new Set(branches.filter(b => b.tasks.some(t => t.assignee_id === userId)).map(b => b.id))
     : new Set<string>()
 
-  const mergeBranch = async (branch: FlowBranch) => {
+  const selectedBranch = selectedBranchId ? branches.find(b => b.id === selectedBranchId) ?? null : null
+  const mergePreviewBranch = mergePreviewId ? branches.find(b => b.id === mergePreviewId) ?? null : null
+
+  const openBranchDrawer = (branch: FlowBranch) => {
+    setSelectedBranchId(branch.id)
+    setFocusBranchId(branch.id)
+  }
+
+  const logFlowEvent = useCallback(async (branch: FlowBranch, event_type: string, title: string, detail: string | null) => {
+    if (!projectId) return
+    const event: FlowEvent = {
+      id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${branch.id}`,
+      branch_id: branch.id,
+      event_type,
+      title,
+      detail,
+      actor_id: userId,
+      created_at: new Date().toISOString(),
+    }
+    saveLocalFlowEvent(projectId, event)
+    setFlowEvents(prev => [event, ...prev.filter(e => e.id !== event.id)].slice(0, 60))
+    const { error } = await supabase.from('flow_events').insert({
+      project_id: projectId,
+      branch_id: branch.id,
+      event_type,
+      title,
+      detail,
+      actor_id: userId,
+      metadata: { branch_name: branch.name },
+    })
+    if (error) console.warn('[FlowGraph] flow event not persisted:', error.message)
+  }, [projectId, userId])
+
+  const mergeBranch = async (branch: FlowBranch, opts?: { force?: boolean; note?: string }) => {
     if (!projectId || branch.total === 0 || mergingId) return
-    if (mergedBranchIds.has(branch.id)) return
+    if (isBranchMerged(branch, mergedBranchIds)) return
     const unfinished = branch.tasks.filter(t => t.status !== 'done')
-    if (unfinished.length > 0) {
+    if (unfinished.length > 0 && !opts?.force) {
       setMergeError(`${branch.name} still has ${unfinished.length} open task${unfinished.length === 1 ? '' : 's'}. Finish the branch before merging.`)
       return
     }
@@ -267,6 +382,17 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
     setMergeError(null)
     setMergingId(branch.id)
     persistMergedBranch(branch.id)
+    const mergeDetail = opts?.force && unfinished.length > 0
+      ? `Force merged with ${unfinished.length} open task${unfinished.length === 1 ? '' : 's'}.`
+      : `Merged with ${branch.done}/${branch.total} tasks complete.`
+    const { error: featureErr } = await supabase.from('project_features').update({
+      status: 'merged',
+      merged_at: new Date().toISOString(),
+      merged_by: userId,
+      merge_note: opts?.note?.trim() || null,
+    }).eq('id', branch.id)
+    if (featureErr) console.warn('[FlowGraph] feature merge metadata unavailable:', featureErr.message)
+
     const { error: taskErr } = await supabase.from('tasks').update({
       show_on_flow: true,
       last_edited_by: userId,
@@ -282,8 +408,13 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
         return next
       })
     }
-    else await refetch()
+    else {
+      await logFlowEvent(branch, opts?.force ? 'force_merge' : 'merge', `Merged ${branch.name}`, `${mergeDetail}${opts?.note?.trim() ? ` Note: ${opts.note.trim()}` : ''}`)
+      await refetch()
+    }
     setMergingId(null)
+    setMergePreviewId(null)
+    setMergeNote('')
   }
 
   if (loading) return (
@@ -332,6 +463,18 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
   const nowX     = layout.nowX
   const pastX    = nowX * 0.44
   const trunkPath = `M 60 ${TRUNK_Y} L ${trunkEnd} ${TRUNK_Y}`
+  const selectedSignals = selectedBranch ? branchSignalMap.get(selectedBranch.id) ?? branchSignals(selectedBranch) : null
+  const selectedHealth = selectedBranch ? branchHealth(selectedBranch) : null
+  const selectedMerged = selectedBranch ? isBranchMerged(selectedBranch, mergedBranchIds) : false
+  const selectedEvents = selectedBranch
+    ? flowEvents.filter(e => e.branch_id === selectedBranch.id).slice(0, 6)
+    : []
+  const mergeStats = mergePreviewBranch ? {
+    unfinished: mergePreviewBranch.tasks.filter(t => t.status !== 'done'),
+    blockers: mergePreviewBranch.tasks.filter(t => t.pending_approval || (t.priority === 'high' && t.status !== 'done') || isOverdue(t)),
+    completed: mergePreviewBranch.tasks.filter(t => t.status === 'done'),
+    merged: isBranchMerged(mergePreviewBranch, mergedBranchIds),
+  } : null
 
   return (
     <div ref={rootRef} style={{
@@ -478,7 +621,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: focusSignals.atRisk ? '#f87171' : focusBranch.color, flexShrink: 0 }} />
                   <span title={focusBranch.name} style={{ color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 750, overflow: 'hidden', textOverflow: showBriefDetails ? undefined : 'ellipsis', whiteSpace: showBriefDetails ? 'normal' : 'nowrap', lineHeight: 1.25, minWidth: 0 }}>{focusBranch.name}</span>
-                  <button onClick={() => onBranchClick(focusBranch)}
+                  <button onClick={() => openBranchDrawer(focusBranch)}
                     style={{ marginLeft: 'auto', height: '22px', padding: '0 8px', borderRadius: '7px', border: '1px solid rgba(139,92,246,0.35)', background: 'rgba(139,92,246,0.12)', color: '#c4b5fd', fontSize: '9px', fontFamily: 'Space Mono', fontWeight: 700, cursor: 'pointer' }}>
                     OPEN
                   </button>
@@ -505,7 +648,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
           const canMerge = projectId && b.total > 0 && b.done === b.total
           return (
             <div key={b.id}
-              onClick={() => onBranchClick(b)}
+              onClick={() => openBranchDrawer(b)}
               onMouseEnter={() => setHovBranch(b.id)}
               onMouseLeave={() => setHovBranch(null)}
               style={{
@@ -726,7 +869,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
               const titleY     = (y: number) => above ? y - NODE_R - 18 : y + NODE_R + 26
               const dateY      = (y: number) => above ? y - NODE_R - 32 : y + NODE_R + 40
               const bh         = branchHealth(branch)
-              const isMerged   = mergedBranchIds.has(branch.id)
+              const isMerged   = isBranchMerged(branch, mergedBranchIds)
               const canMerge   = projectId && branch.total > 0 && branch.done === branch.total && !isMerged
               const branchEndX = cardX + BRANCH_CARD_W
               const forkPull = above ? -42 : 42
@@ -741,7 +884,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                   style={{ transition: 'opacity 0.3s', cursor: dragging ? 'grabbing' : 'pointer' }}
                   onMouseEnter={() => { if (!dragging) { setHovBranch(branch.id); setFocusBranchId(branch.id) } }}
                   onMouseLeave={() => setHovBranch(null)}
-                  onClick={() => !dragging && onBranchClick(branch)}
+                  onClick={() => !dragging && openBranchDrawer(branch)}
                 >
                   <path
                     d={branchPath}
@@ -825,9 +968,9 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                       </span>
                       {projectId && (canMerge || isMerged || mergingId === branch.id) && (
                         <button
-                          onClick={e => { e.stopPropagation(); void mergeBranch(branch) }}
-                          disabled={!canMerge || isMerged || mergingId === branch.id}
-                          title={isMerged ? 'Feature is merged' : canMerge ? 'Merge completed feature into main trunk' : 'Finish all feature tasks before merging'}
+                          onClick={e => { e.stopPropagation(); setMergePreviewId(branch.id); setMergeNote(branch.merge_note ?? '') }}
+                          disabled={isMerged || mergingId === branch.id}
+                          title={isMerged ? 'Feature is merged' : canMerge ? 'Preview merge into main trunk' : 'Preview merge blockers'}
                           style={{
                             gridColumn: '1 / -1',
                             justifySelf: 'end',
@@ -838,7 +981,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                             border: `1px solid ${canMerge || isMerged ? 'rgba(34,197,94,0.45)' : 'rgba(255,255,255,0.08)'}`,
                             background: canMerge || isMerged ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.03)',
                             color: canMerge || isMerged ? '#4ade80' : 'rgba(255,255,255,0.28)',
-                            cursor: canMerge && !isMerged ? 'pointer' : 'not-allowed',
+                            cursor: !isMerged ? 'pointer' : 'not-allowed',
                             fontSize: '8px',
                             fontFamily: 'Space Mono',
                             fontWeight: 700,
@@ -865,7 +1008,7 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
                       <g key={task.id}
                         onMouseEnter={e => { if (dragging) return; setHovNode(task.id); setTooltip({ x: e.clientX, y: e.clientY, task, branch }) }}
                         onMouseLeave={() => { setHovNode(null); setTooltip(null) }}
-                        onClick={e => { e.stopPropagation(); if (!dragging) onBranchClick(branch) }}
+                        onClick={e => { e.stopPropagation(); if (!dragging) openBranchDrawer(branch) }}
                         style={{ cursor: dragging ? 'grabbing' : 'pointer' }}
                       >
                         {ni > 0 && (
@@ -956,6 +1099,189 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
           </div>
         )}
       </div>
+
+      {selectedBranch && selectedSignals && selectedHealth && (
+        <aside style={{
+          position: 'absolute', top: '96px', right: '18px', bottom: '44px',
+          width: 'min(420px, calc(100vw - 36px))', zIndex: 35,
+          display: 'flex', flexDirection: 'column',
+          borderRadius: '16px',
+          border: `1px solid ${selectedMerged ? 'rgba(34,197,94,0.36)' : selectedSignals.atRisk ? 'rgba(248,113,113,0.34)' : 'rgba(255,255,255,0.16)'}`,
+          background: 'rgba(13,13,20,0.96)',
+          boxShadow: '0 26px 80px rgba(0,0,0,0.72)',
+          backdropFilter: 'blur(20px)',
+          overflow: 'hidden',
+        }}>
+          <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <div style={{
+                width: '34px', height: '34px', borderRadius: '50%',
+                background: `linear-gradient(135deg, ${selectedBranch.color}, ${selectedBranch.color}88)`,
+                border: `2px solid ${selectedMerged ? '#22c55e' : selectedBranch.color}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'white', fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 800,
+                flexShrink: 0,
+              }}>
+                {selectedBranch.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p style={{ margin: '0 0 4px', color: 'rgba(255,255,255,0.48)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.16em' }}>BRANCH DETAIL</p>
+                <h3 style={{ margin: 0, color: 'white', fontSize: '18px', fontFamily: 'Space Grotesk', fontWeight: 800, lineHeight: 1.15 }}>{selectedBranch.name}</h3>
+              </div>
+              <button onClick={() => setSelectedBranchId(null)}
+                style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.58)', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}>
+                x
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+              <span style={{ color: selectedMerged ? '#4ade80' : selectedHealth.color, background: `${selectedMerged ? '#22c55e' : selectedHealth.color}1f`, border: `1px solid ${selectedMerged ? 'rgba(34,197,94,0.42)' : selectedHealth.color + '66'}`, borderRadius: '999px', padding: '4px 8px', fontSize: '9px', fontFamily: 'Space Mono', fontWeight: 800 }}>
+                {selectedMerged ? 'MERGED' : selectedHealth.label}
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '11px', fontFamily: 'Space Mono' }}>{selectedBranch.done}/{selectedBranch.total} done</span>
+              <span style={{ color: selectedSignals.overdue ? '#f87171' : 'rgba(255,255,255,0.45)', fontSize: '11px', fontFamily: 'Space Mono' }}>{selectedSignals.overdue} overdue</span>
+              <span style={{ color: selectedSignals.blocked ? '#fbbf24' : 'rgba(255,255,255,0.45)', fontSize: '11px', fontFamily: 'Space Mono' }}>{selectedSignals.blocked} blocked</span>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <section style={{ padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)' }}>
+              <p style={{ margin: '0 0 8px', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>MERGE READINESS</p>
+              <p style={{ margin: 0, color: selectedMerged ? '#4ade80' : selectedBranch.total === 0 ? '#fbbf24' : selectedSignals.open === 0 ? '#4ade80' : '#fca5a5', fontSize: '14px', fontFamily: 'Space Grotesk', fontWeight: 750 }}>
+                {selectedMerged
+                  ? 'This branch is already merged into the trunk.'
+                  : selectedBranch.total === 0
+                    ? 'Add tasks before this branch can be merged.'
+                    : selectedSignals.open === 0
+                      ? 'Ready to merge. All visible Flow tasks are complete.'
+                      : `${selectedSignals.open} open task${selectedSignals.open === 1 ? '' : 's'} before merge.`}
+              </p>
+              {selectedBranch.merge_note && (
+                <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.55)', fontSize: '12px', lineHeight: 1.45 }}>{selectedBranch.merge_note}</p>
+              )}
+            </section>
+
+            <section>
+              <p style={{ margin: '0 0 8px', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>TASKS IN BRANCH</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                {selectedBranch.tasks.length === 0 ? (
+                  <div style={{ padding: '12px', borderRadius: '10px', border: '1px dashed rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.42)', fontSize: '12px' }}>
+                    No tasks are attached to this Flow branch yet.
+                  </div>
+                ) : selectedBranch.tasks.map(task => (
+                  <div key={task.id} style={{ display: 'grid', gridTemplateColumns: '8px minmax(0, 1fr) auto', gap: '9px', alignItems: 'center', padding: '9px 10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: task.status === 'done' ? 'rgba(34,197,94,0.06)' : isOverdue(task) ? 'rgba(248,113,113,0.08)' : 'rgba(255,255,255,0.035)' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isOverdue(task) ? '#f87171' : statusBorder(task.status) }} />
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ margin: 0, color: 'rgba(255,255,255,0.86)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 650, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</p>
+                      <p style={{ margin: '2px 0 0', color: 'rgba(255,255,255,0.38)', fontSize: '9px', fontFamily: 'Space Mono' }}>{task.status.replace('_', ' ')}{task.due_date ? ` - due ${formatFlowDate(task.due_date)}` : ''}</p>
+                    </div>
+                    <span style={{ color: task.priority === 'high' ? '#f87171' : 'rgba(255,255,255,0.42)', fontSize: '9px', fontFamily: 'Space Mono', textTransform: 'uppercase' }}>{task.priority}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <p style={{ margin: '0 0 8px', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>RECENT FLOW HISTORY</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                {selectedEvents.length === 0 ? (
+                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.32)', fontSize: '12px' }}>No Flow events recorded for this branch yet.</p>
+                ) : selectedEvents.map(event => (
+                  <div key={event.id} style={{ padding: '8px 10px', borderRadius: '9px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+                    <p style={{ margin: 0, color: 'rgba(255,255,255,0.78)', fontSize: '12px', fontWeight: 650 }}>{event.title}</p>
+                    <p style={{ margin: '2px 0 0', color: 'rgba(255,255,255,0.36)', fontSize: '9px', fontFamily: 'Space Mono' }}>{event.event_type.replace('_', ' ')} - {formatFlowDate(event.created_at)}</p>
+                    {event.detail && <p style={{ margin: '5px 0 0', color: 'rgba(255,255,255,0.46)', fontSize: '11px', lineHeight: 1.4 }}>{event.detail}</p>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <button onClick={() => onBranchClick(selectedBranch)}
+              style={{ height: '38px', borderRadius: '10px', border: '1px solid rgba(139,92,246,0.35)', background: 'rgba(139,92,246,0.14)', color: '#d8b4fe', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 800 }}>
+              Open board
+            </button>
+            <button onClick={() => { setMergePreviewId(selectedBranch.id); setMergeNote(selectedBranch.merge_note ?? '') }}
+              disabled={selectedMerged || selectedBranch.total === 0}
+              style={{ height: '38px', borderRadius: '10px', border: `1px solid ${selectedMerged || selectedBranch.total === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(34,197,94,0.42)'}`, background: selectedMerged || selectedBranch.total === 0 ? 'rgba(255,255,255,0.04)' : 'rgba(34,197,94,0.13)', color: selectedMerged || selectedBranch.total === 0 ? 'rgba(255,255,255,0.32)' : '#86efac', cursor: selectedMerged || selectedBranch.total === 0 ? 'not-allowed' : 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 800 }}>
+              Merge preview
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {mergePreviewBranch && mergeStats && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 10020, background: 'rgba(0,0,0,0.68)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div style={{ width: 'min(520px, 100%)', borderRadius: '16px', border: `1px solid ${mergeStats.unfinished.length ? 'rgba(248,113,113,0.34)' : 'rgba(34,197,94,0.38)'}`, background: '#111118', boxShadow: '0 30px 90px rgba(0,0,0,0.82)', overflow: 'hidden' }}>
+            <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <p style={{ margin: '0 0 6px', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.16em' }}>MERGE PREVIEW</p>
+              <h3 style={{ margin: 0, color: 'white', fontSize: '20px', fontFamily: 'Space Grotesk', fontWeight: 850 }}>Merge {mergePreviewBranch.name}</h3>
+            </div>
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                {[
+                  { label: 'Done', value: mergeStats.completed.length, color: '#4ade80' },
+                  { label: 'Open', value: mergeStats.unfinished.length, color: mergeStats.unfinished.length ? '#f87171' : '#8b949e' },
+                  { label: 'Risks', value: mergeStats.blockers.length, color: mergeStats.blockers.length ? '#fbbf24' : '#8b949e' },
+                ].map(item => (
+                  <div key={item.label} style={{ padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(255,255,255,0.035)' }}>
+                    <p style={{ margin: 0, color: item.color, fontSize: '20px', fontFamily: 'Space Mono', fontWeight: 800 }}>{item.value}</p>
+                    <p style={{ margin: '2px 0 0', color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.12em' }}>{item.label.toUpperCase()}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ padding: '12px', borderRadius: '12px', border: `1px solid ${mergeStats.unfinished.length ? 'rgba(248,113,113,0.25)' : 'rgba(34,197,94,0.25)'}`, background: mergeStats.unfinished.length ? 'rgba(248,113,113,0.08)' : 'rgba(34,197,94,0.08)' }}>
+                <p style={{ margin: 0, color: mergeStats.unfinished.length ? '#fecaca' : '#bbf7d0', fontSize: '13px', lineHeight: 1.45, fontWeight: 700 }}>
+                  {mergeStats.merged
+                    ? 'This branch is already merged.'
+                    : mergePreviewBranch.total === 0
+                      ? 'This branch has no Flow tasks yet.'
+                      : mergeStats.unfinished.length
+                        ? 'Normal merge is blocked. You can force merge, but the open work will stay visible in history.'
+                        : 'Clean merge. All Flow tasks are complete.'}
+                </p>
+              </div>
+
+              {mergeStats.unfinished.length > 0 && (
+                <div style={{ maxHeight: '130px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {mergeStats.unfinished.slice(0, 6).map(task => (
+                    <div key={task.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '8px 10px', borderRadius: '9px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <span style={{ color: 'rgba(255,255,255,0.76)', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
+                      <span style={{ color: isOverdue(task) ? '#f87171' : '#a78bfa', fontSize: '9px', fontFamily: 'Space Mono', textTransform: 'uppercase', flexShrink: 0 }}>{isOverdue(task) ? 'overdue' : task.status.replace('_', ' ')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <label style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>MERGE NOTE</label>
+              <textarea value={mergeNote} onChange={e => setMergeNote(e.target.value)} placeholder="What changed? What should the team know?"
+                style={{ minHeight: '82px', resize: 'vertical', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: '#0c0c13', color: 'white', padding: '10px 12px', outline: 'none', fontSize: '13px', fontFamily: 'Inter, sans-serif', lineHeight: 1.5 }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <button onClick={() => { setMergePreviewId(null); setMergeNote('') }}
+                style={{ height: '38px', padding: '0 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
+                Cancel
+              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {mergeStats.unfinished.length > 0 && !mergeStats.merged && (
+                  <button onClick={() => void mergeBranch(mergePreviewBranch, { force: true, note: mergeNote })}
+                    disabled={mergingId === mergePreviewBranch.id}
+                    style={{ height: '38px', padding: '0 14px', borderRadius: '10px', border: '1px solid rgba(248,113,113,0.42)', background: 'rgba(248,113,113,0.12)', color: '#fecaca', cursor: 'pointer', fontSize: '12px', fontWeight: 800 }}>
+                    Force merge
+                  </button>
+                )}
+                <button onClick={() => void mergeBranch(mergePreviewBranch, { note: mergeNote })}
+                  disabled={mergeStats.merged || mergePreviewBranch.total === 0 || mergeStats.unfinished.length > 0 || mergingId === mergePreviewBranch.id}
+                  style={{ height: '38px', padding: '0 16px', borderRadius: '10px', border: `1px solid ${mergeStats.merged || mergePreviewBranch.total === 0 || mergeStats.unfinished.length > 0 ? 'rgba(255,255,255,0.08)' : 'rgba(34,197,94,0.48)'}`, background: mergeStats.merged || mergePreviewBranch.total === 0 || mergeStats.unfinished.length > 0 ? 'rgba(255,255,255,0.04)' : 'rgba(34,197,94,0.16)', color: mergeStats.merged || mergePreviewBranch.total === 0 || mergeStats.unfinished.length > 0 ? 'rgba(255,255,255,0.34)' : '#86efac', cursor: mergeStats.merged || mergePreviewBranch.total === 0 || mergeStats.unfinished.length > 0 ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 850 }}>
+                  {mergingId === mergePreviewBranch.id ? 'Merging...' : 'Merge branch'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── FOOTER ── */}
       <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 24px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>

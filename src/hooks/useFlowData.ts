@@ -19,6 +19,14 @@ export interface FlowBranch {
   avatar_url: string | null
   color: string
   milestone_id?: string | null
+  description?: string | null
+  owner_id?: string | null
+  deadline?: string | null
+  priority?: 'low' | 'normal' | 'high' | null
+  status?: string | null
+  merged_at?: string | null
+  merged_by?: string | null
+  merge_note?: string | null
   tasks: FlowTask[]
   total: number
   done: number
@@ -54,7 +62,21 @@ function colorForIndex(i: number): string {
 }
 
 function buildBranches(
-  groups: Map<string, { name: string; avatar_url: string | null; tasks: FlowTask[]; color?: string; milestone_id?: string | null }>,
+  groups: Map<string, {
+    name: string
+    avatar_url: string | null
+    tasks: FlowTask[]
+    color?: string
+    milestone_id?: string | null
+    description?: string | null
+    owner_id?: string | null
+    deadline?: string | null
+    priority?: 'low' | 'normal' | 'high' | null
+    status?: string | null
+    merged_at?: string | null
+    merged_by?: string | null
+    merge_note?: string | null
+  }>,
   unassignedKey = 'unassigned',
   includeUnassigned = true,
   unassignedColor = '#6b7280',
@@ -69,6 +91,14 @@ function buildBranches(
       id, name: data.name, avatar_url: data.avatar_url,
       color: data.color ?? colorForIndex(colorIndex++),
       milestone_id: data.milestone_id ?? null,
+      description: data.description ?? null,
+      owner_id: data.owner_id ?? null,
+      deadline: data.deadline ?? null,
+      priority: data.priority ?? null,
+      status: data.status ?? null,
+      merged_at: data.merged_at ?? null,
+      merged_by: data.merged_by ?? null,
+      merge_note: data.merge_note ?? null,
       tasks: data.tasks, total: data.tasks.length, done,
       progress: data.tasks.length > 0 ? Math.round((done / data.tasks.length) * 100) : 0,
     })
@@ -79,6 +109,14 @@ function buildBranches(
     const done = data.tasks.filter(t => t.status === 'done').length
     result.push({
       id: unassignedKey, name: 'Unassigned', avatar_url: null, color: unassignedColor,
+      description: null,
+      owner_id: null,
+      deadline: null,
+      priority: null,
+      status: null,
+      merged_at: null,
+      merged_by: null,
+      merge_note: null,
       tasks: data.tasks, total: data.tasks.length, done,
       progress: data.tasks.length > 0 ? Math.round((done / data.tasks.length) * 100) : 0,
     })
@@ -107,7 +145,7 @@ export function useFlowData(
     try {
       // ── PROJECT MODE ─────────────────────────────────────────────────────────
       if (projectId) {
-        const [msRes, taskRes, featRes] = await Promise.all([
+        const [msRes, taskRes, featRes, featMetaRes] = await Promise.all([
           supabase
             .from('project_milestones')
             .select('id, name, position, target_date')
@@ -123,6 +161,10 @@ export function useFlowData(
             .from('project_features')
             .select('id, name, color, milestone_id')
             .eq('project_id', projectId),
+          supabase
+            .from('project_features')
+            .select('id, description, owner_id, deadline, priority, status, merged_at, merged_by, merge_note')
+            .eq('project_id', projectId),
         ])
 
         if (msRes.error) console.warn('[useFlowData] milestones:', msRes.error)
@@ -130,7 +172,35 @@ export function useFlowData(
 
         setMilestones(msRes.data ?? [])
 
-        const tasks    = taskRes.data ?? []
+        const tasks = taskRes.data ?? []
+        const featureMeta = new Map<string, {
+          description?: string | null
+          owner_id?: string | null
+          deadline?: string | null
+          priority?: 'low' | 'normal' | 'high' | null
+          status?: string | null
+          merged_at?: string | null
+          merged_by?: string | null
+          merge_note?: string | null
+        }>()
+
+        if (featMetaRes.error) {
+          console.warn('[useFlowData] feature metadata unavailable:', featMetaRes.error.message)
+        } else {
+          ;(featMetaRes.data ?? []).forEach(f => {
+            featureMeta.set(f.id, {
+              description: f.description ?? null,
+              owner_id: f.owner_id ?? null,
+              deadline: f.deadline ?? null,
+              priority: f.priority ?? null,
+              status: f.status ?? null,
+              merged_at: f.merged_at ?? null,
+              merged_by: f.merged_by ?? null,
+              merge_note: f.merge_note ?? null,
+            })
+          })
+        }
+
         const features = featRes.data ?? []
 
         // Always render feature branches — even if no tasks have show_on_flow = true.
@@ -156,6 +226,9 @@ export function useFlowData(
         // Build a map seeded with every feature (empty task list by default)
         const featureMap = new Map<string, {
           name: string; avatar_url: string | null; tasks: FlowTask[]; color?: string; milestone_id?: string | null
+          description?: string | null; owner_id?: string | null; deadline?: string | null
+          priority?: 'low' | 'normal' | 'high' | null; status?: string | null
+          merged_at?: string | null; merged_by?: string | null; merge_note?: string | null
         }>()
 
         features.forEach((f, idx) => {
@@ -168,6 +241,7 @@ export function useFlowData(
             tasks:      [],
             color,
             milestone_id: f.milestone_id ?? null,
+            ...(featureMeta.get(f.id) ?? {}),
           })
         })
 

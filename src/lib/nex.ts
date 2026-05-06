@@ -98,6 +98,9 @@ NexTask product map:
 - Project Dashboard shows project health, links, features, and activity.
 - Board moves tasks through todo, in_progress, in_review, done.
 - Flow is the manager map: phases are the trunk, features are branches, and a branch is merge-ready when its tasks are done.
+- In Flow, clicking a branch opens the Branch Detail drawer with task health, blocked/overdue signals, recent history, Open board, and Merge preview.
+- Merge preview shows done/open/risk counts, blocks normal merge until all branch tasks are done, allows force merge with a note, and records Flow history.
+- Flow history is the project log for branch merges and major branch decisions.
 - Calendar combines task dates and manual meeting entries.
 - Timer is a fullscreen focus clock with optional beats.
 - Standup mode should clarify risk, current progress, stale work, and decisions.
@@ -110,6 +113,7 @@ Manager and standup behavior:
 - Do not list everything. Surface what needs attention.
 - High-priority or overdue unfinished tasks are risk items.
 - If asked for standup, briefing, project health, or what to tell the team, use get_standup_briefing.
+- If asked how to merge a Flow branch, explain: open Flow, click the branch, review blockers in Branch Detail, open Merge preview, add a merge note, then merge when all tasks are done.
 - If asked to create, modify, move, or delete work, use tools when intent is clear.
 - If asked to break down a task, give 4-6 concrete execution steps. If the user asks to add/save those subtasks, use add_subtasks_to_task.
 - Good subtasks are small, verifiable, and ordered. Avoid vague steps like "work on it" or "finish task".
@@ -299,6 +303,12 @@ function localNexFallback(
     return {
       speech: workspaceId ? 'Opening workspace project setup.' : 'Opening personal project setup.',
       action: { type: 'open_project_wizard', data: workspaceId ? { workspaceId } : {} },
+    }
+  }
+
+  if (/\b(flow|branch|feature)\b/.test(lower) && /\b(merge|merged|complete|finish)\b/.test(lower)) {
+    return {
+      speech: "Open Flow, click the branch, then use Merge preview. If tasks are still open, I'll help you break them down before you merge.",
     }
   }
 
