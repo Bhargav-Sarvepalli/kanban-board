@@ -15,6 +15,8 @@ interface Props {
   onProfileUpdated: (profile: Profile) => void
   nexEnabled: boolean
   onToggleNex: () => void
+  nexVoiceEnabled: boolean
+  onToggleNexVoice: () => void
   defaultView: DefaultView
   onDefaultViewChange: (view: DefaultView) => void
   onReplayOnboarding: () => void
@@ -116,6 +118,8 @@ export default function SettingsModal({
   onProfileUpdated,
   nexEnabled,
   onToggleNex,
+  nexVoiceEnabled,
+  onToggleNexVoice,
   defaultView,
   onDefaultViewChange,
   onReplayOnboarding,
@@ -412,6 +416,12 @@ export default function SettingsModal({
                       onClick={onToggleNex}
                       label="Nex Assistant"
                       description="Show the assistant orb for quick task and project help."
+                    />
+                    <Toggle
+                      active={nexVoiceEnabled}
+                      onClick={onToggleNexVoice}
+                      label="Nex voice replies"
+                      description="Let Nex speak responses and focus timer alerts out loud. Turn off for quiet work."
                     />
                     <button
                       type="button"

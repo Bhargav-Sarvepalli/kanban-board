@@ -81,6 +81,10 @@ function App() {
     try { return localStorage.getItem('nex_enabled') !== 'false' }
     catch { return true }
   })
+  const [nexVoiceEnabled, setNexVoiceEnabled] = useState(() => {
+    try { return localStorage.getItem('nex_voice_enabled') !== 'false' }
+    catch { return true }
+  })
 
   const availableTabs = currentProject
     ? (['dashboard', 'board', 'flow', 'calendar', 'pomodoro'] as const)
@@ -196,6 +200,14 @@ function App() {
     setNexEnabled(prev => {
       const next = !prev
       try { localStorage.setItem('nex_enabled', String(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  const toggleNexVoice = () => {
+    setNexVoiceEnabled(prev => {
+      const next = !prev
+      try { localStorage.setItem('nex_voice_enabled', String(next)) } catch { /* ignore */ }
       return next
     })
   }
@@ -370,6 +382,18 @@ function App() {
       feature: nextFilter?.mode === 'feature' ? { id: nextFilter.id, name: nextFilter.name } : null,
       board: 'project',
     })
+  }
+
+  const handleOpenPomodoro = (duration?: number) => {
+    if (duration && Number.isFinite(duration)) {
+      try {
+        localStorage.setItem('nex_pomo_pending_focus', String(Math.round(duration)))
+        window.dispatchEvent(new CustomEvent('nex-pomodoro-duration', { detail: { duration: Math.round(duration) } }))
+      } catch { /* ignore */ }
+    }
+    setView('pomodoro')
+    setBranchFilter(null)
+    updateAppUrl('pomodoro', { feature: null })
   }
 
   const handleViewChange = (v: AppView) => {
@@ -760,6 +784,7 @@ function App() {
         {showSettings && userId && (
           <SettingsModal userId={userId} profile={profile} onClose={() => setShowSettings(false)}
             onProfileUpdated={setProfile} nexEnabled={nexEnabled} onToggleNex={toggleNex}
+            nexVoiceEnabled={nexVoiceEnabled} onToggleNexVoice={toggleNexVoice}
             defaultView={defaultViewPref === 'dashboard' || defaultViewPref === 'flow' ? 'board' : defaultViewPref}
             onReplayOnboarding={() => {
               setShowSettings(false)
@@ -779,9 +804,10 @@ function App() {
         <NexErrorBoundary>
           <NexAssistant workspaceId={currentWorkspace?.id ?? null} userId={userId}
             projectId={currentProject?.id ?? null}
-            isPro={isPro} nexEnabled={nexEnabled} onTaskCreated={refetchTasks}
+            isPro={isPro} nexEnabled={nexEnabled} nexVoiceEnabled={nexVoiceEnabled} onTaskCreated={refetchTasks}
             onOpenProjectWizard={() => setShowProjectWizard(true)}
             onOpenWorkspacePanel={() => setShowWorkspacePanel(true)}
+            onOpenPomodoro={handleOpenPomodoro}
             panelOpen={showSettings || flowDrawerOpen} />
         </NexErrorBoundary>
       )}

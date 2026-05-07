@@ -13,9 +13,11 @@ interface NexAssistantProps {
   userId: string | null
   isPro: boolean
   nexEnabled: boolean
+  nexVoiceEnabled: boolean
   onTaskCreated?: () => void
   onOpenProjectWizard?: () => void
   onOpenWorkspacePanel?: () => void
+  onOpenPomodoro?: (duration?: number) => void
   panelOpen?: boolean
 }
 
@@ -60,7 +62,7 @@ const ORB_SIZE    = 52
 const MAX_HISTORY = 20
 const MIN_CONFIDENCE = 0.35
 
-export default function NexAssistant({ workspaceId, projectId = null, userId, isPro, nexEnabled, onTaskCreated, onOpenProjectWizard, onOpenWorkspacePanel, panelOpen = false }: NexAssistantProps) {
+export default function NexAssistant({ workspaceId, projectId = null, userId, isPro, nexEnabled, nexVoiceEnabled, onTaskCreated, onOpenProjectWizard, onOpenWorkspacePanel, onOpenPomodoro, panelOpen = false }: NexAssistantProps) {
   const [globeState, setGlobeState]   = useState<GlobeState>('idle')
   const [expanded, setExpanded]       = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
@@ -137,12 +139,13 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
   }, [])
 
   const warmupTTS = useCallback(() => {
+    if (!nexVoiceEnabled || !('speechSynthesis' in window)) return
     if (ttsWarmedRef.current) return
     ttsWarmedRef.current = true
     const dummy = new SpeechSynthesisUtterance('')
     dummy.volume = 0
     window.speechSynthesis.speak(dummy)
-  }, [])
+  }, [nexVoiceEnabled])
 
   const shouldIgnoreTranscript = useCallback((text: string) => {
     const clean = text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -156,6 +159,11 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
   }, [])
 
   const speak = useCallback((text: string, onDone?: () => void) => {
+    if (!nexVoiceEnabled || !('speechSynthesis' in window)) {
+      setGlobeState('idle')
+      window.setTimeout(() => onDone?.(), 90)
+      return
+    }
     warmupTTS()
     window.speechSynthesis.cancel()
     setTimeout(() => {
@@ -183,7 +191,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
       if (window.speechSynthesis.getVoices().length > 0) trySpeak()
       else window.speechSynthesis.onvoiceschanged = trySpeak
     }, 80)
-  }, [warmupTTS])
+  }, [nexVoiceEnabled, warmupTTS])
 
   const handleAction = useCallback((action: NexActionResult) => {
     void loadContext()
@@ -196,7 +204,11 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     if (action.type === 'open_workspace_panel') {
       onOpenWorkspacePanel?.()
     }
-  }, [loadContext, onTaskCreated, onOpenProjectWizard, onOpenWorkspacePanel])
+    if (action.type === 'start_focus_session') {
+      const duration = typeof action.data.duration === 'number' ? action.data.duration : undefined
+      onOpenPomodoro?.(duration)
+    }
+  }, [loadContext, onTaskCreated, onOpenProjectWizard, onOpenWorkspacePanel, onOpenPomodoro])
 
   const fireNex = useCallback(async (transcript: string) => {
     if (!transcript.trim() || !userId) return
@@ -307,7 +319,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     if (cur === 'thinking')  return
 
     setExpanded(true)
-    warmupTTS()
+    if (nexVoiceEnabled) warmupTTS()
 
     if (expanded && messages.length > 0) {
       startListeningCycle()
@@ -325,7 +337,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
         setTimeout(startListeningCycle, 350)
       })
     })
-  }, [showTooltip, isPro, userId, speak, stopListening, startListeningCycle, loadContext, addMessage, warmupTTS, expanded, messages.length])
+  }, [showTooltip, isPro, userId, speak, stopListening, startListeningCycle, loadContext, addMessage, warmupTTS, nexVoiceEnabled, expanded, messages.length])
 
   useEffect(() => {
     if (!nexEnabled) return

@@ -8,14 +8,38 @@ const DEFAULT_MODELS = [
   'claude-3-5-haiku-20241022',
   'claude-sonnet-4-20250514',
 ]
+const MAX_BODY_BYTES = 30_000
+const MAX_TOKENS = 800
+
+async function requireAuthenticatedUser(req: Request) {
+  const authorization = req.headers.get('authorization') ?? ''
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+
+  if (!authorization.toLowerCase().startsWith('bearer ') || !supabaseUrl || !anonKey) {
+    throw new Response(JSON.stringify({ error: 'Authentication required' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { authorization, apikey: anonKey },
+  })
+  if (!res.ok) {
+    throw new Response(JSON.stringify({ error: 'Authentication required' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+}
 
 async function callAnthropic(apiKey: string, body: Record<string, unknown>) {
-  const requested = typeof body.model === 'string' ? [body.model] : []
-  const models = [...new Set([...requested, ...DEFAULT_MODELS])]
   let lastData: unknown = null
   let lastStatus = 500
+  const maxTokens = Math.min(Math.max(Number(body.max_tokens) || 400, 1), MAX_TOKENS)
 
-  for (const model of models) {
+  for (const model of DEFAULT_MODELS) {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -25,7 +49,7 @@ async function callAnthropic(apiKey: string, body: Record<string, unknown>) {
       },
       body: JSON.stringify({
         model,
-        max_tokens: body.max_tokens ?? 400,
+        max_tokens: maxTokens,
         system: body.system,
         tools: body.tools,
         messages: body.messages,
@@ -50,16 +74,29 @@ Deno.serve(async (req) => {
   }
 
   try {
+    await requireAuthenticatedUser(req)
+
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not configured')
 
-    const body = await req.json()
+    const rawBody = await req.text()
+    if (rawBody.length > MAX_BODY_BYTES) {
+      return new Response(JSON.stringify({ error: 'Request is too large' }), {
+        status: 413,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const body = JSON.parse(rawBody)
+    if (!Array.isArray(body.messages)) throw new Error('messages are required')
+
     const { data, status } = await callAnthropic(apiKey, body)
     return new Response(JSON.stringify(data), {
       status,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
+    if (err instanceof Response) return err
     return new Response(JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

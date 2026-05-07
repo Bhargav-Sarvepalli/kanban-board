@@ -1,21 +1,75 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type Mode = 'focus' | 'short' | 'long'
+type BeatPattern = 'tick' | 'pulse' | 'deep'
+type DurationMap = Record<Mode, number>
 type BrowserAudioContext = typeof AudioContext
 
-const MODES: Record<Mode, { label: string; minutes: number; tone: string; sub: string }> = {
-  focus: { label: 'Focus', minutes: 25, tone: '#8b5cf6', sub: 'Deep work' },
-  short: { label: 'Break', minutes: 5, tone: '#2dd4bf', sub: 'Short break' },
-  long:  { label: 'Long', minutes: 15, tone: '#60a5fa', sub: 'Long break' },
+const BASE_DURATIONS: DurationMap = { focus: 25, short: 5, long: 15 }
+
+const MODES: Record<Mode, { label: string; tone: string; sub: string }> = {
+  focus: { label: 'Focus', tone: '#8b5cf6', sub: 'Deep work' },
+  short: { label: 'Break', tone: '#2dd4bf', sub: 'Short break' },
+  long:  { label: 'Long', tone: '#60a5fa', sub: 'Long break' },
+}
+
+const BEAT_PATTERNS: Record<BeatPattern, { label: string; hint: string; bpm: number }> = {
+  tick:  { label: 'Tick', hint: 'Clean second ticks', bpm: 60 },
+  pulse: { label: 'Pulse', hint: 'Soft steady pulse', bpm: 48 },
+  deep:  { label: 'Deep', hint: 'Low calm beat', bpm: 40 },
+}
+
+const STORAGE = {
+  durations: 'nex_pomo_durations',
+  sound: 'nex_pomo_sound',
+  beat: 'nex_pomo_beat',
+  count: 'nex_pomo_count',
+  intention: 'nex_pomo_intention',
+  alert: 'nex_pomo_nex_alert',
 }
 
 function mmss(seconds: number) {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
+  const safe = Math.max(0, seconds)
+  const m = Math.floor(safe / 60)
+  const s = safe % 60
   return {
     minutes: String(m).padStart(2, '0'),
     seconds: String(s).padStart(2, '0'),
   }
+}
+
+function clampMinutes(value: number, fallback = 25) {
+  if (!Number.isFinite(value)) return fallback
+  return Math.min(180, Math.max(1, Math.round(value)))
+}
+
+function readDurations(): DurationMap {
+  try {
+    const raw = localStorage.getItem(STORAGE.durations)
+    if (!raw) return BASE_DURATIONS
+    const parsed = JSON.parse(raw) as Partial<Record<Mode, number>>
+    return {
+      focus: clampMinutes(Number(parsed.focus), BASE_DURATIONS.focus),
+      short: clampMinutes(Number(parsed.short), BASE_DURATIONS.short),
+      long: clampMinutes(Number(parsed.long), BASE_DURATIONS.long),
+    }
+  } catch {
+    return BASE_DURATIONS
+  }
+}
+
+function readBeatPattern(): BeatPattern {
+  try {
+    const saved = localStorage.getItem(STORAGE.beat)
+    return saved === 'tick' || saved === 'pulse' || saved === 'deep' ? saved : 'pulse'
+  } catch {
+    return 'pulse'
+  }
+}
+
+function timerVoiceAllowed() {
+  try { return localStorage.getItem('nex_voice_enabled') !== 'false' }
+  catch { return true }
 }
 
 function SoftButton({
@@ -29,18 +83,18 @@ function SoftButton({
     <button onClick={onClick} style={{
       height: '48px',
       borderRadius: '16px',
-      border: primary ? '1px solid rgba(255,255,255,0.16)' : '1px solid rgba(255,255,255,0.09)',
+      border: primary ? '1px solid rgba(255,255,255,0.18)' : '1px solid rgba(255,255,255,0.14)',
       background: primary
-        ? 'linear-gradient(180deg, #9f7aea 0%, #7c3aed 55%, #5b21b6 100%)'
-        : 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025))',
-      color: primary ? '#fff' : 'rgba(255,255,255,0.78)',
+        ? 'linear-gradient(180deg, #a78bfa 0%, #7c3aed 55%, #5b21b6 100%)'
+        : 'linear-gradient(180deg, rgba(255,255,255,0.11), rgba(255,255,255,0.035))',
+      color: primary ? '#fff' : 'rgba(255,255,255,0.86)',
       cursor: 'pointer',
       fontFamily: 'Inter, system-ui, sans-serif',
       fontSize: '12px',
       fontWeight: 800,
       boxShadow: primary
-        ? '0 18px 40px rgba(124,58,237,0.36), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -10px 18px rgba(55,28,122,0.28)'
-        : '0 12px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.08)',
+        ? '0 18px 40px rgba(124,58,237,0.38), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -10px 18px rgba(55,28,122,0.28)'
+        : '0 12px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.1)',
     }}>
       {children}
     </button>
@@ -48,21 +102,41 @@ function SoftButton({
 }
 
 export default function PomodoroView() {
+  const [durations, setDurations] = useState<DurationMap>(readDurations)
   const [mode, setMode] = useState<Mode>('focus')
-  const [seconds, setSeconds] = useState(MODES.focus.minutes * 60)
+  const [seconds, setSeconds] = useState(() => readDurations().focus * 60)
   const [running, setRunning] = useState(false)
-  const [soundOn, setSoundOn] = useState(() => localStorage.getItem('nex_pomo_sound') === 'true')
+  const [soundOn, setSoundOn] = useState(() => {
+    try { return localStorage.getItem(STORAGE.sound) === 'true' }
+    catch { return false }
+  })
+  const [beatPattern, setBeatPattern] = useState<BeatPattern>(readBeatPattern)
+  const [nexAlertOn, setNexAlertOn] = useState(() => {
+    try { return localStorage.getItem(STORAGE.alert) !== 'false' }
+    catch { return true }
+  })
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [focusCount, setFocusCount] = useState(() => Number(localStorage.getItem('nex_pomo_count') ?? 0))
-  const [intention, setIntention] = useState(() => localStorage.getItem('nex_pomo_intention') ?? '')
+  const [focusCount, setFocusCount] = useState(() => {
+    try { return Number(localStorage.getItem(STORAGE.count) ?? 0) }
+    catch { return 0 }
+  })
+  const [intention, setIntention] = useState(() => {
+    try { return localStorage.getItem(STORAGE.intention) ?? '' }
+    catch { return '' }
+  })
+
   const rootRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<AudioContext | null>(null)
   const beatTimerRef = useRef<number | null>(null)
+  const fiveMinuteAlertRef = useRef(false)
 
   const display = mmss(seconds)
-  const totalSeconds = MODES[mode].minutes * 60
-  const progress = 1 - seconds / totalSeconds
+  const totalSeconds = Math.max(1, durations[mode] * 60)
+  const progress = Math.min(1, Math.max(0, 1 - seconds / totalSeconds))
+  const beat = BEAT_PATTERNS[beatPattern]
+  const beatInterval = Math.round(60000 / beat.bpm)
   const segments = 96
+
   const segmentList = useMemo(() => Array.from({ length: segments }, (_, i) => {
     const angle = (i / segments) * Math.PI * 2 - Math.PI / 2
     const inner = 168
@@ -90,6 +164,27 @@ export default function PomodoroView() {
     return audioRef.current
   }, [])
 
+  const speakTimerAlert = useCallback((text: string) => {
+    if (!nexAlertOn || !timerVoiceAllowed() || !('speechSynthesis' in window)) return
+    window.speechSynthesis.cancel()
+    const utter = new SpeechSynthesisUtterance(text)
+    const speak = () => {
+      const voices = window.speechSynthesis.getVoices()
+      const preferred =
+        voices.find(v => v.name === 'Microsoft Jenny Online (Natural) - English (United States)') ??
+        voices.find(v => v.name === 'Microsoft Aria Online (Natural) - English (United States)') ??
+        voices.find(v => v.name.toLowerCase().includes('natural') && v.lang.startsWith('en')) ??
+        voices.find(v => v.lang.startsWith('en'))
+      if (preferred) utter.voice = preferred
+      utter.rate = 1.02
+      utter.pitch = 1
+      utter.volume = 0.92
+      window.speechSynthesis.speak(utter)
+    }
+    if (window.speechSynthesis.getVoices().length > 0) speak()
+    else window.speechSynthesis.onvoiceschanged = speak
+  }, [nexAlertOn])
+
   const playTone = useCallback((kind: 'beat' | 'start' | 'done', force = false) => {
     if (!soundOn && !force) return
     const ctx = ensureAudio()
@@ -110,13 +205,21 @@ export default function PomodoroView() {
     }
 
     if (kind === 'beat') {
-      makeTone(1120, now, 0.18, 0.045, 'square')
-      makeTone(220, now, 0.055, 0.09, 'sine')
+      if (beatPattern === 'tick') {
+        makeTone(1040, now, 0.14, 0.04, 'square')
+        makeTone(230, now, 0.035, 0.08, 'sine')
+      } else if (beatPattern === 'deep') {
+        makeTone(92, now, 0.08, 0.18, 'sine')
+        makeTone(184, now + 0.02, 0.025, 0.16, 'triangle')
+      } else {
+        makeTone(220, now, 0.075, 0.13, 'sine')
+        makeTone(440, now + 0.025, 0.03, 0.09, 'triangle')
+      }
       return
     }
 
     makeTone(kind === 'done' ? 740 : 440, now, 0.16, 0.28, 'triangle')
-  }, [ensureAudio, soundOn])
+  }, [ensureAudio, soundOn, beatPattern])
 
   useEffect(() => {
     const onFullscreenChange = () => setIsFullscreen(document.fullscreenElement === rootRef.current)
@@ -125,25 +228,62 @@ export default function PomodoroView() {
   }, [])
 
   useEffect(() => {
+    const applyPendingFocusDuration = (duration: number) => {
+      const minutes = clampMinutes(duration, durations.focus)
+      setDurations(prev => {
+        const next = { ...prev, focus: minutes }
+        try { localStorage.setItem(STORAGE.durations, JSON.stringify(next)) } catch { /* ignore */ }
+        return next
+      })
+      setMode('focus')
+      setSeconds(minutes * 60)
+      setRunning(false)
+      fiveMinuteAlertRef.current = false
+    }
+
+    try {
+      const pending = Number(localStorage.getItem('nex_pomo_pending_focus'))
+      if (Number.isFinite(pending) && pending > 0) {
+        localStorage.removeItem('nex_pomo_pending_focus')
+        applyPendingFocusDuration(pending)
+      }
+    } catch { /* ignore */ }
+
+    const onDuration = (event: Event) => {
+      const detail = (event as CustomEvent<{ duration?: number }>).detail
+      if (detail?.duration) applyPendingFocusDuration(detail.duration)
+    }
+    window.addEventListener('nex-pomodoro-duration', onDuration)
+    return () => window.removeEventListener('nex-pomodoro-duration', onDuration)
+  }, [durations.focus])
+
+  useEffect(() => {
     if (!running) return
     const timer = window.setInterval(() => {
       setSeconds(prev => {
-        if (prev > 1) return prev - 1
+        const nextSeconds = prev - 1
+        if (totalSeconds > 300 && nextSeconds === 300 && !fiveMinuteAlertRef.current) {
+          fiveMinuteAlertRef.current = true
+          playTone('start', true)
+          speakTimerAlert(`${MODES[mode].label} has five minutes left. Keep it steady.`)
+        }
+        if (prev > 1) return nextSeconds
         setRunning(false)
+        fiveMinuteAlertRef.current = false
         playTone('done')
         if (mode === 'focus') {
           setFocusCount(c => {
             const next = c + 1
-            localStorage.setItem('nex_pomo_count', String(next))
+            try { localStorage.setItem(STORAGE.count, String(next)) } catch { /* ignore */ }
             return next
           })
         }
         setMode(nextMode)
-        return MODES[nextMode].minutes * 60
+        return durations[nextMode] * 60
       })
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [running, mode, nextMode, playTone])
+  }, [running, mode, nextMode, playTone, speakTimerAlert, totalSeconds, durations])
 
   useEffect(() => {
     if (!running || !soundOn) {
@@ -153,23 +293,39 @@ export default function PomodoroView() {
     }
 
     playTone('beat')
-    beatTimerRef.current = window.setInterval(() => playTone('beat'), 1000)
+    beatTimerRef.current = window.setInterval(() => playTone('beat'), beatInterval)
     return () => {
       if (beatTimerRef.current) window.clearInterval(beatTimerRef.current)
       beatTimerRef.current = null
     }
-  }, [running, soundOn, playTone])
+  }, [running, soundOn, playTone, beatInterval])
 
   const chooseMode = (next: Mode) => {
     setMode(next)
-    setSeconds(MODES[next].minutes * 60)
+    setSeconds(durations[next] * 60)
     setRunning(false)
+    fiveMinuteAlertRef.current = false
+  }
+
+  const updateDuration = (target: Mode, value: number) => {
+    const nextMinutes = clampMinutes(value, durations[target])
+    setDurations(prev => {
+      const next = { ...prev, [target]: nextMinutes }
+      try { localStorage.setItem(STORAGE.durations, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+    if (target === mode) {
+      const nextSeconds = nextMinutes * 60
+      setSeconds(prev => running ? Math.min(prev, nextSeconds) : nextSeconds)
+      fiveMinuteAlertRef.current = false
+    }
   }
 
   const toggleRun = () => {
     if (!running) {
       if (soundOn) playTone('start')
       else void ensureAudio()?.resume()
+      fiveMinuteAlertRef.current = false
     }
     setRunning(r => !r)
   }
@@ -177,16 +333,29 @@ export default function PomodoroView() {
   const toggleSound = () => {
     const next = !soundOn
     setSoundOn(next)
-    localStorage.setItem('nex_pomo_sound', String(next))
+    try { localStorage.setItem(STORAGE.sound, String(next)) } catch { /* ignore */ }
     if (next) {
       ensureAudio()
       playTone('start', true)
     }
   }
 
+  const setPattern = (pattern: BeatPattern) => {
+    setBeatPattern(pattern)
+    try { localStorage.setItem(STORAGE.beat, pattern) } catch { /* ignore */ }
+    if (soundOn) window.setTimeout(() => playTone('beat', true), 40)
+  }
+
+  const toggleNexAlert = () => {
+    const next = !nexAlertOn
+    setNexAlertOn(next)
+    try { localStorage.setItem(STORAGE.alert, String(next)) } catch { /* ignore */ }
+  }
+
   const reset = () => {
-    setSeconds(MODES[mode].minutes * 60)
+    setSeconds(durations[mode] * 60)
     setRunning(false)
+    fiveMinuteAlertRef.current = false
   }
 
   const toggleFullscreen = async () => {
@@ -213,7 +382,7 @@ export default function PomodoroView() {
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
       <section style={{
-        width: isFullscreen ? 'min(1040px, 100%)' : 'min(980px, calc(100vw - 72px))',
+        width: isFullscreen ? 'min(1040px, 100%)' : 'min(1040px, calc(100vw - 72px))',
         minHeight: isFullscreen ? '100%' : undefined,
         boxSizing: 'border-box',
         borderRadius: isFullscreen ? '0' : '36px',
@@ -221,12 +390,12 @@ export default function PomodoroView() {
         display: isFullscreen ? 'flex' : undefined,
         flexDirection: isFullscreen ? 'column' : undefined,
         background: isFullscreen ? 'transparent' : 'linear-gradient(180deg, rgba(24,27,39,0.96), rgba(11,13,20,0.98))',
-        border: isFullscreen ? 'none' : '1px solid rgba(255,255,255,0.1)',
-        boxShadow: isFullscreen ? 'none' : '0 38px 110px rgba(0,0,0,0.66), inset 0 1px 0 rgba(255,255,255,0.08)',
+        border: isFullscreen ? 'none' : '1px solid rgba(255,255,255,0.14)',
+        boxShadow: isFullscreen ? 'none' : '0 38px 110px rgba(0,0,0,0.66), inset 0 1px 0 rgba(255,255,255,0.1)',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', marginBottom: isFullscreen ? '0' : '18px', opacity: isFullscreen ? 0.72 : 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', marginBottom: isFullscreen ? '0' : '18px', opacity: isFullscreen ? 0.74 : 1 }}>
           <div>
-            <p style={{ margin: 0, color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.16em' }}>NEX FOCUS</p>
+            <p style={{ margin: 0, color: 'rgba(255,255,255,0.58)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.16em' }}>NEX FOCUS</p>
             <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '22px', fontWeight: 850, letterSpacing: 0 }}>{MODES[mode].label}</h2>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -236,13 +405,13 @@ export default function PomodoroView() {
                   height: '36px',
                   padding: '0 14px',
                   borderRadius: '999px',
-                  border: `1px solid ${mode === m ? MODES[m].tone : 'rgba(255,255,255,0.1)'}`,
-                  background: mode === m ? `${MODES[m].tone}24` : 'rgba(255,255,255,0.035)',
-                  color: mode === m ? 'white' : 'rgba(255,255,255,0.58)',
+                  border: `1px solid ${mode === m ? MODES[m].tone : 'rgba(255,255,255,0.14)'}`,
+                  background: mode === m ? `${MODES[m].tone}24` : 'rgba(255,255,255,0.05)',
+                  color: mode === m ? 'white' : 'rgba(255,255,255,0.68)',
                   cursor: 'pointer',
                   fontSize: '12px',
                   fontWeight: 800,
-                  boxShadow: mode === m ? `0 10px 26px ${MODES[m].tone}22, inset 0 1px 0 rgba(255,255,255,0.12)` : 'inset 0 1px 0 rgba(255,255,255,0.06)',
+                  boxShadow: mode === m ? `0 10px 26px ${MODES[m].tone}22, inset 0 1px 0 rgba(255,255,255,0.14)` : 'inset 0 1px 0 rgba(255,255,255,0.08)',
                 }}>
                 {MODES[m].sub}
               </button>
@@ -251,9 +420,9 @@ export default function PomodoroView() {
               width: '36px',
               height: '36px',
               borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.12)',
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03))',
-              color: 'rgba(255,255,255,0.7)',
+              border: '1px solid rgba(255,255,255,0.16)',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))',
+              color: 'rgba(255,255,255,0.78)',
               display: 'grid',
               placeItems: 'center',
               cursor: 'pointer',
@@ -271,7 +440,7 @@ export default function PomodoroView() {
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isFullscreen ? '1fr' : 'minmax(420px, 1fr) 286px',
+          gridTemplateColumns: isFullscreen ? '1fr' : 'minmax(420px, 1fr) 320px',
           gap: isFullscreen ? '30px' : '32px',
           alignItems: 'center',
           justifyItems: isFullscreen ? 'center' : undefined,
@@ -300,7 +469,7 @@ export default function PomodoroView() {
                 }} />
               )}
               <svg width="100%" height="100%" viewBox="0 0 420 420" style={{ position: 'absolute', inset: 0 }}>
-                <circle cx="210" cy="210" r="142" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="2" />
+                <circle cx="210" cy="210" r="142" fill="none" stroke="rgba(255,255,255,0.055)" strokeWidth="2" />
                 {segmentList.map(seg => (
                   <line
                     key={seg.id}
@@ -308,7 +477,7 @@ export default function PomodoroView() {
                     y1={seg.y1}
                     x2={seg.x2}
                     y2={seg.y2}
-                    stroke={seg.active ? '#f8fbff' : 'rgba(255,255,255,0.12)'}
+                    stroke={seg.active ? '#f8fbff' : 'rgba(255,255,255,0.15)'}
                     strokeWidth={seg.active ? 4 : 3}
                     strokeLinecap="round"
                     style={{
@@ -335,34 +504,113 @@ export default function PomodoroView() {
                 }}>
                   {display.minutes}:{display.seconds}
                 </span>
-                <span style={{ color: running ? '#f8fafc' : 'rgba(255,255,255,0.56)', fontSize: isFullscreen ? '18px' : '13px', fontWeight: 720 }}>
+                <span style={{ color: running ? '#f8fafc' : 'rgba(255,255,255,0.66)', fontSize: isFullscreen ? '18px' : '13px', fontWeight: 720 }}>
                   {running ? 'Focus' : 'Ready'}
                 </span>
               </div>
             </div>
           </div>
 
-          <div style={{ width: isFullscreen ? 'min(520px, 100%)' : undefined, opacity: isFullscreen ? 0.82 : 1 }}>
-            {!isFullscreen && <label style={{ color: 'rgba(255,255,255,0.48)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>INTENTION</label>}
-            <textarea value={intention} onChange={e => { setIntention(e.target.value); localStorage.setItem('nex_pomo_intention', e.target.value) }}
+          <div style={{ width: isFullscreen ? 'min(560px, 100%)' : undefined, opacity: isFullscreen ? 0.82 : 1 }}>
+            {!isFullscreen && <label style={{ color: 'rgba(255,255,255,0.56)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>INTENTION</label>}
+            <textarea value={intention} onChange={e => { setIntention(e.target.value); try { localStorage.setItem(STORAGE.intention, e.target.value) } catch { /* ignore */ } }}
               placeholder="One outcome for this session"
-              style={{ display: isFullscreen ? 'none' : 'block', marginTop: '8px', width: '100%', minHeight: '78px', resize: 'none', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(5,7,12,0.45)', color: 'white', outline: 'none', padding: '12px', fontSize: '13px', fontFamily: 'Inter, system-ui, sans-serif' }} />
+              style={{ display: isFullscreen ? 'none' : 'block', marginTop: '8px', width: '100%', minHeight: '78px', resize: 'none', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(5,7,12,0.5)', color: 'white', outline: 'none', padding: '12px', fontSize: '13px', fontFamily: 'Inter, system-ui, sans-serif' }} />
+
+            {!isFullscreen && (
+              <div style={{ marginTop: '14px' }}>
+                <label style={{ color: 'rgba(255,255,255,0.56)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>SESSION LENGTH</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px' }}>
+                  {(Object.keys(MODES) as Mode[]).map(m => (
+                    <label key={m} style={{
+                      border: `1px solid ${mode === m ? MODES[m].tone : 'rgba(255,255,255,0.13)'}`,
+                      background: mode === m ? `${MODES[m].tone}18` : 'rgba(255,255,255,0.04)',
+                      borderRadius: '14px',
+                      padding: '10px',
+                      color: 'rgba(255,255,255,0.68)',
+                      display: 'grid',
+                      gap: '6px',
+                    }}>
+                      <span style={{ fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{MODES[m].label}</span>
+                      <span style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                        <input
+                          type="number"
+                          min={1}
+                          max={180}
+                          value={durations[m]}
+                          onChange={e => updateDuration(m, Number(e.target.value))}
+                          onFocus={e => e.currentTarget.select()}
+                          aria-label={`${MODES[m].label} minutes`}
+                          style={{
+                            width: '44px',
+                            border: 'none',
+                            background: 'transparent',
+                            color: 'white',
+                            outline: 'none',
+                            fontSize: '20px',
+                            fontWeight: 850,
+                            fontFamily: 'Inter, system-ui, sans-serif',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                        />
+                        <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', fontWeight: 700 }}>min</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!isFullscreen && (
+              <div style={{ marginTop: '14px' }}>
+                <label style={{ color: 'rgba(255,255,255,0.56)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>FOCUS SOUND</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '0.9fr repeat(3, 1fr)', gap: '8px', marginTop: '8px' }}>
+                  <button type="button" onClick={toggleSound} style={{
+                    minHeight: '42px',
+                    borderRadius: '13px',
+                    border: soundOn ? `1px solid ${MODES[mode].tone}` : '1px solid rgba(255,255,255,0.14)',
+                    background: soundOn ? `${MODES[mode].tone}20` : 'rgba(255,255,255,0.04)',
+                    color: soundOn ? 'white' : 'rgba(255,255,255,0.62)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 850,
+                  }}>{soundOn ? 'On' : 'Off'}</button>
+                  {(Object.keys(BEAT_PATTERNS) as BeatPattern[]).map(pattern => {
+                    const active = beatPattern === pattern
+                    return (
+                      <button key={pattern} type="button" onClick={() => setPattern(pattern)} title={BEAT_PATTERNS[pattern].hint} style={{
+                        minHeight: '42px',
+                        borderRadius: '13px',
+                        border: active ? `1px solid ${MODES[mode].tone}` : '1px solid rgba(255,255,255,0.13)',
+                        background: active ? `${MODES[mode].tone}18` : 'rgba(255,255,255,0.035)',
+                        color: active ? 'white' : 'rgba(255,255,255,0.62)',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: 820,
+                      }}>{BEAT_PATTERNS[pattern].label}</button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: isFullscreen ? 'repeat(4, 1fr)' : '1fr 1fr', gap: '10px', marginTop: isFullscreen ? 0 : '14px' }}>
               <SoftButton onClick={toggleRun} primary>{running ? 'Pause' : 'Start flow'}</SoftButton>
               <SoftButton onClick={reset}>Reset</SoftButton>
               <SoftButton onClick={() => chooseMode(nextMode)}>Skip</SoftButton>
-              <SoftButton onClick={toggleSound}>{soundOn ? 'Beats on' : 'Beats off'}</SoftButton>
+              <SoftButton onClick={isFullscreen ? toggleSound : toggleNexAlert}>
+                {isFullscreen ? (soundOn ? 'Beats on' : 'Beats off') : (nexAlertOn ? 'Nex alert on' : 'Nex alert off')}
+              </SoftButton>
             </div>
 
             <div style={{ marginTop: '16px', display: isFullscreen ? 'none' : 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}>
                 <p style={{ margin: 0, color: MODES[mode].tone, fontSize: '22px', fontWeight: 900, letterSpacing: 0 }}>{focusCount}</p>
-                <span style={{ color: 'rgba(255,255,255,0.46)', fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em' }}>BLOCKS</span>
+                <span style={{ color: 'rgba(255,255,255,0.56)', fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em' }}>BLOCKS</span>
               </div>
-              <div style={{ padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <p style={{ margin: 0, color: soundOn ? MODES[mode].tone : 'rgba(255,255,255,0.82)', fontSize: '14px', fontWeight: 850 }}>{soundOn ? '60 BPM' : MODES[nextMode].label}</p>
-                <span style={{ color: 'rgba(255,255,255,0.46)', fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em' }}>{soundOn ? 'FOCUS BEAT' : 'NEXT'}</span>
+              <div style={{ padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                <p style={{ margin: 0, color: soundOn ? MODES[mode].tone : 'rgba(255,255,255,0.86)', fontSize: '14px', fontWeight: 850 }}>{soundOn ? `${beat.label} ${beat.bpm}` : MODES[nextMode].label}</p>
+                <span style={{ color: 'rgba(255,255,255,0.56)', fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em' }}>{soundOn ? 'BPM' : 'NEXT'}</span>
               </div>
             </div>
           </div>
