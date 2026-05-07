@@ -102,7 +102,7 @@ NexTask product map:
 - Merge preview shows done/open/risk counts, blocks normal merge until all branch tasks are done, allows force merge with a note, and records Flow history.
 - Flow history is the project log for branch merges and major branch decisions.
 - Calendar combines task dates and manual meeting entries.
-- Timer is a fullscreen focus clock with manual durations, calm beat options, and optional Nex five-minute alerts.
+- Timer is a fullscreen focus clock with manual durations, auto-flow breaks, Pulse/Tick focus beats, and optional Nex five-minute alerts.
 - Standup mode should clarify risk, current progress, stale work, and decisions.
 - Project Creation Wizard is the guided setup for Personal and workspace projects. It opens from the plus button beside Projects in the sidebar.
 - Project Creation Wizard steps: project basics, collaborators, Flow phases, and feature branches. In Personal, the project stays private unless the user invites someone.

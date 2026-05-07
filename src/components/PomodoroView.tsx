@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type Mode = 'focus' | 'short' | 'long'
-type BeatPattern = 'tick' | 'pulse' | 'deep'
+type BeatPattern = 'pulse' | 'tick'
 type DurationMap = Record<Mode, number>
 type BrowserAudioContext = typeof AudioContext
 
@@ -14,9 +14,8 @@ const MODES: Record<Mode, { label: string; tone: string; sub: string }> = {
 }
 
 const BEAT_PATTERNS: Record<BeatPattern, { label: string; hint: string; bpm: number }> = {
+  pulse: { label: 'Pulse', hint: 'Warm steady focus pulse', bpm: 60 },
   tick:  { label: 'Tick', hint: 'Clean second ticks', bpm: 60 },
-  pulse: { label: 'Pulse', hint: 'Soft steady pulse', bpm: 48 },
-  deep:  { label: 'Deep', hint: 'Low calm beat', bpm: 40 },
 }
 
 const STORAGE = {
@@ -26,6 +25,7 @@ const STORAGE = {
   count: 'nex_pomo_count',
   intention: 'nex_pomo_intention',
   alert: 'nex_pomo_nex_alert',
+  autoFlow: 'nex_pomo_auto_flow',
 }
 
 function mmss(seconds: number) {
@@ -61,10 +61,16 @@ function readDurations(): DurationMap {
 function readBeatPattern(): BeatPattern {
   try {
     const saved = localStorage.getItem(STORAGE.beat)
-    return saved === 'tick' || saved === 'pulse' || saved === 'deep' ? saved : 'pulse'
+    return saved === 'tick' || saved === 'pulse' ? saved : 'pulse'
   } catch {
     return 'pulse'
   }
+}
+
+const presetsForMode = (mode: Mode) => {
+  if (mode === 'focus') return [25, 45, 60]
+  if (mode === 'short') return [5, 10, 15]
+  return [15, 20, 30]
 }
 
 function timerVoiceAllowed() {
@@ -115,6 +121,10 @@ export default function PomodoroView() {
     try { return localStorage.getItem(STORAGE.alert) !== 'false' }
     catch { return true }
   })
+  const [autoFlow, setAutoFlow] = useState(() => {
+    try { return localStorage.getItem(STORAGE.autoFlow) !== 'false' }
+    catch { return true }
+  })
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [focusCount, setFocusCount] = useState(() => {
     try { return Number(localStorage.getItem(STORAGE.count) ?? 0) }
@@ -128,6 +138,7 @@ export default function PomodoroView() {
   const rootRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<AudioContext | null>(null)
   const beatTimerRef = useRef<number | null>(null)
+  const autoStartTimerRef = useRef<number | null>(null)
   const fiveMinuteAlertRef = useRef(false)
 
   const display = mmss(seconds)
@@ -135,6 +146,8 @@ export default function PomodoroView() {
   const progress = Math.min(1, Math.max(0, 1 - seconds / totalSeconds))
   const beat = BEAT_PATTERNS[beatPattern]
   const beatInterval = Math.round(60000 / beat.bpm)
+  const durationStep = mode === 'focus' ? 5 : 1
+  const durationPresets = presetsForMode(mode)
   const segments = 96
 
   const segmentList = useMemo(() => Array.from({ length: segments }, (_, i) => {
@@ -162,6 +175,13 @@ export default function PomodoroView() {
     if (!audioRef.current) audioRef.current = new AudioCtor()
     if (audioRef.current.state === 'suspended') void audioRef.current.resume()
     return audioRef.current
+  }, [])
+
+  const clearAutoStart = useCallback(() => {
+    if (autoStartTimerRef.current) {
+      window.clearTimeout(autoStartTimerRef.current)
+      autoStartTimerRef.current = null
+    }
   }, [])
 
   const speakTimerAlert = useCallback((text: string) => {
@@ -206,14 +226,12 @@ export default function PomodoroView() {
 
     if (kind === 'beat') {
       if (beatPattern === 'tick') {
-        makeTone(1040, now, 0.14, 0.04, 'square')
-        makeTone(230, now, 0.035, 0.08, 'sine')
-      } else if (beatPattern === 'deep') {
-        makeTone(92, now, 0.08, 0.18, 'sine')
-        makeTone(184, now + 0.02, 0.025, 0.16, 'triangle')
+        makeTone(1080, now, 0.24, 0.045, 'square')
+        makeTone(240, now, 0.08, 0.08, 'sine')
       } else {
-        makeTone(220, now, 0.075, 0.13, 'sine')
-        makeTone(440, now + 0.025, 0.03, 0.09, 'triangle')
+        makeTone(196, now, 0.18, 0.16, 'sine')
+        makeTone(392, now + 0.018, 0.08, 0.12, 'triangle')
+        makeTone(98, now, 0.055, 0.2, 'sine')
       }
       return
     }
@@ -226,6 +244,8 @@ export default function PomodoroView() {
     document.addEventListener('fullscreenchange', onFullscreenChange)
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
   }, [])
+
+  useEffect(() => () => clearAutoStart(), [clearAutoStart])
 
   useEffect(() => {
     const applyPendingFocusDuration = (duration: number) => {
@@ -268,6 +288,7 @@ export default function PomodoroView() {
           speakTimerAlert(`${MODES[mode].label} has five minutes left. Keep it steady.`)
         }
         if (prev > 1) return nextSeconds
+        clearAutoStart()
         setRunning(false)
         fiveMinuteAlertRef.current = false
         playTone('done')
@@ -279,11 +300,21 @@ export default function PomodoroView() {
           })
         }
         setMode(nextMode)
+        if (autoFlow) {
+          autoStartTimerRef.current = window.setTimeout(() => {
+            playTone('start', true)
+            if (nexAlertOn) {
+              speakTimerAlert(nextMode === 'focus' ? 'Focus is back on.' : `${MODES[nextMode].label} started. Step away for a moment.`)
+            }
+            setRunning(true)
+            autoStartTimerRef.current = null
+          }, 900)
+        }
         return durations[nextMode] * 60
       })
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [running, mode, nextMode, playTone, speakTimerAlert, totalSeconds, durations])
+  }, [running, mode, nextMode, playTone, speakTimerAlert, totalSeconds, durations, autoFlow, nexAlertOn, clearAutoStart])
 
   useEffect(() => {
     if (!running || !soundOn) {
@@ -301,6 +332,7 @@ export default function PomodoroView() {
   }, [running, soundOn, playTone, beatInterval])
 
   const chooseMode = (next: Mode) => {
+    clearAutoStart()
     setMode(next)
     setSeconds(durations[next] * 60)
     setRunning(false)
@@ -322,6 +354,7 @@ export default function PomodoroView() {
   }
 
   const toggleRun = () => {
+    clearAutoStart()
     if (!running) {
       if (soundOn) playTone('start')
       else void ensureAudio()?.resume()
@@ -340,10 +373,20 @@ export default function PomodoroView() {
     }
   }
 
-  const setPattern = (pattern: BeatPattern) => {
-    setBeatPattern(pattern)
-    try { localStorage.setItem(STORAGE.beat, pattern) } catch { /* ignore */ }
-    if (soundOn) window.setTimeout(() => playTone('beat', true), 40)
+  const setSoundMode = (value: BeatPattern | 'off') => {
+    if (value === 'off') {
+      setSoundOn(false)
+      try { localStorage.setItem(STORAGE.sound, 'false') } catch { /* ignore */ }
+      return
+    }
+    setBeatPattern(value)
+    setSoundOn(true)
+    try {
+      localStorage.setItem(STORAGE.beat, value)
+      localStorage.setItem(STORAGE.sound, 'true')
+    } catch { /* ignore */ }
+    ensureAudio()
+    window.setTimeout(() => playTone('beat', true), 40)
   }
 
   const toggleNexAlert = () => {
@@ -352,7 +395,14 @@ export default function PomodoroView() {
     try { localStorage.setItem(STORAGE.alert, String(next)) } catch { /* ignore */ }
   }
 
+  const toggleAutoFlow = () => {
+    const next = !autoFlow
+    setAutoFlow(next)
+    try { localStorage.setItem(STORAGE.autoFlow, String(next)) } catch { /* ignore */ }
+  }
+
   const reset = () => {
+    clearAutoStart()
     setSeconds(durations[mode] * 60)
     setRunning(false)
     fiveMinuteAlertRef.current = false
@@ -520,87 +570,136 @@ export default function PomodoroView() {
             {!isFullscreen && (
               <div style={{ marginTop: '14px' }}>
                 <label style={{ color: 'rgba(255,255,255,0.56)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>SESSION LENGTH</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px' }}>
-                  {(Object.keys(MODES) as Mode[]).map(m => (
-                    <label key={m} style={{
-                      border: `1px solid ${mode === m ? MODES[m].tone : 'rgba(255,255,255,0.13)'}`,
-                      background: mode === m ? `${MODES[m].tone}18` : 'rgba(255,255,255,0.04)',
+                <div style={{
+                  marginTop: '8px',
+                  padding: '12px',
+                  borderRadius: '18px',
+                  border: `1px solid ${MODES[mode].tone}55`,
+                  background: `linear-gradient(135deg, ${MODES[mode].tone}18, rgba(255,255,255,0.035))`,
+                  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.08), 0 14px 34px ${MODES[mode].tone}12`,
+                }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '42px 1fr 42px', alignItems: 'center', gap: '10px' }}>
+                    <button type="button" onClick={() => updateDuration(mode, durations[mode] - durationStep)} aria-label={`Decrease ${MODES[mode].label} duration`} style={{
+                      height: '42px',
                       borderRadius: '14px',
-                      padding: '10px',
-                      color: 'rgba(255,255,255,0.68)',
-                      display: 'grid',
-                      gap: '6px',
-                    }}>
-                      <span style={{ fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{MODES[m].label}</span>
-                      <span style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                      border: '1px solid rgba(255,255,255,0.14)',
+                      background: 'rgba(0,0,0,0.22)',
+                      color: 'rgba(255,255,255,0.86)',
+                      cursor: 'pointer',
+                      fontSize: '22px',
+                      fontWeight: 800,
+                    }}>-</button>
+                    <label style={{ display: 'grid', justifyItems: 'center', gap: '2px' }}>
+                      <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{MODES[mode].label}</span>
+                      <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '7px' }}>
                         <input
                           type="number"
                           min={1}
                           max={180}
-                          value={durations[m]}
-                          onChange={e => updateDuration(m, Number(e.target.value))}
+                          value={durations[mode]}
+                          onChange={e => updateDuration(mode, Number(e.target.value))}
                           onFocus={e => e.currentTarget.select()}
-                          aria-label={`${MODES[m].label} minutes`}
+                          aria-label={`${MODES[mode].label} minutes`}
                           style={{
-                            width: '44px',
+                            width: '74px',
                             border: 'none',
                             background: 'transparent',
                             color: 'white',
                             outline: 'none',
-                            fontSize: '20px',
-                            fontWeight: 850,
+                            textAlign: 'center',
+                            fontSize: '34px',
+                            lineHeight: 1,
+                            fontWeight: 900,
                             fontFamily: 'Inter, system-ui, sans-serif',
                             fontVariantNumeric: 'tabular-nums',
                           }}
                         />
-                        <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', fontWeight: 700 }}>min</span>
+                        <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '12px', fontWeight: 800 }}>min</span>
                       </span>
                     </label>
-                  ))}
+                    <button type="button" onClick={() => updateDuration(mode, durations[mode] + durationStep)} aria-label={`Increase ${MODES[mode].label} duration`} style={{
+                      height: '42px',
+                      borderRadius: '14px',
+                      border: '1px solid rgba(255,255,255,0.14)',
+                      background: 'rgba(0,0,0,0.22)',
+                      color: 'rgba(255,255,255,0.86)',
+                      cursor: 'pointer',
+                      fontSize: '20px',
+                      fontWeight: 800,
+                    }}>+</button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '7px', marginTop: '10px' }}>
+                    {durationPresets.map(value => (
+                      <button key={value} type="button" onClick={() => updateDuration(mode, value)} style={{
+                        height: '32px',
+                        borderRadius: '999px',
+                        border: durations[mode] === value ? `1px solid ${MODES[mode].tone}` : '1px solid rgba(255,255,255,0.12)',
+                        background: durations[mode] === value ? `${MODES[mode].tone}22` : 'rgba(255,255,255,0.04)',
+                        color: durations[mode] === value ? 'white' : 'rgba(255,255,255,0.68)',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: 820,
+                      }}>{value} min</button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
 
             {!isFullscreen && (
               <div style={{ marginTop: '14px' }}>
-                <label style={{ color: 'rgba(255,255,255,0.56)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>FOCUS SOUND</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '0.9fr repeat(3, 1fr)', gap: '8px', marginTop: '8px' }}>
-                  <button type="button" onClick={toggleSound} style={{
-                    minHeight: '42px',
-                    borderRadius: '13px',
-                    border: soundOn ? `1px solid ${MODES[mode].tone}` : '1px solid rgba(255,255,255,0.14)',
-                    background: soundOn ? `${MODES[mode].tone}20` : 'rgba(255,255,255,0.04)',
-                    color: soundOn ? 'white' : 'rgba(255,255,255,0.62)',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: 850,
-                  }}>{soundOn ? 'On' : 'Off'}</button>
-                  {(Object.keys(BEAT_PATTERNS) as BeatPattern[]).map(pattern => {
-                    const active = beatPattern === pattern
+                <label style={{ color: 'rgba(255,255,255,0.56)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>FOCUS BEAT</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px' }}>
+                  {(['off', 'pulse', 'tick'] as const).map(option => {
+                    const active = option === 'off' ? !soundOn : soundOn && beatPattern === option
+                    const label = option === 'off' ? 'Off' : BEAT_PATTERNS[option].label
+                    const hint = option === 'off' ? 'Silent focus' : BEAT_PATTERNS[option].hint
                     return (
-                      <button key={pattern} type="button" onClick={() => setPattern(pattern)} title={BEAT_PATTERNS[pattern].hint} style={{
-                        minHeight: '42px',
-                        borderRadius: '13px',
+                      <button key={option} type="button" onClick={() => setSoundMode(option)} title={hint} style={{
+                        minHeight: '44px',
+                        borderRadius: '14px',
                         border: active ? `1px solid ${MODES[mode].tone}` : '1px solid rgba(255,255,255,0.13)',
-                        background: active ? `${MODES[mode].tone}18` : 'rgba(255,255,255,0.035)',
+                        background: active ? `${MODES[mode].tone}22` : 'rgba(255,255,255,0.04)',
                         color: active ? 'white' : 'rgba(255,255,255,0.62)',
                         cursor: 'pointer',
-                        fontSize: '11px',
-                        fontWeight: 820,
-                      }}>{BEAT_PATTERNS[pattern].label}</button>
+                        fontSize: '12px',
+                        fontWeight: 850,
+                      }}>{label}</button>
                     )
                   })}
                 </div>
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: isFullscreen ? 'repeat(4, 1fr)' : '1fr 1fr', gap: '10px', marginTop: isFullscreen ? 0 : '14px' }}>
+            {!isFullscreen && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '14px' }}>
+                {[
+                  { label: 'Auto-flow', active: autoFlow, onClick: toggleAutoFlow, detail: autoFlow ? 'Breaks start after focus' : 'Pause between sessions' },
+                  { label: 'Nex 5-min', active: nexAlertOn, onClick: toggleNexAlert, detail: nexAlertOn ? 'Voice warning near the end' : 'No voice warning' },
+                ].map(item => (
+                  <button key={item.label} type="button" onClick={item.onClick} style={{
+                    minHeight: '52px',
+                    borderRadius: '16px',
+                    border: item.active ? `1px solid ${MODES[mode].tone}88` : '1px solid rgba(255,255,255,0.13)',
+                    background: item.active ? `${MODES[mode].tone}18` : 'rgba(255,255,255,0.035)',
+                    color: item.active ? 'white' : 'rgba(255,255,255,0.64)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    padding: '9px 11px',
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                  }}>
+                    <span style={{ display: 'block', fontSize: '12px', fontWeight: 850 }}>{item.label}</span>
+                    <span style={{ display: 'block', marginTop: '3px', color: 'rgba(255,255,255,0.48)', fontSize: '10px', lineHeight: 1.25 }}>{item.detail}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: isFullscreen ? 'repeat(4, 1fr)' : '1.25fr 1fr 1fr', gap: '10px', marginTop: isFullscreen ? 0 : '14px' }}>
               <SoftButton onClick={toggleRun} primary>{running ? 'Pause' : 'Start flow'}</SoftButton>
               <SoftButton onClick={reset}>Reset</SoftButton>
               <SoftButton onClick={() => chooseMode(nextMode)}>Skip</SoftButton>
-              <SoftButton onClick={isFullscreen ? toggleSound : toggleNexAlert}>
-                {isFullscreen ? (soundOn ? 'Beats on' : 'Beats off') : (nexAlertOn ? 'Nex alert on' : 'Nex alert off')}
-              </SoftButton>
+              {isFullscreen && <SoftButton onClick={toggleSound}>{soundOn ? 'Beats on' : 'Beats off'}</SoftButton>}
             </div>
 
             <div style={{ marginTop: '16px', display: isFullscreen ? 'none' : 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
