@@ -432,11 +432,11 @@ export default function PomodoroView() {
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
       <section style={{
-        width: isFullscreen ? 'min(1040px, 100%)' : 'min(1040px, calc(100vw - 72px))',
+        width: isFullscreen ? 'min(1040px, 100%)' : 'min(960px, calc(100vw - 72px))',
         minHeight: isFullscreen ? '100%' : undefined,
         boxSizing: 'border-box',
         borderRadius: isFullscreen ? '0' : '36px',
-        padding: isFullscreen ? 'clamp(22px, 4vw, 52px)' : '26px',
+        padding: isFullscreen ? 'clamp(22px, 4vw, 52px)' : '22px',
         display: isFullscreen ? 'flex' : undefined,
         flexDirection: isFullscreen ? 'column' : undefined,
         background: isFullscreen ? 'transparent' : 'linear-gradient(180deg, rgba(24,27,39,0.96), rgba(11,13,20,0.98))',
@@ -490,16 +490,16 @@ export default function PomodoroView() {
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isFullscreen ? '1fr' : 'minmax(420px, 1fr) 320px',
-          gap: isFullscreen ? '30px' : '32px',
+          gridTemplateColumns: isFullscreen ? '1fr' : 'minmax(340px, 1fr) 320px',
+          gap: isFullscreen ? '30px' : '24px',
           alignItems: 'center',
           justifyItems: isFullscreen ? 'center' : undefined,
           flex: isFullscreen ? 1 : undefined,
         }}>
           <div style={{ display: 'grid', placeItems: 'center' }}>
             <div style={{
-              width: isFullscreen ? 'min(72vh, 640px)' : '430px',
-              height: isFullscreen ? 'min(72vh, 640px)' : '430px',
+              width: isFullscreen ? 'min(72vh, 640px)' : '360px',
+              height: isFullscreen ? 'min(72vh, 640px)' : '360px',
               borderRadius: '50%',
               position: 'relative',
               display: 'grid',
@@ -545,7 +545,7 @@ export default function PomodoroView() {
               }}>
                 <span style={{
                   color: '#f8fafc',
-                  fontSize: isFullscreen ? 'clamp(82px, 12vw, 148px)' : '82px',
+                  fontSize: isFullscreen ? 'clamp(82px, 12vw, 148px)' : '72px',
                   lineHeight: 0.95,
                   fontWeight: 760,
                   letterSpacing: 0,

@@ -366,16 +366,15 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
       style={{
         position: 'fixed',
         bottom: '24px',
-        right: '24px',
+        right: panelOpen ? 'calc(24px + clamp(0px, 34vw, 640px))' : '24px',
         zIndex: 9999,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: panelOpen ? 'flex-start' : 'flex-end',
+        alignItems: 'flex-end',
         gap: '10px',
         pointerEvents: 'none',
         userSelect: 'none',
-        transform: panelOpen ? 'translateX(calc(-100vw + 228px))' : 'translateX(0)',
-        transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+        transition: 'right 0.34s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
 

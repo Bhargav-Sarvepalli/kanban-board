@@ -417,6 +417,8 @@ function App() {
         ? t.feature_id === branchFilter.id
         : t.assignee_id === branchFilter.id)
     : tasks
+  const isPersonalBoard = !currentWorkspace && !currentProject
+  const activeBoardFocus: BoardFocus = isPersonalBoard && boardFocus === 'mine' ? 'project' : boardFocus
 
   const isMyTask = (task: Task) => {
     if (!userId) return false
@@ -440,16 +442,16 @@ function App() {
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   }
   const filterByBoardFocus = (task: Task) => {
-    if (boardFocus === 'mine') return isMyTask(task)
-    if (boardFocus === 'week') return isDueThisWeek(task)
-    if (boardFocus === 'backlog') return isBacklogTask(task)
-    if (boardFocus === 'done') return task.status === 'done'
+    if (activeBoardFocus === 'mine') return isMyTask(task)
+    if (activeBoardFocus === 'week') return isDueThisWeek(task)
+    if (activeBoardFocus === 'backlog') return isBacklogTask(task)
+    if (activeBoardFocus === 'done') return task.status === 'done'
     return true
   }
   const boardTasks = scopedTasks
     .filter(filterByBoardFocus)
     .filter(matchesSearch)
-    .sort(boardFocus === 'week' ? byDueThenCreated : (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    .sort(activeBoardFocus === 'week' ? byDueThenCreated : (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
   const boardCounts: Record<BoardFocus, number> = {
     project: scopedTasks.length,
@@ -468,13 +470,13 @@ function App() {
       : currentWorkspace
         ? 'Workspace board'
         : 'Personal board'
-  const boardDescription = boardFocus === 'mine'
+  const boardDescription = activeBoardFocus === 'mine'
     ? 'Only work owned by you, pulled from the same shared task list.'
-    : boardFocus === 'week'
+    : activeBoardFocus === 'week'
       ? 'Due, overdue, and review work that needs attention in the next 7 days.'
-      : boardFocus === 'backlog'
+      : activeBoardFocus === 'backlog'
         ? 'Open work without a date yet. Keep ideas here until they are ready to schedule.'
-        : boardFocus === 'done'
+        : activeBoardFocus === 'done'
           ? 'Completed work, kept out of the active execution board.'
           : currentProject
             ? 'The shared execution board for this project. Flow branches open into this same board.'
@@ -483,17 +485,18 @@ function App() {
               : 'Your private board for personal tasks and solo projects.'
   const boardFocusOptions: { id: BoardFocus; label: string; hint: string }[] = [
     { id: 'project', label: currentProject ? 'Project' : currentWorkspace ? 'Workspace' : 'All', hint: 'Shared source' },
-    { id: 'mine', label: 'My work', hint: 'Assigned to me' },
+    ...(!isPersonalBoard ? [{ id: 'mine' as const, label: 'My work', hint: 'Assigned to me' }] : []),
     { id: 'week', label: 'This week', hint: 'Due soon' },
     { id: 'backlog', label: 'Backlog', hint: 'No due date' },
     { id: 'done', label: 'Done', hint: 'Completed' },
   ]
-  const visibleColumns = boardFocus === 'done' ? COLUMNS.filter(col => col.id === 'done') : COLUMNS
+  const visibleColumns = activeBoardFocus === 'done' ? COLUMNS.filter(col => col.id === 'done') : COLUMNS
 
   const isFlow      = effectiveView === 'flow'
   const isDashboard = effectiveView === 'dashboard'
   const isPomodoro  = effectiveView === 'pomodoro'
   const isFull      = isFlow || isDashboard || isPomodoro
+  const hasRightSidePanel = showSettings || flowDrawerOpen || Boolean(selectedTask) || showWorkspacePanel || showProjectWizard || showStandup
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#0a0a0f', fontFamily: 'Inter, -apple-system, sans-serif' }}>
@@ -645,7 +648,7 @@ function App() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.04)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
                   {boardFocusOptions.map(opt => {
-                    const active = boardFocus === opt.id
+                    const active = activeBoardFocus === opt.id
                     return (
                       <button key={opt.id} type="button"
                         onClick={() => {
@@ -701,7 +704,7 @@ function App() {
                       tasks={boardTasks.filter(t => t.status === col.id)}
                       onDeleted={refetchTasks} onOpen={setSelectedTask}
                       onAddTask={handleAddTask} profiles={profiles} userId={userId}
-                      maxVisibleTasks={boardFocus === 'done' ? 10 : 6} />
+                      maxVisibleTasks={activeBoardFocus === 'done' ? 10 : 6} />
                   </motion.div>
                 ))}
               </div>
@@ -808,7 +811,7 @@ function App() {
             onOpenProjectWizard={() => setShowProjectWizard(true)}
             onOpenWorkspacePanel={() => setShowWorkspacePanel(true)}
             onOpenPomodoro={handleOpenPomodoro}
-            panelOpen={showSettings || flowDrawerOpen} />
+            panelOpen={hasRightSidePanel} />
         </NexErrorBoundary>
       )}
     </div>
