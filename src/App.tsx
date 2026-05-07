@@ -609,7 +609,7 @@ function App() {
         </div>
 
         {/* CONTENT AREA */}
-        <div style={{ flex: 1, overflow: isFull ? 'hidden' : 'auto', padding: isFull ? '0' : '20px 24px', minHeight: 0 }}>
+        <div style={{ flex: 1, overflow: isPomodoro ? 'auto' : isFull ? 'hidden' : 'auto', padding: isFull ? '0' : '20px 24px', minHeight: 0 }}>
 
           {effectiveView === 'board' && (
             <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '14px' }}>

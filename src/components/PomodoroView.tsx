@@ -87,7 +87,7 @@ function SoftButton({
 }) {
   return (
     <button onClick={onClick} style={{
-      height: '48px',
+      height: '44px',
       borderRadius: '16px',
       border: primary ? '1px solid rgba(255,255,255,0.18)' : '1px solid rgba(255,255,255,0.14)',
       background: primary
@@ -424,7 +424,7 @@ export default function PomodoroView() {
       display: 'grid',
       placeItems: 'center',
       position: 'relative',
-      overflow: 'hidden',
+      overflow: isFullscreen ? 'hidden' : 'auto',
       padding: isFullscreen ? 'clamp(24px, 4vh, 54px)' : 0,
       background: isFullscreen
         ? '#05060a'
@@ -432,28 +432,33 @@ export default function PomodoroView() {
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
       <section style={{
-        width: isFullscreen ? 'min(1040px, 100%)' : 'min(960px, calc(100vw - 72px))',
+        width: isFullscreen ? 'min(1040px, 100%)' : 'min(920px, calc(100vw - 72px))',
         minHeight: isFullscreen ? '100%' : undefined,
         boxSizing: 'border-box',
         borderRadius: isFullscreen ? '0' : '36px',
-        padding: isFullscreen ? 'clamp(22px, 4vw, 52px)' : '22px',
+        padding: isFullscreen ? 'clamp(22px, 4vw, 52px)' : '20px',
         display: isFullscreen ? 'flex' : undefined,
         flexDirection: isFullscreen ? 'column' : undefined,
         background: isFullscreen ? 'transparent' : 'linear-gradient(180deg, rgba(24,27,39,0.96), rgba(11,13,20,0.98))',
         border: isFullscreen ? 'none' : '1px solid rgba(255,255,255,0.14)',
         boxShadow: isFullscreen ? 'none' : '0 38px 110px rgba(0,0,0,0.66), inset 0 1px 0 rgba(255,255,255,0.1)',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', marginBottom: isFullscreen ? '0' : '18px', opacity: isFullscreen ? 0.74 : 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', marginBottom: isFullscreen ? '0' : '12px', opacity: isFullscreen ? 0.74 : 1 }}>
           <div>
             <p style={{ margin: 0, color: 'rgba(255,255,255,0.58)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.16em' }}>NEX FOCUS</p>
             <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '22px', fontWeight: 850, letterSpacing: 0 }}>{MODES[mode].label}</h2>
+            {!isFullscreen && (
+              <p style={{ margin: '5px 0 0', color: 'rgba(255,255,255,0.54)', fontSize: '12px', fontWeight: 720 }}>
+                {focusCount} block{focusCount === 1 ? '' : 's'} · {soundOn ? `${beat.label} ${beat.bpm} BPM` : `Next ${MODES[nextMode].label}`}
+              </p>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {(Object.keys(MODES) as Mode[]).map(m => (
               <button key={m} onClick={() => chooseMode(m)}
                 style={{
-                  height: '36px',
-                  padding: '0 14px',
+                  height: '34px',
+                  padding: '0 12px',
                   borderRadius: '999px',
                   border: `1px solid ${mode === m ? MODES[m].tone : 'rgba(255,255,255,0.14)'}`,
                   background: mode === m ? `${MODES[m].tone}24` : 'rgba(255,255,255,0.05)',
@@ -490,16 +495,16 @@ export default function PomodoroView() {
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isFullscreen ? '1fr' : 'minmax(340px, 1fr) 320px',
-          gap: isFullscreen ? '30px' : '24px',
+          gridTemplateColumns: isFullscreen ? '1fr' : 'minmax(320px, 1fr) 318px',
+          gap: isFullscreen ? '30px' : '20px',
           alignItems: 'center',
           justifyItems: isFullscreen ? 'center' : undefined,
           flex: isFullscreen ? 1 : undefined,
         }}>
           <div style={{ display: 'grid', placeItems: 'center' }}>
             <div style={{
-              width: isFullscreen ? 'min(72vh, 640px)' : '360px',
-              height: isFullscreen ? 'min(72vh, 640px)' : '360px',
+              width: isFullscreen ? 'min(72vh, 640px)' : 'clamp(292px, 32vh, 330px)',
+              height: isFullscreen ? 'min(72vh, 640px)' : 'clamp(292px, 32vh, 330px)',
               borderRadius: '50%',
               position: 'relative',
               display: 'grid',
@@ -545,7 +550,7 @@ export default function PomodoroView() {
               }}>
                 <span style={{
                   color: '#f8fafc',
-                  fontSize: isFullscreen ? 'clamp(82px, 12vw, 148px)' : '72px',
+                  fontSize: isFullscreen ? 'clamp(82px, 12vw, 148px)' : '66px',
                   lineHeight: 0.95,
                   fontWeight: 760,
                   letterSpacing: 0,
@@ -565,23 +570,23 @@ export default function PomodoroView() {
             {!isFullscreen && <label style={{ color: 'rgba(255,255,255,0.56)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>INTENTION</label>}
             <textarea value={intention} onChange={e => { setIntention(e.target.value); try { localStorage.setItem(STORAGE.intention, e.target.value) } catch { /* ignore */ } }}
               placeholder="One outcome for this session"
-              style={{ display: isFullscreen ? 'none' : 'block', marginTop: '8px', width: '100%', minHeight: '78px', resize: 'none', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(5,7,12,0.5)', color: 'white', outline: 'none', padding: '12px', fontSize: '13px', fontFamily: 'Inter, system-ui, sans-serif' }} />
+              style={{ display: isFullscreen ? 'none' : 'block', marginTop: '7px', width: '100%', minHeight: '58px', resize: 'none', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(5,7,12,0.5)', color: 'white', outline: 'none', padding: '11px 12px', fontSize: '13px', fontFamily: 'Inter, system-ui, sans-serif' }} />
 
             {!isFullscreen && (
-              <div style={{ marginTop: '14px' }}>
+              <div style={{ marginTop: '10px' }}>
                 <label style={{ color: 'rgba(255,255,255,0.56)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>SESSION LENGTH</label>
                 <div style={{
-                  marginTop: '8px',
-                  padding: '12px',
-                  borderRadius: '18px',
+                  marginTop: '7px',
+                  padding: '10px',
+                  borderRadius: '16px',
                   border: `1px solid ${MODES[mode].tone}55`,
                   background: `linear-gradient(135deg, ${MODES[mode].tone}18, rgba(255,255,255,0.035))`,
                   boxShadow: `inset 0 1px 0 rgba(255,255,255,0.08), 0 14px 34px ${MODES[mode].tone}12`,
                 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '42px 1fr 42px', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '38px 1fr 38px', alignItems: 'center', gap: '9px' }}>
                     <button type="button" onClick={() => updateDuration(mode, durations[mode] - durationStep)} aria-label={`Decrease ${MODES[mode].label} duration`} style={{
-                      height: '42px',
-                      borderRadius: '14px',
+                      height: '38px',
+                      borderRadius: '13px',
                       border: '1px solid rgba(255,255,255,0.14)',
                       background: 'rgba(0,0,0,0.22)',
                       color: 'rgba(255,255,255,0.86)',
@@ -601,13 +606,13 @@ export default function PomodoroView() {
                           onFocus={e => e.currentTarget.select()}
                           aria-label={`${MODES[mode].label} minutes`}
                           style={{
-                            width: '74px',
+                            width: '66px',
                             border: 'none',
                             background: 'transparent',
                             color: 'white',
                             outline: 'none',
                             textAlign: 'center',
-                            fontSize: '34px',
+                            fontSize: '29px',
                             lineHeight: 1,
                             fontWeight: 900,
                             fontFamily: 'Inter, system-ui, sans-serif',
@@ -618,8 +623,8 @@ export default function PomodoroView() {
                       </span>
                     </label>
                     <button type="button" onClick={() => updateDuration(mode, durations[mode] + durationStep)} aria-label={`Increase ${MODES[mode].label} duration`} style={{
-                      height: '42px',
-                      borderRadius: '14px',
+                      height: '38px',
+                      borderRadius: '13px',
                       border: '1px solid rgba(255,255,255,0.14)',
                       background: 'rgba(0,0,0,0.22)',
                       color: 'rgba(255,255,255,0.86)',
@@ -628,10 +633,10 @@ export default function PomodoroView() {
                       fontWeight: 800,
                     }}>+</button>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '7px', marginTop: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '7px', marginTop: '8px' }}>
                     {durationPresets.map(value => (
                       <button key={value} type="button" onClick={() => updateDuration(mode, value)} style={{
-                        height: '32px',
+                        height: '28px',
                         borderRadius: '999px',
                         border: durations[mode] === value ? `1px solid ${MODES[mode].tone}` : '1px solid rgba(255,255,255,0.12)',
                         background: durations[mode] === value ? `${MODES[mode].tone}22` : 'rgba(255,255,255,0.04)',
@@ -647,9 +652,9 @@ export default function PomodoroView() {
             )}
 
             {!isFullscreen && (
-              <div style={{ marginTop: '14px' }}>
+              <div style={{ marginTop: '10px' }}>
                 <label style={{ color: 'rgba(255,255,255,0.56)', fontSize: '11px', fontWeight: 850, letterSpacing: '0.14em' }}>FOCUS BEAT</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '7px' }}>
                   {(['off', 'pulse', 'tick'] as const).map(option => {
                     const active = option === 'off' ? !soundOn : soundOn && beatPattern === option
                     const label = option === 'off' ? 'Off' : BEAT_PATTERNS[option].label
@@ -657,7 +662,7 @@ export default function PomodoroView() {
                     return (
                       <button key={option} type="button" onClick={() => setSoundMode(option)} title={hint} style={{
                         minHeight: '44px',
-                        borderRadius: '14px',
+                        borderRadius: '13px',
                         border: active ? `1px solid ${MODES[mode].tone}` : '1px solid rgba(255,255,255,0.13)',
                         background: active ? `${MODES[mode].tone}22` : 'rgba(255,255,255,0.04)',
                         color: active ? 'white' : 'rgba(255,255,255,0.62)',
@@ -672,20 +677,20 @@ export default function PomodoroView() {
             )}
 
             {!isFullscreen && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '10px' }}>
                 {[
                   { label: 'Auto-flow', active: autoFlow, onClick: toggleAutoFlow, detail: autoFlow ? 'Breaks start after focus' : 'Pause between sessions' },
                   { label: 'Nex 5-min', active: nexAlertOn, onClick: toggleNexAlert, detail: nexAlertOn ? 'Voice warning near the end' : 'No voice warning' },
                 ].map(item => (
                   <button key={item.label} type="button" onClick={item.onClick} style={{
-                    minHeight: '52px',
-                    borderRadius: '16px',
+                    minHeight: '42px',
+                    borderRadius: '14px',
                     border: item.active ? `1px solid ${MODES[mode].tone}88` : '1px solid rgba(255,255,255,0.13)',
                     background: item.active ? `${MODES[mode].tone}18` : 'rgba(255,255,255,0.035)',
                     color: item.active ? 'white' : 'rgba(255,255,255,0.64)',
                     cursor: 'pointer',
                     textAlign: 'left',
-                    padding: '9px 11px',
+                    padding: '8px 10px',
                     fontFamily: 'Inter, system-ui, sans-serif',
                   }}>
                     <span style={{ display: 'block', fontSize: '12px', fontWeight: 850 }}>{item.label}</span>
@@ -695,22 +700,11 @@ export default function PomodoroView() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: isFullscreen ? 'repeat(4, 1fr)' : '1.25fr 1fr 1fr', gap: '10px', marginTop: isFullscreen ? 0 : '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isFullscreen ? 'repeat(4, 1fr)' : '1.25fr 1fr 1fr', gap: '9px', marginTop: isFullscreen ? 0 : '10px' }}>
               <SoftButton onClick={toggleRun} primary>{running ? 'Pause' : 'Start flow'}</SoftButton>
               <SoftButton onClick={reset}>Reset</SoftButton>
               <SoftButton onClick={() => chooseMode(nextMode)}>Skip</SoftButton>
               {isFullscreen && <SoftButton onClick={toggleSound}>{soundOn ? 'Beats on' : 'Beats off'}</SoftButton>}
-            </div>
-
-            <div style={{ marginTop: '16px', display: isFullscreen ? 'none' : 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}>
-                <p style={{ margin: 0, color: MODES[mode].tone, fontSize: '22px', fontWeight: 900, letterSpacing: 0 }}>{focusCount}</p>
-                <span style={{ color: 'rgba(255,255,255,0.56)', fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em' }}>BLOCKS</span>
-              </div>
-              <div style={{ padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}>
-                <p style={{ margin: 0, color: soundOn ? MODES[mode].tone : 'rgba(255,255,255,0.86)', fontSize: '14px', fontWeight: 850 }}>{soundOn ? `${beat.label} ${beat.bpm}` : MODES[nextMode].label}</p>
-                <span style={{ color: 'rgba(255,255,255,0.56)', fontSize: '10px', fontWeight: 850, letterSpacing: '0.12em' }}>{soundOn ? 'BPM' : 'NEXT'}</span>
-              </div>
             </div>
           </div>
         </div>
