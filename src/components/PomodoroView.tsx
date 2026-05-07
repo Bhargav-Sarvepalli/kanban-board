@@ -432,7 +432,7 @@ export default function PomodoroView() {
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
       <section style={{
-        width: isFullscreen ? 'min(1040px, 100%)' : 'min(920px, calc(100vw - 72px))',
+        width: isFullscreen ? 'min(1040px, 100%)' : 'min(1040px, calc(100vw - 72px))',
         minHeight: isFullscreen ? '100%' : undefined,
         boxSizing: 'border-box',
         borderRadius: isFullscreen ? '0' : '36px',
@@ -495,16 +495,16 @@ export default function PomodoroView() {
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isFullscreen ? '1fr' : 'minmax(320px, 1fr) 318px',
-          gap: isFullscreen ? '30px' : '20px',
+          gridTemplateColumns: isFullscreen ? '1fr' : 'minmax(430px, 1fr) 318px',
+          gap: isFullscreen ? '30px' : '22px',
           alignItems: 'center',
           justifyItems: isFullscreen ? 'center' : undefined,
           flex: isFullscreen ? 1 : undefined,
         }}>
           <div style={{ display: 'grid', placeItems: 'center' }}>
             <div style={{
-              width: isFullscreen ? 'min(72vh, 640px)' : 'clamp(292px, 32vh, 330px)',
-              height: isFullscreen ? 'min(72vh, 640px)' : 'clamp(292px, 32vh, 330px)',
+              width: isFullscreen ? 'min(72vh, 640px)' : 'clamp(380px, min(46vh, 430px), 430px)',
+              height: isFullscreen ? 'min(72vh, 640px)' : 'clamp(380px, min(46vh, 430px), 430px)',
               borderRadius: '50%',
               position: 'relative',
               display: 'grid',
@@ -550,7 +550,7 @@ export default function PomodoroView() {
               }}>
                 <span style={{
                   color: '#f8fafc',
-                  fontSize: isFullscreen ? 'clamp(82px, 12vw, 148px)' : '66px',
+                  fontSize: isFullscreen ? 'clamp(82px, 12vw, 148px)' : '82px',
                   lineHeight: 0.95,
                   fontWeight: 760,
                   letterSpacing: 0,
