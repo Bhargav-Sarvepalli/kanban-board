@@ -41,6 +41,24 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
     ? task.user_id === userId
     : canEditTask(role, task.user_id, task.assignee_id, userId)
 
+  useEffect(() => {
+    let active = true
+    queueMicrotask(() => {
+      if (!active) return
+      setEditingTitle(false)
+      setTitle(task.title)
+      setDescription(task.description ?? '')
+      setStatus(task.status)
+      setPriority(task.priority)
+      setDueDate(task.due_date ?? '')
+      setShowOnFlow(task.show_on_flow ?? false)
+      setFeatureId(task.feature_id ?? null)
+      setNewComment('')
+      setSubtasks([])
+    })
+    return () => { active = false }
+  }, [task.id, task.title, task.description, task.status, task.priority, task.due_date, task.show_on_flow, task.feature_id])
+
   // Fetch features for this project
   useEffect(() => {
     if (!task.project_id) return
@@ -71,11 +89,19 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
 
   const handleSave = async () => {
     if (!canEdit) return
+    const cleanTitle = title.trim()
+    if (!cleanTitle) {
+      toast.error('Task title is required')
+      return
+    }
     setSaving(true)
     const wasNotDone = task.status !== 'done'
     const isNowDone  = status === 'done'
     const { error } = await supabase.from('tasks').update({
-      title, description, status, priority,
+      title: cleanTitle,
+      description: description.trim() || null,
+      status,
+      priority,
       due_date: dueDate || null,
       show_on_flow: showOnFlow,
       feature_id: featureId,
@@ -112,14 +138,47 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
 
   const handleToggleFlow = async (v: boolean) => {
     if (!canEdit) return
+    const previous = showOnFlow
     setShowOnFlow(v)
-    await supabase.from('tasks').update({ show_on_flow: v }).eq('id', task.id)
+    const { error } = await supabase.from('tasks').update({ show_on_flow: v }).eq('id', task.id)
+    if (error) {
+      setShowOnFlow(previous)
+      toast.error('Could not update Flow visibility')
+    }
   }
 
   const handleFeatureChange = async (newFeatureId: string | null) => {
     if (!canEdit) return
+    const previous = featureId
     setFeatureId(newFeatureId)
-    await supabase.from('tasks').update({ feature_id: newFeatureId }).eq('id', task.id)
+    const { error } = await supabase.from('tasks').update({ feature_id: newFeatureId }).eq('id', task.id)
+    if (error) {
+      setFeatureId(previous)
+      toast.error('Could not move task to that branch')
+    }
+  }
+
+  const submitComment = async () => {
+    const content = newComment.trim()
+    if (!content || submitting) return
+    setSubmitting(true)
+    const { error } = await supabase.from('comments').insert({ task_id: task.id, user_id: userId, content })
+    if (error) {
+      toast.error('Could not add comment')
+    } else {
+      setNewComment('')
+      await refetchComments()
+    }
+    setSubmitting(false)
+  }
+
+  const deleteComment = async (commentId: string) => {
+    const { error } = await supabase.from('comments').delete().eq('id', commentId)
+    if (error) {
+      toast.error('Could not delete comment')
+      return
+    }
+    await refetchComments()
   }
 
   const labelStyle = { display: 'block' as const, color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontFamily: 'Space Mono, monospace', letterSpacing: '0.2em', marginBottom: '8px' }
@@ -325,7 +384,7 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
                       style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                         <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', margin: 0, lineHeight: 1.5, flex: 1 }}>{c.content}</p>
-                        {c.user_id === userId && <button onClick={async () => { await supabase.from('comments').delete().eq('id', c.id); await refetchComments() }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.15)', cursor: 'pointer', fontSize: '10px' }}>✕</button>}
+                        {c.user_id === userId && <button type="button" aria-label="Delete comment" onClick={() => deleteComment(c.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', fontSize: '10px' }}>✕</button>}
                       </div>
                       <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px', margin: '6px 0 0', fontFamily: 'Space Mono' }}>{formatTime(c.created_at)}</p>
                     </motion.div>
@@ -334,11 +393,11 @@ function TaskDetailPanel({ task, onClose, onUpdated, userId, profiles = {} }: Pr
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input value={newComment} onChange={e => setNewComment(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && newComment.trim()) { setSubmitting(true); supabase.from('comments').insert({ task_id: task.id, user_id: userId, content: newComment.trim() }).then(() => { setNewComment(''); refetchComments().then(() => setSubmitting(false)) }) } }}
+                  onKeyDown={e => { if (e.key === 'Enter') void submitComment() }}
                   placeholder="Add a comment..."
                   style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px 14px', color: 'white', fontSize: '13px', fontFamily: 'Space Grotesk', outline: 'none' }} />
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                  onClick={async () => { if (!newComment.trim()) return; setSubmitting(true); await supabase.from('comments').insert({ task_id: task.id, user_id: userId, content: newComment.trim() }); setNewComment(''); await refetchComments(); setSubmitting(false) }}
+                  onClick={() => void submitComment()}
                   disabled={submitting || !newComment.trim()}
                   style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '10px', padding: '10px 16px', color: 'white', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 700, opacity: !newComment.trim() ? 0.4 : 1 }}>
                   {submitting ? '...' : 'Send'}

@@ -51,6 +51,7 @@ function CalendarView({ tasks, onOpenTask, contextKey }: Props) {
   const [entryTime, setEntryTime] = useState('09:00')
   const [entryType, setEntryType] = useState<CalendarEntry['type']>('meeting')
   const [entryNotes, setEntryNotes] = useState('')
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
 
   const storageKey = `nex-calendar:${contextKey}`
 
@@ -100,15 +101,19 @@ function CalendarView({ tasks, onOpenTask, contextKey }: Props) {
   }
 
   const removeEntry = (id: string) => {
-    if (!window.confirm('Remove this calendar entry? This deletes it from this browser.')) return
+    if (pendingRemoveId !== id) {
+      setPendingRemoveId(id)
+      return
+    }
     saveEntries(entries.filter(e => e.id !== id))
+    setPendingRemoveId(null)
   }
 
   return (
-    <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', alignItems: 'flex-start' }}>
 
       {/* Calendar grid */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: '1 1 620px', minWidth: 'min(620px, 100%)' }}>
 
         {/* Month navigation */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
@@ -264,7 +269,7 @@ function CalendarView({ tasks, onOpenTask, contextKey }: Props) {
       <motion.div
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
-        style={{ width: '280px', flexShrink: 0, position: 'sticky', top: '24px' }}
+        style={{ width: 'min(280px, 100%)', flex: '0 1 280px', position: 'sticky', top: '24px' }}
       >
         {/* Selected day tasks */}
         <div style={{
@@ -292,7 +297,7 @@ function CalendarView({ tasks, onOpenTask, contextKey }: Props) {
                     <motion.div key={entry.id} whileHover={{ scale: 1.02 }} style={{ background: 'rgba(45,212,191,0.08)', border: '1px solid rgba(45,212,191,0.24)', borderRadius: '10px', padding: '10px 12px', borderLeft: '2px solid #2dd4bf' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
                         <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: 650, margin: 0, fontFamily: 'Space Grotesk' }}>{entry.title}</p>
-                        <button onClick={() => removeEntry(entry.id)} title="Remove entry" style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', fontSize: '12px' }}>x</button>
+                        <button type="button" onClick={() => removeEntry(entry.id)} title={pendingRemoveId === entry.id ? 'Confirm remove' : 'Remove entry'} style={{ background: pendingRemoveId === entry.id ? 'rgba(248,113,113,0.12)' : 'transparent', border: pendingRemoveId === entry.id ? '1px solid rgba(248,113,113,0.28)' : '1px solid transparent', borderRadius: '6px', color: pendingRemoveId === entry.id ? '#f87171' : 'rgba(255,255,255,0.45)', cursor: 'pointer', fontSize: '11px', padding: '2px 6px' }}>{pendingRemoveId === entry.id ? 'Remove' : 'x'}</button>
                       </div>
                       <p style={{ color: '#2dd4bf', fontSize: '9px', fontFamily: 'Space Mono', margin: '5px 0 0' }}>{entry.time} · {entry.type.toUpperCase()}</p>
                       {entry.notes && <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', margin: '6px 0 0', fontFamily: 'Space Grotesk' }}>{entry.notes}</p>}

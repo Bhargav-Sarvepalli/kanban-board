@@ -6,6 +6,7 @@ import { supabase } from '../supabase'
 import ConfirmDialog from './ConfirmDialog'
 import Avatar from './Avatar'
 import { useWorkspaceRole, canDeleteTask } from '../hooks/useWorkspaceRole'
+import toast from 'react-hot-toast'
 
 interface Props {
   task: Task
@@ -32,7 +33,14 @@ function TaskCard({ task, onDeleted, onOpen, profiles = {}, userId = null }: Pro
   } : undefined
 
   const handleDelete = async () => {
-    await supabase.from('tasks').delete().eq('id', task.id)
+    const { error } = await supabase.from('tasks').delete().eq('id', task.id)
+    if (error) {
+      toast.error('Could not delete task')
+      setShowConfirm(false)
+      return
+    }
+    toast.success('Task deleted')
+    setShowConfirm(false)
     onDeleted()
   }
 
@@ -110,16 +118,28 @@ function TaskCard({ task, onDeleted, onOpen, profiles = {}, userId = null }: Pro
           {/* Delete button — role gated */}
           {showDelete && (
             <button
-              onPointerDown={e => { e.stopPropagation(); setShowConfirm(true) }}
+              type="button"
+              aria-label={`Delete ${task.title}`}
+              onPointerDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); setShowConfirm(true) }}
               style={{
-                background: 'none', border: 'none',
-                color: 'rgba(255,255,255,0.48)',
-                cursor: 'pointer', fontSize: '10px',
-                padding: '2px 4px', flexShrink: 0,
-                borderRadius: '4px', transition: 'color 0.15s',
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.58)',
+                cursor: 'pointer', fontSize: '11px',
+                width: '24px', height: '24px', flexShrink: 0,
+                borderRadius: '7px', transition: 'color 0.15s, border-color 0.15s, background 0.15s',
+                display: 'grid', placeItems: 'center',
               }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.48)')}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = '#f87171'
+                e.currentTarget.style.borderColor = 'rgba(248,113,113,0.36)'
+                e.currentTarget.style.background = 'rgba(248,113,113,0.1)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = 'rgba(255,255,255,0.58)'
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
+                e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+              }}
             >
               ✕
             </button>

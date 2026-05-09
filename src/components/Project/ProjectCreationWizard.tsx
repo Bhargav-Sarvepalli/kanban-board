@@ -23,6 +23,7 @@ export interface Project {
 
 const STEPS = ['Project', 'Team', 'Flow', 'Features']
 const FEATURE_COLORS = ['#ec4899', '#8b5cf6', '#06b6d4', '#2563eb', '#059669', '#db2777', '#0891b2', '#65a30d']
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function ProjectCreationWizard({ userId, workspaceId, onCreated, onComplete, onClose }: Props) {
   const finish = (p: Project) => { onCreated(p); onComplete?.(p) }
@@ -63,6 +64,22 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
   const [createdProject, setCreatedProject] = useState<Project | null>(null)
 
   const canNext = () => step === 0 ? name.trim().length > 0 : true
+
+  const addInviteEmail = () => {
+    const email = inviteEmail.trim().toLowerCase()
+    if (!email) return
+    if (!EMAIL_RE.test(email)) {
+      setError('Enter a valid teammate email.')
+      return
+    }
+    if (invitedEmails.includes(email)) {
+      setError('That email is already on the invite list.')
+      return
+    }
+    setInvitedEmails(p => [...p, email])
+    setInviteEmail('')
+    setError('')
+  }
 
   const handleStep1 = async () => {
     setLoading(true); setError('')
@@ -184,7 +201,7 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
     if (!createdProject) return
     setLoading(true)
     try {
-      const uniqueEmails = [...new Set(invitedEmails.map(e => e.trim().toLowerCase()).filter(Boolean))]
+      const uniqueEmails = [...new Set(invitedEmails.map(e => e.trim().toLowerCase()).filter(email => EMAIL_RE.test(email)))]
       if (uniqueEmails.length > 0) {
         if (createdProject.workspace_id) {
           const { data: existingInvites } = await supabase
@@ -326,8 +343,8 @@ export default function ProjectCreationWizard({ userId, workspaceId, onCreated, 
                 <label style={labelStyle}>Invite by Email</label>
                 <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
                   <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="teammate@example.com" style={{ ...inputStyle, flex: 1 }}
-                    onKeyDown={e => { if (e.key === 'Enter' && inviteEmail.trim()) { setInvitedEmails(p => [...p, inviteEmail.trim()]); setInviteEmail('') } }} />
-                  <button onClick={() => { if (inviteEmail.trim()) { setInvitedEmails(p => [...p, inviteEmail.trim()]); setInviteEmail('') } }} style={{ ...primaryBtnStyle(true), padding: '0 20px', flexShrink: 0 }}>Invite</button>
+                    onKeyDown={e => { if (e.key === 'Enter') addInviteEmail() }} />
+                  <button onClick={addInviteEmail} style={{ ...primaryBtnStyle(true), padding: '0 20px', flexShrink: 0 }}>Invite</button>
                 </div>
                 {invitedEmails.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>

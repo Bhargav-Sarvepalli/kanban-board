@@ -34,10 +34,16 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
   const [processing, setProcessing] = useState<string | null>(null)
 
   const fetchInvites = useCallback(async () => {
+    const email = userEmail.trim().toLowerCase()
+    if (!email) {
+      setInvites([])
+      return
+    }
+
     const { data } = await supabase
       .from('workspace_invites')
       .select('*')
-      .eq('email', userEmail)
+      .eq('email', email)
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
 
@@ -66,10 +72,11 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
 
   const handleAccept = async (invite: WorkspaceInvite) => {
     setProcessing(invite.id)
+    const email = userEmail.trim().toLowerCase()
     const { error } = await supabase.from('workspace_members').insert({
       workspace_id: invite.workspace_id,
       user_id: userId,
-      email: userEmail,
+      email,
       role: invite.role,
     })
     if (error) { toast.error('Failed to join workspace'); setProcessing(null); return }
@@ -84,7 +91,8 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
 
   const handleReject = async (invite: WorkspaceInvite) => {
     setProcessing(invite.id)
-    await supabase.from('workspace_invites').update({ status: 'rejected' }).eq('id', invite.id)
+    const { error } = await supabase.from('workspace_invites').update({ status: 'rejected' }).eq('id', invite.id)
+    if (error) { toast.error('Failed to decline invite'); setProcessing(null); return }
     toast.success('Invite declined')
     setInvites(prev => prev.filter(i => i.id !== invite.id))
     if (invites.length <= 1) setOpen(false)

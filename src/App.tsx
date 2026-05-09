@@ -26,6 +26,7 @@ import type { FlowBranch } from './hooks/useFlowData'
 import { useProjects } from './hooks/useProjects'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLocation, useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 
 type AppView = 'today' | 'board' | 'calendar' | 'flow' | 'dashboard' | 'pomodoro'
 type BoardFocus = 'project' | 'mine' | 'week' | 'backlog' | 'done'
@@ -363,7 +364,10 @@ function App() {
     const { error } = await supabase.from('tasks')
       .update({ status: newStatus, last_edited_by: userId, last_edited_at: new Date().toISOString() })
       .eq('id', taskId)
-    if (error) { console.error(error); refetchTasks() }
+    if (error) {
+      toast.error('Could not move task')
+      refetchTasks()
+    }
   }
 
   const handleAddTask = (status: Status) => { setDefaultStatus(status); setShowModal(true) }
@@ -690,7 +694,7 @@ function App() {
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: visibleColumns.length === 1 ? 'minmax(320px, 520px)' : 'repeat(4, minmax(260px, 1fr))',
+                gridTemplateColumns: visibleColumns.length === 1 ? 'minmax(280px, min(520px, 100%))' : `repeat(${visibleColumns.length}, minmax(220px, 1fr))`,
                 alignItems: 'stretch',
                 gap: '12px',
                 overflowX: 'auto',

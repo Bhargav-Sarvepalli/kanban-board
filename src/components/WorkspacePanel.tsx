@@ -21,6 +21,8 @@ const ROLE_META: Record<string, { label: string; color: string; bg: string; bord
 }
 
 const PRESET_COLORS = ['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f59e0b', '#ef4444']
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const normalizeEmail = (email: string) => email.trim().toLowerCase()
 const PRESET_ICONS  = ['🚀', '💼', '🎯', '⚡', '🔥', '💡', '🛠', '📊', '🌟', '🤖', '🎮', '📱']
 
 function WorkspaceEditModal({
@@ -224,7 +226,7 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
   const isAdmin = myRole === 'admin' || currentWorkspace?.owner_id === userId
 
   const createWorkspace = async () => {
-    if (!newWsName.trim()) return
+    if (creating || !newWsName.trim()) return
     setCreating(true)
     const { data, error } = await supabase.from('workspaces').insert({ name: newWsName.trim(), owner_id: userId, color: '#8b5cf6' }).select().single()
     if (error) toast.error('Failed to create workspace')
@@ -235,9 +237,22 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
   const deleteWorkspace = async (wsId: string, e?: React.MouseEvent) => {
     e?.stopPropagation()
     setDeleting(true)
-    await supabase.from('workspace_members').delete().eq('workspace_id', wsId)
-    await supabase.from('workspace_invites').delete().eq('workspace_id', wsId)
-    await supabase.from('tasks').delete().eq('workspace_id', wsId)
+
+    const cleanupSteps = [
+      () => supabase.from('workspace_members').delete().eq('workspace_id', wsId),
+      () => supabase.from('workspace_invites').delete().eq('workspace_id', wsId),
+      () => supabase.from('tasks').delete().eq('workspace_id', wsId),
+    ]
+
+    for (const cleanup of cleanupSteps) {
+      const { error } = await cleanup()
+      if (error) {
+        toast.error('Failed to delete workspace data')
+        setDeleting(false)
+        return
+      }
+    }
+
     const { error } = await supabase.from('workspaces').delete().eq('id', wsId)
     if (error) toast.error('Failed to delete workspace')
     else { toast.success('Workspace deleted'); setConfirmDeleteId(null); if (currentWorkspace?.id === wsId) onWorkspaceChange(null); void fetchWorkspaces() }
@@ -246,25 +261,30 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
 
   const inviteMember = async () => {
     if (!inviteEmail.trim() || !currentWorkspace) return
+    const email = normalizeEmail(inviteEmail)
+    if (!EMAIL_RE.test(email)) {
+      toast.error('Enter a valid email')
+      return
+    }
     setInviting(true)
 
     // Check not already a member
-    const { data: existing } = await supabase.from('workspace_members').select('id').eq('workspace_id', currentWorkspace.id).eq('email', inviteEmail.trim())
+    const { data: existing } = await supabase.from('workspace_members').select('id').eq('workspace_id', currentWorkspace.id).eq('email', email)
     if (existing && existing.length > 0) { toast.error('Already a member'); setInviting(false); return }
 
     // Check no pending invite
-    const { data: existingInvite } = await supabase.from('workspace_invites').select('id').eq('workspace_id', currentWorkspace.id).eq('email', inviteEmail.trim()).eq('status', 'pending')
+    const { data: existingInvite } = await supabase.from('workspace_invites').select('id').eq('workspace_id', currentWorkspace.id).eq('email', email).eq('status', 'pending')
     if (existingInvite && existingInvite.length > 0) { toast.error('Invite already pending'); setInviting(false); return }
 
     const { error } = await supabase.from('workspace_invites').insert({
       workspace_id: currentWorkspace.id,
       invited_by: userId,
-      email: inviteEmail.trim(),
+      email,
       role: inviteRole,
     })
 
     if (error) toast.error('Failed to send invite')
-    else { toast.success(`Invite sent to ${inviteEmail.trim()}!`); setInviteEmail(''); setInviteRole('member'); void fetchPendingInvites() }
+    else { toast.success(`Invite sent to ${email}!`); setInviteEmail(''); setInviteRole('member'); void fetchPendingInvites() }
     setInviting(false)
   }
 
@@ -275,16 +295,22 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
   }
 
   const cancelInvite = async (inviteId: string) => {
-    await supabase.from('workspace_invites').delete().eq('id', inviteId)
-    toast.success('Invite cancelled')
-    void fetchPendingInvites()
+    const { error } = await supabase.from('workspace_invites').delete().eq('id', inviteId)
+    if (error) toast.error('Failed to cancel invite')
+    else {
+      toast.success('Invite cancelled')
+      void fetchPendingInvites()
+    }
   }
 
   const changeRole = async (memberId: string, newRole: string) => {
     setChangingRoleId(memberId)
-    await supabase.from('workspace_members').update({ role: newRole }).eq('id', memberId)
-    toast.success(`Role updated to ${newRole}`)
-    void fetchMembers()
+    const { error } = await supabase.from('workspace_members').update({ role: newRole }).eq('id', memberId)
+    if (error) toast.error('Failed to update role')
+    else {
+      toast.success(`Role updated to ${newRole}`)
+      void fetchMembers()
+    }
     setChangingRoleId(null)
   }
 

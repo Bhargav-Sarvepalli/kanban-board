@@ -82,7 +82,7 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
   const handleClose = () => { if (title.trim() || description.trim()) setShowConfirm(true); else onClose() }
 
   const handleSubmit = async () => {
-    if (!title.trim()) return
+    if (loading || !title.trim()) return
     setLoading(true)
     const { error: err } = await supabase.from('tasks').insert({
       title: title.trim(), description: description.trim() || null,
@@ -108,9 +108,9 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
           <motion.div initial={{ opacity: 0, scale: 0.94, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }} onClick={e => e.stopPropagation()}
-            style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', width: '100%', maxWidth: '480px', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.9)' }}>
+            style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', width: '100%', maxWidth: '480px', maxHeight: 'calc(100vh - 32px)', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ height: '2px', background: 'linear-gradient(90deg, #8b5cf6, #ec4899, #06b6d4)' }} />
-            <div style={{ padding: '28px' }}>
+            <div style={{ padding: '28px', overflowY: 'auto' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {[1, 2].map(s => (

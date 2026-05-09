@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../supabase'
 import type { Task } from '../types'
+import toast from 'react-hot-toast'
 
 interface TodayViewProps {
   tasks: Task[]
@@ -70,23 +71,25 @@ interface TaskRowProps {
 
 function TaskRow({ task, onOpen, showBadge, userId, onTaskUpdated }: TaskRowProps) {
   const [marking, setMarking] = useState(false)
-  const [done, setDone] = useState(task.status === 'done')
+  const [optimisticDone, setOptimisticDone] = useState(false)
+  const done = task.status === 'done' || optimisticDone
   const daysOver = task.due_date && showBadge === 'overdue' ? getDaysOverdue(task.due_date) : 0
 
   const markDone = async (e: React.MouseEvent) => {
     e.stopPropagation()
     if (marking || done) return
     setMarking(true)
-    setDone(true)
+    setOptimisticDone(true)
     const { error } = await supabase.from('tasks').update({
       status: 'done',
       last_edited_by: userId,
       last_edited_at: new Date().toISOString(),
     }).eq('id', task.id)
     if (error) {
-      setDone(false)
-      console.error('Mark done error:', error)
+      setOptimisticDone(false)
+      toast.error('Could not mark task done')
     } else {
+      toast.success('Marked done')
       setTimeout(() => onTaskUpdated(), 600)
     }
     setMarking(false)
@@ -386,7 +389,7 @@ export default function TodayView({ tasks, onOpen, onAddTask, userId, onTaskUpda
       {overdueTasks.length > 0 && (
         <Section title="Overdue" count={overdueTasks.length} color="#f87171" emoji="🔴">
           {overdueTasks.map((task, i) => (
-            <motion.div key={task.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
+            <motion.div key={`${task.id}-${task.status}`} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
               <TaskRow task={task} onOpen={onOpen} showBadge="overdue" userId={userId} onTaskUpdated={onTaskUpdated} />
             </motion.div>
           ))}
@@ -397,7 +400,7 @@ export default function TodayView({ tasks, onOpen, onAddTask, userId, onTaskUpda
       {dueTodayTasks.length > 0 && (
         <Section title="Due today" count={dueTodayTasks.length} color="#a78bfa" emoji="📅">
           {dueTodayTasks.map((task, i) => (
-            <motion.div key={task.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
+            <motion.div key={`${task.id}-${task.status}`} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
               <TaskRow task={task} onOpen={onOpen} showBadge="today" userId={userId} onTaskUpdated={onTaskUpdated} />
             </motion.div>
           ))}
@@ -408,7 +411,7 @@ export default function TodayView({ tasks, onOpen, onAddTask, userId, onTaskUpda
       {inProgressTasks.length > 0 && (
         <Section title="In progress" count={inProgressTasks.length} color="#34d399" emoji="⚡">
           {inProgressTasks.map((task, i) => (
-            <motion.div key={task.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
+            <motion.div key={`${task.id}-${task.status}`} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
               <TaskRow task={task} onOpen={onOpen} showBadge="progress" userId={userId} onTaskUpdated={onTaskUpdated} />
             </motion.div>
           ))}

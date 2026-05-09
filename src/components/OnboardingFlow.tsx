@@ -205,11 +205,12 @@ export default function OnboardingFlow({ userId, userName, onComplete }: Props) 
         animate={{ opacity: 1, y: 0, scale: 1 }}
         style={{
           width: 'min(720px, 100%)',
+          maxHeight: 'calc(100vh - 36px)',
           borderRadius: '30px',
           border: '1px solid rgba(255,255,255,0.12)',
           background: 'linear-gradient(180deg, rgba(18,20,31,0.98), rgba(8,9,15,0.98))',
           boxShadow: '0 42px 120px rgba(0,0,0,0.74), inset 0 1px 0 rgba(255,255,255,0.08)',
-          overflow: 'hidden',
+          overflow: 'auto',
         }}
       >
         <div style={{ height: '3px', background: 'linear-gradient(90deg, #ec4899, #8b5cf6, #06b6d4)' }} />
