@@ -186,7 +186,7 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
   const [newWsName, setNewWsName]         = useState('')
   const [creating, setCreating]           = useState(false)
   const [inviting, setInviting]           = useState(false)
-  const [tab, setTab]                     = useState<'workspaces' | 'members' | 'invites'>('workspaces')
+  const [tab, setTab]                     = useState<'workspaces' | 'members'>('workspaces')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting]           = useState(false)
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null)
@@ -303,7 +303,13 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
       console.error('[WorkspacePanel] invite failed', error)
       toast.error(error.message || 'Failed to send invite')
     }
-    else { toast.success(`Invite sent to ${email}`); setInviteEmail(''); setInviteRole('member'); void fetchPendingInvites(); setTab('invites') }
+    else {
+      toast.success(`Invite saved. They'll see it in the bell when they sign in as ${email}.`)
+      setInviteEmail('')
+      setInviteRole('member')
+      void fetchPendingInvites()
+      setTab('members')
+    }
     setInviting(false)
   }
 
@@ -372,7 +378,7 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
               <div>
                 <h2 style={{ color: 'white', fontSize: '18px', fontWeight: 700, fontFamily: 'Space Grotesk', margin: 0 }}>Workspaces</h2>
-                <p style={{ color: 'rgba(255,255,255,0.52)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: '4px 0 0' }}>Create, switch, invite, and manage access</p>
+                <p style={{ color: 'rgba(255,255,255,0.52)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: '4px 0 0' }}>Create, switch, and manage access</p>
               </div>
               <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✕</button>
             </div>
@@ -380,13 +386,13 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
             {/* Tabs */}
             <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '4px', marginBottom: '20px' }}>
               {([
-                { id: 'workspaces', label: 'Workspaces', count: workspaces.length + 1 },
-                { id: 'members', label: 'Members', count: currentWorkspace ? members.length + 1 : 0 },
-                { id: 'invites', label: 'Invites', count: pendingInvites.length },
+                { id: 'workspaces', label: 'Workspaces', count: workspaces.length + 1, pending: 0 },
+                { id: 'members', label: 'Members', count: currentWorkspace ? members.length + 1 : 0, pending: pendingInvites.length },
               ] as const).map(t => (
                 <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: '8px', borderRadius: '7px', border: 'none', background: tab === t.id ? 'rgba(139,92,246,0.24)' : 'transparent', color: tab === t.id ? '#d8b4fe' : 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: tab === t.id ? 700 : 500, transition: 'all 0.15s' }}>
                   {t.label}
                   {t.count > 0 && <span style={{ marginLeft: '6px', fontSize: '10px', color: tab === t.id ? '#ffffff' : 'rgba(255,255,255,0.38)' }}>{t.count}</span>}
+                  {t.pending > 0 && <span style={{ marginLeft: '7px', fontSize: '9px', color: '#fbbf24', background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.26)', borderRadius: '999px', padding: '1px 6px' }}>{t.pending} pending</span>}
                 </button>
               ))}
             </div>
@@ -553,6 +559,9 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
                             })}
                           </div>
                           <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>{ROLE_META[inviteRole].desc}</p>
+                          <p style={{ color: 'rgba(255,255,255,0.42)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '6px 0 0' }}>
+                            In-app invite only. They will see it in the bell after signing in with this email.
+                          </p>
                         </div>
                       )}
 
@@ -633,74 +642,6 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
                 </motion.div>
               )}
 
-              {tab === 'invites' && (
-                <motion.div key="invites" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
-                  {!currentWorkspace ? (
-                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', fontFamily: 'Space Grotesk', textAlign: 'center', padding: '20px 0' }}>
-                      Select a workspace to send or review invites.
-                    </p>
-                  ) : (
-                    <>
-                      <div style={{ marginBottom: '18px', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(167,139,250,0.24)', background: 'rgba(139,92,246,0.08)' }}>
-                        <p style={{ color: '#f5f3ff', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 700, margin: 0 }}>{currentWorkspace.name}</p>
-                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: '4px 0 0' }}>
-                          Pending invites stay here until accepted, declined, or cancelled.
-                        </p>
-                      </div>
-
-                      {isAdmin && (
-                        <div style={{ marginBottom: '20px' }}>
-                          <label style={labelStyle}>SEND INVITE</label>
-                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                            <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && inviteMember()} placeholder="colleague@email.com" type="email" style={inputStyle} />
-                            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={inviteMember} disabled={inviting}
-                              style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '10px', padding: '10px 16px', color: 'white', cursor: inviting ? 'wait' : 'pointer', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 800 }}>
-                              {inviting ? 'Sending...' : 'Send'}
-                            </motion.button>
-                          </div>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            {(['admin', 'member', 'viewer'] as InviteRole[]).map(r => {
-                              const meta = ROLE_META[r]
-                              const selected = inviteRole === r
-                              return (
-                                <button key={r} onClick={() => setInviteRole(r)} style={{ flex: 1, padding: '8px 4px', borderRadius: '9px', border: `1px solid ${selected ? meta.color : 'rgba(255,255,255,0.14)'}`, background: selected ? meta.bg : 'rgba(255,255,255,0.035)', color: selected ? meta.color : 'rgba(255,255,255,0.62)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: selected ? 800 : 600 }}>
-                                  {meta.label}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      <label style={labelStyle}>PENDING INVITES ({pendingInvites.length})</label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {pendingInvites.map(inv => (
-                          <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', borderRadius: '12px', background: 'rgba(251,146,60,0.07)', border: '1px solid rgba(251,146,60,0.24)' }}>
-                            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fdba74', fontSize: '11px', fontWeight: 800 }}>
-                              {inv.email.charAt(0).toUpperCase()}
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <p style={{ color: 'rgba(255,255,255,0.86)', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.email}</p>
-                              <p style={{ color: 'rgba(255,255,255,0.42)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>{inv.created_at ? new Date(inv.created_at).toLocaleDateString() : 'Pending'}</p>
-                            </div>
-                            <span style={{ fontSize: '9px', fontWeight: 800, color: ROLE_META[inv.role]?.color ?? '#fff', background: ROLE_META[inv.role]?.bg ?? 'transparent', border: `1px solid ${ROLE_META[inv.role]?.border ?? 'transparent'}`, padding: '2px 7px', borderRadius: '5px', fontFamily: 'Space Mono' }}>
-                              {inv.role.toUpperCase()}
-                            </span>
-                            {isAdmin && (
-                              <button onClick={() => cancelInvite(inv.id)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.22)', color: '#f87171', borderRadius: '7px', cursor: 'pointer', fontSize: '11px', padding: '5px 8px', fontFamily: 'Space Grotesk', fontWeight: 700 }} title="Cancel invite">Cancel</button>
-                            )}
-                          </div>
-                        ))}
-                        {pendingInvites.length === 0 && (
-                          <div style={{ padding: '22px 12px', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.16)', textAlign: 'center' }}>
-                            <p style={{ color: 'rgba(255,255,255,0.56)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: 0 }}>No pending invites.</p>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </motion.div>
-              )}
             </AnimatePresence>
           </div>
         </motion.div>
