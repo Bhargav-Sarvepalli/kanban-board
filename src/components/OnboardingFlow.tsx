@@ -2,14 +2,13 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { supabase } from '../supabase'
+import { onboardingStorageKey } from '../lib/onboarding'
 
 interface Props {
   userId: string
   userName: string
   onComplete: () => void
 }
-
-const ONBOARDING_VERSION = '2026-onboarding-clean-v5'
 
 const slides = [
   {
@@ -177,8 +176,9 @@ export default function OnboardingFlow({ userId, userName, onComplete }: Props) 
   const complete = async () => {
     setSaving(true)
     try {
-      await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', userId)
-      localStorage.setItem('nex_onboarding_version_seen', ONBOARDING_VERSION)
+      localStorage.setItem(onboardingStorageKey(userId), 'done')
+      const { error } = await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', userId)
+      if (error) console.warn('Onboarding profile update failed; local completion saved.', error)
       onComplete()
     } catch (err) {
       console.error('Onboarding complete error:', err)
@@ -236,6 +236,7 @@ export default function OnboardingFlow({ userId, userName, onComplete }: Props) 
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '30px' }}>
             <button type="button" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0} style={{ height: '42px', padding: '0 16px', borderRadius: '13px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: step === 0 ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.72)', cursor: step === 0 ? 'not-allowed' : 'pointer', fontWeight: 760 }}>Back</button>
+            <button type="button" onClick={() => void complete()} disabled={saving} style={{ height: '42px', padding: '0 14px', borderRadius: '13px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.62)', cursor: saving ? 'wait' : 'pointer', fontWeight: 760 }}>Skip setup</button>
             <button type="button" onClick={() => { if (isLast) void complete(); else setStep(s => s + 1) }} disabled={saving} style={{ height: '42px', padding: '0 20px', borderRadius: '13px', border: '1px solid rgba(255,255,255,0.16)', background: 'linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4)', color: 'white', cursor: saving ? 'wait' : 'pointer', fontWeight: 840, boxShadow: '0 18px 42px rgba(139,92,246,0.34)' }}>{saving ? 'Saving...' : isLast ? 'Enter NexTask' : 'Next'}</button>
           </div>
         </div>

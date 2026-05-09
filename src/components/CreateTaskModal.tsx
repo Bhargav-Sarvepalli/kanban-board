@@ -164,7 +164,10 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                       <div style={{ display: 'flex', gap: '8px' }}>
                         {priorityOptions.map(opt => (
                           <button key={opt.value} onClick={() => setPriority(opt.value as 'low' | 'normal' | 'high')}
-                            style={{ flex: 1, padding: '12px 8px', borderRadius: '12px', border: `1px solid ${priority === opt.value ? opt.color : opt.color + '40'}`, background: priority === opt.value ? `${opt.color}20` : `${opt.color}08`, color: priority === opt.value ? opt.color : opt.color + '99', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: priority === opt.value ? 700 : 500, transition: 'all 0.15s', boxShadow: priority === opt.value ? `0 0 15px ${opt.glow}` : 'none' }}>{opt.label}</button>
+                            style={{ flex: 1, padding: '12px 8px', borderRadius: '12px', border: `1.5px solid ${priority === opt.value ? opt.color : opt.color + '66'}`, background: priority === opt.value ? `${opt.color}28` : 'rgba(255,255,255,0.035)', color: priority === opt.value ? '#fff' : 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: priority === opt.value ? 800 : 650, transition: 'all 0.15s', boxShadow: priority === opt.value ? `0 0 0 3px ${opt.glow}, inset 0 1px 0 rgba(255,255,255,0.1)` : 'inset 0 1px 0 rgba(255,255,255,0.04)' }}>
+                            {opt.label}
+                            {priority === opt.value && <span style={{ display: 'block', color: opt.color, fontSize: '9px', marginTop: '3px', letterSpacing: '0.08em' }}>SELECTED</span>}
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -194,8 +197,9 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                         {statusOptions.map(opt => (
                           <button key={opt.value} onClick={() => setStatus(opt.value as Status)}
-                            style={{ padding: '10px 12px', borderRadius: '10px', border: `1px solid ${status === opt.value ? opt.color + '70' : opt.color + '30'}`, background: status === opt.value ? `${opt.color}18` : `${opt.color}08`, color: status === opt.value ? opt.color : opt.color + '80', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: status === opt.value ? 600 : 400, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: opt.color, flexShrink: 0 }} />{opt.label}
+                            style={{ padding: '10px 12px', borderRadius: '10px', border: `1.5px solid ${status === opt.value ? opt.color : opt.color + '55'}`, background: status === opt.value ? `${opt.color}24` : 'rgba(255,255,255,0.035)', color: status === opt.value ? '#fff' : 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: status === opt.value ? 800 : 650, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: status === opt.value ? `0 0 0 3px ${opt.color}22` : 'none' }}>
+                            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: opt.color, flexShrink: 0, boxShadow: status === opt.value ? `0 0 10px ${opt.color}` : 'none' }} />{opt.label}
+                            {status === opt.value && <span style={{ marginLeft: 'auto', color: opt.color, fontSize: '9px', letterSpacing: '0.08em' }}>SELECTED</span>}
                           </button>
                         ))}
                       </div>
@@ -213,8 +217,9 @@ function CreateTaskModal({ onClose, onTaskCreated, userId, defaultStatus, worksp
                           {recurringOptions.map(opt => {
                             const isSel = recurring === opt.value
                             return <button key={opt.value ?? 'none'} onClick={() => setRecurring(opt.value as 'weekly' | 'monthly' | null)}
-                              style={{ padding: '8px 10px', borderRadius: '8px', border: `1px solid ${isSel ? opt.color + '60' : 'rgba(255,255,255,0.1)'}`, background: isSel ? `${opt.color}18` : 'rgba(255,255,255,0.03)', color: isSel ? opt.color : 'rgba(255,255,255,0.55)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk', textAlign: 'left', fontWeight: isSel ? 600 : 400, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              style={{ padding: '8px 10px', borderRadius: '8px', border: `1.5px solid ${isSel ? opt.color : 'rgba(255,255,255,0.16)'}`, background: isSel ? `${opt.color}22` : 'rgba(255,255,255,0.035)', color: isSel ? '#fff' : 'rgba(255,255,255,0.68)', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk', textAlign: 'left', fontWeight: isSel ? 800 : 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span style={{ fontSize: '13px' }}>{opt.icon}</span>{opt.label}
+                              {isSel && <span style={{ marginLeft: 'auto', color: opt.color, fontSize: '9px' }}>ON</span>}
                             </button>
                           })}
                         </div>

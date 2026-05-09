@@ -47,7 +47,7 @@ export default function InviteMemberModal({ projectId, onInvited, onClose }: Pro
         .from('workspace_members')
         .select('id,user_id,email')
         .eq('workspace_id', project.workspace_id)
-        .eq('email', normalizedEmail)
+        .ilike('email', normalizedEmail)
 
       if (existingMember && existingMember.length > 0) {
         setAlreadyHadAccess(true)
@@ -62,7 +62,7 @@ export default function InviteMemberModal({ projectId, onInvited, onClose }: Pro
         .from('workspace_invites')
         .select('id')
         .eq('workspace_id', project.workspace_id)
-        .eq('email', normalizedEmail)
+        .ilike('email', normalizedEmail)
         .eq('status', 'pending')
 
       if (existingInvite && existingInvite.length > 0) {

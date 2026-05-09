@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { supabase } from './supabase'
@@ -16,6 +16,7 @@ import NexAssistant from './components/Nex/NexAssistant'
 import NexErrorBoundary from './components/Nex/NexErrorBoundary'
 import SettingsModal from './components/SettingsModal'
 import OnboardingFlow from './components/OnboardingFlow'
+import { ONBOARDING_VERSION, onboardingStorageKey } from './lib/onboarding'
 import InviteNotifications from './components/InviteNotifications'
 import FlowGraph from './components/Flow/FlowGraph'
 import StandupMode from './components/Flow/StandupMode'
@@ -44,6 +45,15 @@ function parseTaskDate(value?: string | null) {
   const [y, m, d] = value.split('-').map(Number)
   if (!y || !m || !d) return null
   return new Date(y, m - 1, d)
+}
+
+function hasLocalOnboardingCompletion(uid: string) {
+  try {
+    return localStorage.getItem(onboardingStorageKey(uid)) === 'done'
+      || localStorage.getItem('nex_onboarding_version_seen') === ONBOARDING_VERSION
+  } catch {
+    return false
+  }
 }
 
 function App() {
@@ -215,12 +225,12 @@ function App() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
-  const fetchProfile = async (uid: string, email?: string | null, fullName?: string | null) => {
+  const fetchProfile = useCallback(async (uid: string, email?: string | null, fullName?: string | null) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle()
 
     if (data) {
       setProfile(data)
-      setShowOnboarding(data.onboarding_completed !== true)
+      setShowOnboarding(data.onboarding_completed !== true && !hasLocalOnboardingCompletion(uid))
       return
     }
 
@@ -248,8 +258,8 @@ function App() {
 
     if (createError) console.error('Profile create error:', createError)
     setProfile(created ?? fallbackProfile)
-    setShowOnboarding(true)
-  }
+    setShowOnboarding(!hasLocalOnboardingCompletion(uid))
+  }, [])
 
   const fetchProfiles = async (userIds: string[]) => {
     if (!userIds.length) return
@@ -287,7 +297,7 @@ function App() {
       else navigate('/auth')
     })
     return () => subscription.unsubscribe()
-  }, [navigate])
+  }, [navigate, fetchProfile])
 
   useEffect(() => {
     if (!userId) return
@@ -500,8 +510,6 @@ function App() {
   const isDashboard = effectiveView === 'dashboard'
   const isPomodoro  = effectiveView === 'pomodoro'
   const isFull      = isFlow || isDashboard || isPomodoro
-  const hasRightSidePanel = showSettings || flowDrawerOpen || Boolean(selectedTask) || showWorkspacePanel || showProjectWizard || showStandup
-
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#0a0a0f', fontFamily: 'Inter, -apple-system, sans-serif' }}>
 
@@ -597,7 +605,7 @@ function App() {
             </div>
 
             {userId && profile?.email && (
-              <InviteNotifications userId={userId} userEmail={profile.email} onInviteAccepted={() => { void refetchTasks() }} />
+              <InviteNotifications userId={userId} userEmail={profile.email} onInviteAccepted={() => { fetchWorkspaces(); void refetchProjects(); void refetchTasks() }} />
             )}
 
             <button onClick={() => handleAddTask('todo')}
@@ -785,7 +793,12 @@ function App() {
       </AnimatePresence>
       {showOnboarding && userId && (
         <OnboardingFlow userId={userId} userName={profile?.full_name ?? profile?.email ?? ''}
-          onComplete={() => { setShowOnboarding(false); setProfile(p => p ? { ...p, onboarding_completed: true } : p); refetchTasks() }} />
+          onComplete={() => {
+            try { localStorage.setItem(onboardingStorageKey(userId), 'done') } catch { /* ignore */ }
+            setShowOnboarding(false)
+            setProfile(p => p ? { ...p, onboarding_completed: true } : p)
+            refetchTasks()
+          }} />
       )}
       <AnimatePresence>
         {showSettings && userId && (
@@ -815,7 +828,8 @@ function App() {
             onOpenProjectWizard={() => setShowProjectWizard(true)}
             onOpenWorkspacePanel={() => setShowWorkspacePanel(true)}
             onOpenPomodoro={handleOpenPomodoro}
-            panelOpen={hasRightSidePanel} />
+            panelOpen={flowDrawerOpen || Boolean(selectedTask)}
+            coveredByModal={showModal || showWorkspacePanel || showProjectWizard || showSettings || showStandup || showOnboarding} />
         </NexErrorBoundary>
       )}
     </div>

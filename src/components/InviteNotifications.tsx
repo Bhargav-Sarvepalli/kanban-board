@@ -43,7 +43,7 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
     const { data } = await supabase
       .from('workspace_invites')
       .select('*')
-      .eq('email', email)
+      .ilike('email', email)
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
 
@@ -73,13 +73,22 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
   const handleAccept = async (invite: WorkspaceInvite) => {
     setProcessing(invite.id)
     const email = userEmail.trim().toLowerCase()
-    const { error } = await supabase.from('workspace_members').insert({
-      workspace_id: invite.workspace_id,
-      user_id: userId,
-      email,
-      role: invite.role,
-    })
-    if (error) { toast.error('Failed to join workspace'); setProcessing(null); return }
+    const { data: existingMember, error: existingErr } = await supabase
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', invite.workspace_id)
+      .eq('user_id', userId)
+      .maybeSingle()
+    if (existingErr) console.error('[InviteNotifications] member lookup failed', existingErr)
+    if (!existingMember) {
+      const { error } = await supabase.from('workspace_members').insert({
+        workspace_id: invite.workspace_id,
+        user_id: userId,
+        email,
+        role: invite.role,
+      })
+      if (error) { console.error('[InviteNotifications] accept failed', error); toast.error(error.message || 'Failed to join workspace'); setProcessing(null); return }
+    }
     const { error: inviteErr } = await supabase.from('workspace_invites').update({ status: 'accepted' }).eq('id', invite.id)
     if (inviteErr) { toast.error('Joined workspace, but failed to update invite status'); setProcessing(null); return }
     toast.success(`Joined ${invite.workspace?.name ?? 'workspace'}! 🎉`)
@@ -106,8 +115,8 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
         onClick={() => setOpen(o => !o)}
         style={{
           position: 'relative',
-          background: invites.length > 0 ? 'rgba(167,139,250,0.12)' : 'rgba(255,255,255,0.06)',
-          border: `1px solid ${invites.length > 0 ? 'rgba(167,139,250,0.35)' : 'rgba(255,255,255,0.12)'}`,
+          background: invites.length > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)',
+          border: `1px solid ${invites.length > 0 ? 'rgba(248,113,113,0.46)' : 'rgba(255,255,255,0.16)'}`,
           borderRadius: '10px', width: '36px', height: '36px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer', fontSize: '15px', transition: 'all 0.2s',
@@ -119,7 +128,7 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
             initial={{ scale: 0 }} animate={{ scale: 1 }}
             style={{
               position: 'absolute', top: '-5px', right: '-5px',
-              background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+              background: 'linear-gradient(135deg, #ef4444, #ec4899)',
               color: 'white', fontSize: '9px', fontWeight: 700,
               fontFamily: 'Space Mono', width: '16px', height: '16px',
               borderRadius: '50%', display: 'flex', alignItems: 'center',

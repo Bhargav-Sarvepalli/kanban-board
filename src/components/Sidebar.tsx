@@ -259,8 +259,9 @@ export default function Sidebar({
             ))}
             <button
               onClick={() => { onOpenWorkspacePanel(); setShowWorkspaces(false) }}
-              style={{ ...S.navBtn(false, false), padding: '5px 8px', fontSize: '12px', color: '#7c3aed' }}>
-              + New workspace
+              style={{ ...S.navBtn(false, false), padding: '7px 8px', fontSize: '12px', color: '#c4b5fd', border: '1px solid rgba(167,139,250,0.22)', background: 'rgba(124,58,237,0.08)' }}>
+              <span style={{ width: '16px', height: '16px', borderRadius: '4px', border: '1px solid rgba(167,139,250,0.38)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', flexShrink: 0 }}>+</span>
+              Manage workspaces
             </button>
           </div>
         )}

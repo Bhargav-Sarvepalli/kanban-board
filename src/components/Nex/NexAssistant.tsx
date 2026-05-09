@@ -19,6 +19,7 @@ interface NexAssistantProps {
   onOpenWorkspacePanel?: () => void
   onOpenPomodoro?: (duration?: number) => void
   panelOpen?: boolean
+  coveredByModal?: boolean
 }
 
 interface Message {
@@ -62,7 +63,7 @@ const ORB_SIZE    = 52
 const MAX_HISTORY = 20
 const MIN_CONFIDENCE = 0.35
 
-export default function NexAssistant({ workspaceId, projectId = null, userId, isPro, nexEnabled, nexVoiceEnabled, onTaskCreated, onOpenProjectWizard, onOpenWorkspacePanel, onOpenPomodoro, panelOpen = false }: NexAssistantProps) {
+export default function NexAssistant({ workspaceId, projectId = null, userId, isPro, nexEnabled, nexVoiceEnabled, onTaskCreated, onOpenProjectWizard, onOpenWorkspacePanel, onOpenPomodoro, panelOpen = false, coveredByModal = false }: NexAssistantProps) {
   const [globeState, setGlobeState]   = useState<GlobeState>('idle')
   const [expanded, setExpanded]       = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
@@ -305,6 +306,13 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     setGlobeState('idle'); setInterimText('')
   }, [])
 
+  useEffect(() => {
+    if (!coveredByModal) return
+    stopListening()
+    setExpanded(false)
+    setShowTooltip(false)
+  }, [coveredByModal, stopListening])
+
   const handleActivate = useCallback(() => {
     if (activatingRef.current) return
     activatingRef.current = true
@@ -350,7 +358,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     return () => window.removeEventListener('keydown', handler)
   }, [nexEnabled, handleActivate])
 
-  if (!nexEnabled) return null
+  if (!nexEnabled || coveredByModal) return null
 
   const isListening = globeState === 'listening'
   const isThinking  = globeState === 'thinking'
@@ -366,7 +374,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
       style={{
         position: 'fixed',
         bottom: '24px',
-        right: panelOpen ? 'calc(24px + clamp(0px, 34vw, 640px))' : '24px',
+        right: panelOpen ? 'min(680px, calc(100vw - 360px))' : '24px',
         zIndex: 9999,
         display: 'flex',
         flexDirection: 'column',
