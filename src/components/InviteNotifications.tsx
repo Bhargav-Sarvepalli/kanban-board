@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../supabase'
 import type { Profile } from '../types'
 import toast from 'react-hot-toast'
+import WorkspaceAvatar from './WorkspaceAvatar'
 
 interface WorkspaceInvite {
   id: string
@@ -12,7 +13,7 @@ interface WorkspaceInvite {
   role: 'admin' | 'member' | 'viewer'
   status: 'pending' | 'accepted' | 'rejected'
   created_at: string
-  workspace?: { name: string; color: string; icon: string | null }
+  workspace?: { name: string; color: string; icon: string | null; logo_url: string | null }
   inviter?: Profile
 }
 
@@ -63,7 +64,7 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
 
     const enriched = await Promise.all(matchingInvites.map(async (inv) => {
       const [wsResult, inviterResult] = await Promise.all([
-        supabase.from('workspaces').select('name, color, icon').eq('id', inv.workspace_id).single(),
+        supabase.from('workspaces').select('name, color, icon, logo_url').eq('id', inv.workspace_id).single(),
         supabase.from('profiles').select('*').eq('id', inv.invited_by).single(),
       ])
       return { ...inv, workspace: wsResult.data ?? undefined, inviter: inviterResult.data ?? undefined }
@@ -84,25 +85,13 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
 
   const handleAccept = async (invite: WorkspaceInvite) => {
     setProcessing(invite.id)
-    const email = userEmail.trim().toLowerCase()
-    const { data: existingMember, error: existingErr } = await supabase
-      .from('workspace_members')
-      .select('id')
-      .eq('workspace_id', invite.workspace_id)
-      .eq('user_id', userId)
-      .maybeSingle()
-    if (existingErr) console.error('[InviteNotifications] member lookup failed', existingErr)
-    if (!existingMember) {
-      const { error } = await supabase.from('workspace_members').insert({
-        workspace_id: invite.workspace_id,
-        user_id: userId,
-        email,
-        role: invite.role,
-      })
-      if (error) { console.error('[InviteNotifications] accept failed', error); toast.error(error.message || 'Failed to join workspace'); setProcessing(null); return }
+    const { error } = await supabase.rpc('accept_workspace_invite', { target_invite_id: invite.id })
+    if (error) {
+      console.error('[InviteNotifications] accept failed', error)
+      toast.error(error.message || 'Failed to join workspace')
+      setProcessing(null)
+      return
     }
-    const { error: inviteErr } = await supabase.from('workspace_invites').update({ status: 'accepted' }).eq('id', invite.id)
-    if (inviteErr) { toast.error('Joined workspace, but failed to update invite status'); setProcessing(null); return }
     toast.success(`Joined ${invite.workspace?.name ?? 'workspace'}! 🎉`)
     setInvites(prev => prev.filter(i => i.id !== invite.id))
     onInviteAccepted()
@@ -194,17 +183,14 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
                   {invites.map(invite => (
                     <div key={invite.id} style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                        <div style={{
-                          width: '36px', height: '36px', borderRadius: '10px',
-                          background: `${invite.workspace?.color ?? '#8b5cf6'}20`,
-                          border: `1px solid ${invite.workspace?.color ?? '#8b5cf6'}40`,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: invite.workspace?.icon ? '18px' : '14px',
-                          fontWeight: 700, color: invite.workspace?.color ?? '#a78bfa',
-                          fontFamily: 'Space Grotesk',
-                        }}>
-                          {invite.workspace?.icon ?? invite.workspace?.name?.charAt(0).toUpperCase() ?? '?'}
-                        </div>
+                        <WorkspaceAvatar
+                          name={invite.workspace?.name ?? 'Workspace'}
+                          logoUrl={invite.workspace?.logo_url ?? null}
+                          icon={invite.workspace?.icon}
+                          color={invite.workspace?.color ?? '#8b5cf6'}
+                          size={36}
+                          radius={10}
+                        />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {invite.workspace?.name ?? 'Unknown workspace'}
