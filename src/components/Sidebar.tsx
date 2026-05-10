@@ -3,6 +3,7 @@ import type { Profile, Workspace } from '../types'
 import type { Project } from './Project/ProjectCreationWizard'
 import LogoUpload from './LogoUpload'
 import Avatar from './Avatar'
+import WorkspaceAvatar from './WorkspaceAvatar'
 
 interface Props {
   // Auth
@@ -214,6 +215,7 @@ export default function Sidebar({
               <LogoUpload
                 currentUrl={wsLogoUrl}
                 fallbackText={currentWorkspace.name}
+                fallbackIcon={currentWorkspace.icon}
                 accentColor="#7c3aed"
                 bucket="workspace-logos"
                 entityId={currentWorkspace.id}
@@ -223,7 +225,7 @@ export default function Sidebar({
                 editable={true}
               />
             ) : (
-              <div style={{ width: '22px', height: '22px', borderRadius: '5px', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', flexShrink: 0 }}>👤</div>
+              <WorkspaceAvatar name="Personal" icon="P" color="#8b5cf6" size={22} radius={5} />
             )}
             {!collapsed && (
               <span style={{ color: '#e2e2e8', fontSize: '13px', fontFamily: 'Inter, sans-serif', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -244,16 +246,21 @@ export default function Sidebar({
             <button
               onClick={() => { onWorkspaceChange(null); setShowWorkspaces(false) }}
               style={{ ...S.navBtn(!currentWorkspace, false), padding: '5px 8px', fontSize: '12px' }}>
-              <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', flexShrink: 0 }}>👤</div>
+              <WorkspaceAvatar name="Personal" icon="P" color="#8b5cf6" size={16} radius={4} />
               Personal
             </button>
             {workspaces.map(ws => (
               <button key={ws.id}
                 onClick={() => { onWorkspaceChange(ws); setShowWorkspaces(false) }}
                 style={{ ...S.navBtn(currentWorkspace?.id === ws.id, false), padding: '5px 8px', fontSize: '12px' }}>
-                <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'linear-gradient(135deg, #7c3aed, #db2777)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
-                  {ws.name.charAt(0).toUpperCase()}
-                </div>
+                <WorkspaceAvatar
+                  name={ws.name}
+                  logoUrl={logoOverrides[ws.id] ?? ws.logo_url ?? null}
+                  icon={ws.icon}
+                  color={ws.color ?? '#8b5cf6'}
+                  size={16}
+                  radius={4}
+                />
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
               </button>
             ))}

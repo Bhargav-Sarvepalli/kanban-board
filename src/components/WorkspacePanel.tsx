@@ -1,9 +1,11 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../supabase'
-import type { Workspace, WorkspaceMember } from '../types'
+import type { Profile, Workspace, WorkspaceMember } from '../types'
 import toast from 'react-hot-toast'
+import Avatar from './Avatar'
+import LogoUpload from './LogoUpload'
+import WorkspaceAvatar from './WorkspaceAvatar'
 
 interface Props {
   userId: string
@@ -35,6 +37,7 @@ function WorkspaceEditModal({
   const [name, setName]           = useState(workspace.name)
   const [color, setColor]         = useState(workspace.color ?? '#8b5cf6')
   const [icon, setIcon]           = useState<string | null>(workspace.icon ?? null)
+  const [logoUrl, setLogoUrl]     = useState<string | null>(workspace.logo_url ?? null)
   const [description, setDesc]    = useState(workspace.description ?? '')
   const [saving, setSaving]       = useState(false)
 
@@ -43,7 +46,7 @@ function WorkspaceEditModal({
     setSaving(true)
     const { data, error } = await supabase
       .from('workspaces')
-      .update({ name: name.trim(), color, icon: icon ?? null, description: description.trim() || null })
+      .update({ name: name.trim(), color, icon: icon ?? null, logo_url: logoUrl, description: description.trim() || null })
       .eq('id', workspace.id)
       .select().single()
     if (error) { toast.error('Failed to save'); setSaving(false); return }
@@ -67,18 +70,21 @@ function WorkspaceEditModal({
         <div style={{ padding: '28px' }}>
           {/* Preview */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
-            <div style={{
-              width: '52px', height: '52px', borderRadius: '14px',
-              background: `${color}20`, border: `2px solid ${color}60`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: icon ? '24px' : '20px', fontWeight: 700,
-              color, fontFamily: 'Space Grotesk',
-            }}>
-              {icon ?? name.charAt(0).toUpperCase()}
-            </div>
+            <LogoUpload
+              currentUrl={logoUrl}
+              fallbackText={name || workspace.name}
+              fallbackIcon={icon}
+              accentColor={color}
+              bucket="workspace-logos"
+              entityId={workspace.id}
+              table="workspaces"
+              size={52}
+              onUploaded={setLogoUrl}
+              editable
+            />
             <div>
               <p style={{ color: 'white', fontSize: '16px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0 }}>{name || 'Workspace name'}</p>
-              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>{description || 'No description'}</p>
+              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>{description || 'Upload a logo or keep an icon fallback'}</p>
             </div>
           </div>
 
@@ -181,6 +187,7 @@ function WorkspaceEditModal({
 export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceChange, onClose }: Props) {
   const [workspaces, setWorkspaces]       = useState<Workspace[]>([])
   const [members, setMembers]             = useState<WorkspaceMember[]>([])
+  const [memberProfiles, setMemberProfiles] = useState<Record<string, Profile>>({})
   const [inviteEmail, setInviteEmail]     = useState('')
   const [inviteRole, setInviteRole]       = useState<InviteRole>('member')
   const [newWsName, setNewWsName]         = useState('')
@@ -200,9 +207,32 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
   }, [])
 
   const fetchMembers = useCallback(async () => {
-    if (!currentWorkspace) return
+    if (!currentWorkspace) {
+      setMembers([])
+      setMemberProfiles({})
+      return
+    }
     const { data } = await supabase.from('workspace_members').select('*').eq('workspace_id', currentWorkspace.id)
     setMembers(data ?? [])
+
+    const ids = [...new Set([
+      currentWorkspace.owner_id,
+      ...((data ?? []) as WorkspaceMember[]).map(member => member.user_id),
+    ].filter(Boolean))]
+
+    if (ids.length === 0) {
+      setMemberProfiles({})
+      return
+    }
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id,email,full_name,avatar_url,onboarding_completed')
+      .in('id', ids)
+
+    const nextProfiles: Record<string, Profile> = {}
+    for (const profile of (profiles ?? []) as Profile[]) nextProfiles[profile.id] = profile
+    setMemberProfiles(nextProfiles)
   }, [currentWorkspace])
 
   const fetchMyRole = useCallback(async () => {
@@ -220,10 +250,22 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
 
   useEffect(() => { void fetchWorkspaces() }, [fetchWorkspaces])
   useEffect(() => {
-    if (currentWorkspace) { void fetchMembers(); void fetchMyRole(); void fetchPendingInvites() }
+    if (currentWorkspace) {
+      void fetchMembers()
+      void fetchMyRole()
+      void fetchPendingInvites()
+    } else {
+      setMembers([])
+      setMemberProfiles({})
+      setPendingInvites([])
+      setMyRole('member')
+    }
   }, [currentWorkspace, fetchMembers, fetchMyRole, fetchPendingInvites])
 
   const isAdmin = myRole === 'admin' || currentWorkspace?.owner_id === userId
+  const visibleMembers = currentWorkspace ? members.filter(member => member.user_id !== currentWorkspace.owner_id) : []
+  const ownerProfile = currentWorkspace ? memberProfiles[currentWorkspace.owner_id] : undefined
+  const ownerName = ownerProfile?.full_name || ownerProfile?.email || (currentWorkspace?.owner_id === userId ? 'You' : 'Owner')
 
   const createWorkspace = async () => {
     if (creating || !newWsName.trim()) return
@@ -254,24 +296,45 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
     e?.stopPropagation()
     setDeleting(true)
 
-    const cleanupSteps = [
-      () => supabase.from('workspace_members').delete().eq('workspace_id', wsId),
-      () => supabase.from('workspace_invites').delete().eq('workspace_id', wsId),
-      () => supabase.from('tasks').delete().eq('workspace_id', wsId),
-    ]
-
-    for (const cleanup of cleanupSteps) {
-      const { error } = await cleanup()
+    const runStep = async (label: string, step: () => PromiseLike<{ error: unknown }>) => {
+      const { error } = await step()
       if (error) {
-        toast.error('Failed to delete workspace data')
-        setDeleting(false)
-        return
+        console.error(`[WorkspacePanel] failed to delete ${label}`, error)
+        throw error
       }
     }
 
-    const { error } = await supabase.from('workspaces').delete().eq('id', wsId)
-    if (error) toast.error('Failed to delete workspace')
-    else { toast.success('Workspace deleted'); setConfirmDeleteId(null); if (currentWorkspace?.id === wsId) onWorkspaceChange(null); void fetchWorkspaces() }
+    try {
+      const { data: projectRows, error: projectError } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('workspace_id', wsId)
+      if (projectError) throw projectError
+
+      const projectIds = (projectRows ?? []).map(project => project.id)
+      if (projectIds.length > 0) {
+        await runStep('workspace project flow history', () => supabase.from('flow_events').delete().in('project_id', projectIds))
+        await runStep('workspace project tasks', () => supabase.from('tasks').delete().in('project_id', projectIds))
+        await runStep('workspace project features', () => supabase.from('project_features').delete().in('project_id', projectIds))
+        await runStep('workspace project milestones', () => supabase.from('project_milestones').delete().in('project_id', projectIds))
+        await runStep('workspace project members', () => supabase.from('project_members').delete().in('project_id', projectIds))
+        await runStep('workspace projects', () => supabase.from('projects').delete().in('id', projectIds))
+      }
+
+      await runStep('workspace tasks', () => supabase.from('tasks').delete().eq('workspace_id', wsId))
+      await runStep('workspace invites', () => supabase.from('workspace_invites').delete().eq('workspace_id', wsId))
+      await runStep('workspace members', () => supabase.from('workspace_members').delete().eq('workspace_id', wsId))
+
+      const { error } = await supabase.from('workspaces').delete().eq('id', wsId)
+      if (error) throw error
+
+      toast.success('Workspace deleted')
+      setConfirmDeleteId(null)
+      if (currentWorkspace?.id === wsId) onWorkspaceChange(null)
+      void fetchWorkspaces()
+    } catch {
+      toast.error('Failed to delete workspace data')
+    }
     setDeleting(false)
   }
 
@@ -387,7 +450,7 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
             <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '4px', marginBottom: '20px' }}>
               {([
                 { id: 'workspaces', label: 'Workspaces', count: workspaces.length + 1, pending: 0 },
-                { id: 'members', label: 'Members', count: currentWorkspace ? members.length + 1 : 0, pending: pendingInvites.length },
+                { id: 'members', label: 'Members', count: currentWorkspace ? visibleMembers.length + 1 : 0, pending: pendingInvites.length },
               ] as const).map(t => (
                 <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: '8px', borderRadius: '7px', border: 'none', background: tab === t.id ? 'rgba(139,92,246,0.24)' : 'transparent', color: tab === t.id ? '#d8b4fe' : 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '12px', fontFamily: 'Space Grotesk', fontWeight: tab === t.id ? 700 : 500, transition: 'all 0.15s' }}>
                   {t.label}
@@ -420,7 +483,7 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
                     onClick={() => { onWorkspaceChange(null); setTab('workspaces') }}
                     style={{ padding: '12px 16px', borderRadius: '12px', border: `1px solid ${currentWorkspace === null ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.06)'}`, background: currentWorkspace === null ? 'rgba(139,92,246,0.08)' : 'rgba(255,255,255,0.02)', cursor: 'pointer', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}
                   >
-                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>👤</div>
+                    <WorkspaceAvatar name="Personal" icon="P" color="#8b5cf6" size={32} radius={8} />
                     <div>
                       <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0 }}>Personal Board</p>
                       <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>Private tasks only you can see</p>
@@ -451,18 +514,15 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
                               display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.15s',
                             }}
                           >
-                            {/* Workspace icon */}
-                            <div style={{
-                              width: '32px', height: '32px', borderRadius: '8px',
-                              background: isDeleting ? 'rgba(239,68,68,0.2)' : `${wsColor}25`,
-                              border: `1px solid ${isDeleting ? 'rgba(239,68,68,0.4)' : wsColor + '50'}`,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: ws.icon ? '16px' : '13px', fontWeight: 700,
-                              color: isDeleting ? '#ef4444' : wsColor,
-                              fontFamily: 'Space Grotesk', flexShrink: 0,
-                            }}>
-                              {isDeleting ? '⚠' : ws.icon ?? ws.name.charAt(0).toUpperCase()}
-                            </div>
+                            <WorkspaceAvatar
+                              name={ws.name}
+                              logoUrl={ws.logo_url ?? null}
+                              icon={ws.icon}
+                              color={wsColor}
+                              danger={isDeleting}
+                              size={32}
+                              radius={8}
+                            />
 
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ color: isDeleting ? '#ef4444' : 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -500,7 +560,7 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
                             {isDeleting && (
                               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                                 style={{ overflow: 'hidden', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderTop: 'none', borderRadius: '0 0 12px 12px', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                                <p style={{ color: '#fca5a5', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>Deletes all tasks in this workspace.</p>
+                                <p style={{ color: '#fca5a5', fontSize: '11px', fontFamily: 'Space Grotesk', margin: 0 }}>Deletes this workspace, its projects, tasks, members, and invites.</p>
                                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={e => deleteWorkspace(ws.id, e)} disabled={deleting}
                                   style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '6px', padding: '5px 12px', color: '#ef4444', cursor: 'pointer', fontSize: '11px', fontFamily: 'Space Grotesk', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
                                   {deleting ? '...' : 'Yes, Delete'}
@@ -590,27 +650,27 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
                       )}
 
                       {/* Member list */}
-                      <label style={labelStyle}>MEMBERS ({members.length + 1})</label>
+                      <label style={labelStyle}>MEMBERS ({visibleMembers.length + 1})</label>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {/* Owner */}
                         <div style={{ padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: 700 }}>
-                            {currentWorkspace.owner_id === userId ? 'Y' : '?'}
-                          </div>
+                          <Avatar name={ownerName} avatarUrl={ownerProfile?.avatar_url ?? null} size={32} />
                           <div style={{ flex: 1 }}>
-                            <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0 }}>{currentWorkspace.owner_id === userId ? 'You' : 'Owner'}</p>
+                            <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0 }}>{currentWorkspace.owner_id === userId ? 'You' : ownerName}</p>
                             <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>Workspace creator</p>
                           </div>
                           <span style={{ fontSize: '9px', fontWeight: 700, color: '#a78bfa', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: '5px', padding: '2px 8px', fontFamily: 'Space Mono' }}>ADMIN</span>
                         </div>
 
-                        {members.map(member => (
+                        {visibleMembers.map(member => {
+                          const profile = memberProfiles[member.user_id]
+                          const name = profile?.full_name || profile?.email || member.email
+                          return (
                           <div key={member.id} style={{ padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: 700 }}>
-                              {member.email.charAt(0).toUpperCase()}
-                            </div>
+                            <Avatar name={name} avatarUrl={profile?.avatar_url ?? null} size={32} />
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.email}</p>
+                              <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, fontFamily: 'Space Grotesk', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
+                              {name !== member.email && <p style={{ color: 'rgba(255,255,255,0.32)', fontSize: '11px', fontFamily: 'Space Grotesk', margin: '2px 0 0' }}>{member.email}</p>}
                             </div>
                             {isAdmin ? (
                               <select value={member.role ?? 'member'} disabled={changingRoleId === member.id} onChange={e => changeRole(member.id, e.target.value)} onClick={e => e.stopPropagation()}
@@ -631,10 +691,11 @@ export default function WorkspacePanel({ userId, currentWorkspace, onWorkspaceCh
                               </motion.button>
                             )}
                           </div>
-                        ))}
+                          )
+                        })}
 
-                        {members.length === 0 && (
-                          <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', fontFamily: 'Space Mono', textAlign: 'center', padding: '16px 0' }}>NO MEMBERS YET — INVITE SOMEONE</p>
+                        {visibleMembers.length === 0 && (
+                          <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', fontFamily: 'Space Mono', textAlign: 'center', padding: '16px 0' }}>NO TEAMMATES YET - INVITE SOMEONE</p>
                         )}
                       </div>
                     </>

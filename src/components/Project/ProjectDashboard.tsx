@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../supabase'
+import toast from 'react-hot-toast'
 import Avatar from '../Avatar'
 import LogoUpload from '../LogoUpload'
 import AddFeatureModal from './AddFeatureModal'
@@ -168,6 +169,7 @@ export default function ProjectDashboard({
   const [editingName,  setEditingName]  = useState(false)
   const [newName,      setNewName]      = useState(projectName)
   const [confirmDel,   setConfirmDel]   = useState(false)
+  const [deletingProject, setDeletingProject] = useState(false)
 
   const isOwnerOrManager = members.some(m => m.user_id === userId && (m.role === 'owner' || m.role === 'manager'))
     || project?.owner_id === userId
@@ -306,7 +308,6 @@ export default function ProjectDashboard({
     setLoading(false)
   }, [projectId])
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void fetchAll() }, [fetchAll])
 
   // ── Actions ──
@@ -395,9 +396,33 @@ export default function ProjectDashboard({
   }
 
   const deleteProject = async () => {
-    await supabase.from('projects').delete().eq('id', projectId)
-    onProjectDeleted?.()
-    onClose()
+    if (deletingProject) return
+    setDeletingProject(true)
+
+    const runStep = async (label: string, step: () => PromiseLike<{ error: unknown }>) => {
+      const { error } = await step()
+      if (error) {
+        console.error(`[ProjectDashboard] failed to delete ${label}`, error)
+        throw error
+      }
+    }
+
+    try {
+      await runStep('flow history', () => supabase.from('flow_events').delete().eq('project_id', projectId))
+      await runStep('tasks', () => supabase.from('tasks').delete().eq('project_id', projectId))
+      await runStep('features', () => supabase.from('project_features').delete().eq('project_id', projectId))
+      await runStep('milestones', () => supabase.from('project_milestones').delete().eq('project_id', projectId))
+      await runStep('members', () => supabase.from('project_members').delete().eq('project_id', projectId))
+      await runStep('project', () => supabase.from('projects').delete().eq('id', projectId))
+
+      toast.success('Project deleted')
+      onProjectDeleted?.()
+      onClose()
+    } catch {
+      toast.error('Could not delete project')
+    } finally {
+      setDeletingProject(false)
+    }
   }
 
   // ── Derived ──
@@ -505,10 +530,10 @@ export default function ProjectDashboard({
               </button>
             ) : (
               <div style={{ padding:'10px 12px', background:'rgba(220,38,38,0.08)', border:'1px solid rgba(220,38,38,0.3)', borderRadius:'6px' }}>
-                <p style={{ color:'#f87171', fontSize:'13px', fontFamily:'Inter, sans-serif', margin:'0 0 10px' }}>Delete <strong>{projectName}</strong>? This can't be undone.</p>
+                <p style={{ color:'#f87171', fontSize:'13px', fontFamily:'Inter, sans-serif', margin:'0 0 10px' }}>Delete <strong>{projectName}</strong>? This removes its tasks, features, phases, Flow history, and team access.</p>
                 <div style={{ display:'flex', gap:'7px' }}>
-                  <button onClick={deleteProject} style={{ padding:'5px 14px', background:'#dc2626', border:'none', borderRadius:'5px', color:'white', fontSize:'12px', fontFamily:'Inter, sans-serif', fontWeight:600, cursor:'pointer' }}>Yes, delete</button>
-                  <button onClick={() => setConfirmDel(false)} style={{ padding:'5px 14px', background:'transparent', border:`1px solid ${C.border}`, borderRadius:'5px', color:C.muted, fontSize:'12px', fontFamily:'Inter, sans-serif', cursor:'pointer' }}>Cancel</button>
+                  <button onClick={deleteProject} disabled={deletingProject} style={{ padding:'5px 14px', background:'#dc2626', border:'none', borderRadius:'5px', color:'white', fontSize:'12px', fontFamily:'Inter, sans-serif', fontWeight:600, cursor: deletingProject ? 'not-allowed' : 'pointer', opacity: deletingProject ? 0.65 : 1 }}>{deletingProject ? 'Deleting...' : 'Yes, delete'}</button>
+                  <button onClick={() => setConfirmDel(false)} disabled={deletingProject} style={{ padding:'5px 14px', background:'transparent', border:`1px solid ${C.border}`, borderRadius:'5px', color:C.muted, fontSize:'12px', fontFamily:'Inter, sans-serif', cursor: deletingProject ? 'not-allowed' : 'pointer' }}>Cancel</button>
                 </div>
               </div>
             )}

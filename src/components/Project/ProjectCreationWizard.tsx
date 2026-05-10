@@ -19,6 +19,7 @@ export interface Project {
   owner_id: string
   workspace_id: string | null
   created_at: string
+  logo_url?: string | null
 }
 
 const STEPS = ['Project', 'Team', 'Flow', 'Features']
