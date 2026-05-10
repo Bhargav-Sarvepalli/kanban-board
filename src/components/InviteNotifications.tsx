@@ -34,22 +34,34 @@ export default function InviteNotifications({ userId, userEmail, onInviteAccepte
   const [processing, setProcessing] = useState<string | null>(null)
 
   const fetchInvites = useCallback(async () => {
-    const email = userEmail.trim().toLowerCase()
-    if (!email) {
+    const profileEmail = userEmail.trim().toLowerCase()
+    const { data: authData } = await supabase.auth.getUser()
+    const authEmail = authData.user?.email?.trim().toLowerCase() ?? ''
+    const knownEmails = Array.from(new Set([profileEmail, authEmail].filter(Boolean)))
+
+    if (knownEmails.length === 0) {
       setInvites([])
       return
     }
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('workspace_invites')
       .select('*')
-      .ilike('email', email)
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
 
-    if (!data) return
+    if (error) {
+      console.error('[InviteNotifications] fetch failed', error)
+      return
+    }
+    if (!data) {
+      setInvites([])
+      return
+    }
 
-    const enriched = await Promise.all(data.map(async (inv) => {
+    const matchingInvites = data.filter(invite => knownEmails.includes(invite.email.trim().toLowerCase()))
+
+    const enriched = await Promise.all(matchingInvites.map(async (inv) => {
       const [wsResult, inviterResult] = await Promise.all([
         supabase.from('workspaces').select('name, color, icon').eq('id', inv.workspace_id).single(),
         supabase.from('profiles').select('*').eq('id', inv.invited_by).single(),

@@ -15,8 +15,6 @@ interface Props {
   onProfileUpdated: (profile: Profile) => void
   nexEnabled: boolean
   onToggleNex: () => void
-  nexVoiceEnabled: boolean
-  onToggleNexVoice: () => void
   defaultView: DefaultView
   onDefaultViewChange: (view: DefaultView) => void
   onReplayOnboarding: () => void
@@ -118,8 +116,6 @@ export default function SettingsModal({
   onProfileUpdated,
   nexEnabled,
   onToggleNex,
-  nexVoiceEnabled,
-  onToggleNexVoice,
   defaultView,
   onDefaultViewChange,
   onReplayOnboarding,
@@ -131,7 +127,37 @@ export default function SettingsModal({
   const [savingProfile, setSavingProfile] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [memberSince, setMemberSince] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [sendingReset, setSendingReset] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const resetRedirectUrl = () => `${window.location.origin}/auth/callback?type=recovery`
+
+  const saveProfilePatch = useCallback(async (patch: Partial<Profile>) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const email = profile?.email ?? user?.email ?? ''
+    const currentName = fullName.trim() || profile?.full_name || email.split('@')[0] || 'User'
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({
+        id: userId,
+        email,
+        full_name: currentName,
+        avatar_url: avatarUrl,
+        onboarding_completed: profile?.onboarding_completed ?? false,
+        ...patch,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Profile
+  }, [avatarUrl, fullName, profile, userId])
 
   useEffect(() => {
     const fetchMeta = async () => {
@@ -164,7 +190,9 @@ export default function SettingsModal({
 
     setUploadingAvatar(true)
     try {
-      const ext = file.name.split('.').pop() ?? 'jpg'
+      const extFromType = file.type.split('/')[1]?.replace('jpeg', 'jpg')
+      const extFromName = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '')
+      const ext = extFromType || extFromName || 'jpg'
       const path = `${userId}/avatar.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('avatars')
@@ -173,25 +201,20 @@ export default function SettingsModal({
 
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
       const url = `${publicUrl}?t=${Date.now()}`
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ avatar_url: url })
-        .eq('id', userId)
-        .select()
-        .single()
-      if (error) throw error
+      const data = await saveProfilePatch({ avatar_url: url })
 
       setAvatarUrl(url)
       onProfileUpdated(data)
       toast.success('Photo updated')
     } catch (err) {
       console.error('Avatar upload error:', err)
-      toast.error('Could not upload photo')
+      const message = err instanceof Error ? err.message : 'Could not upload photo'
+      toast.error(message)
     } finally {
       setUploadingAvatar(false)
       if (fileRef.current) fileRef.current.value = ''
     }
-  }, [userId, onProfileUpdated])
+  }, [userId, onProfileUpdated, saveProfilePatch])
 
   const handleSaveProfile = async () => {
     if (!fullName.trim()) {
@@ -199,19 +222,79 @@ export default function SettingsModal({
       return
     }
     setSavingProfile(true)
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ full_name: fullName.trim() })
-      .eq('id', userId)
-      .select()
-      .single()
-    setSavingProfile(false)
-    if (error) {
-      toast.error('Could not save profile')
+    try {
+      const data = await saveProfilePatch({ full_name: fullName.trim() })
+      onProfileUpdated(data)
+      toast.success('Profile saved')
+    } catch (err) {
+      console.error('Profile save error:', err)
+      const message = err instanceof Error ? err.message : 'Could not save profile'
+      toast.error(message)
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    const email = profile?.email?.trim().toLowerCase()
+    if (!email) {
+      toast.error('No email found for this account')
       return
     }
-    onProfileUpdated(data)
-    toast.success('Profile saved')
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Fill in all password fields')
+      return
+    }
+    if (newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match')
+      return
+    }
+
+    setChangingPassword(true)
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: currentPassword,
+      })
+      if (signInError) throw signInError
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error) throw error
+
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      toast.success('Password updated')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not update password'
+      toast.error(message)
+    } finally {
+      setChangingPassword(false)
+    }
+  }
+
+  const handleSendResetEmail = async () => {
+    const email = profile?.email?.trim().toLowerCase()
+    if (!email) {
+      toast.error('No email found for this account')
+      return
+    }
+
+    setSendingReset(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: resetRedirectUrl(),
+    })
+    setSendingReset(false)
+
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+    toast.success('Reset link sent to your email')
   }
 
   return (
@@ -417,12 +500,6 @@ export default function SettingsModal({
                       label="Nex Assistant"
                       description="Show the assistant orb for quick task and project help."
                     />
-                    <Toggle
-                      active={nexVoiceEnabled}
-                      onClick={onToggleNexVoice}
-                      label="Nex voice replies"
-                      description="Let Nex speak responses and focus timer alerts out loud. Turn off for quiet work."
-                    />
                     <button
                       type="button"
                       onClick={onReplayOnboarding}
@@ -485,6 +562,97 @@ export default function SettingsModal({
                         <span style={{ color: 'rgba(255,255,255,0.78)', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.value}</span>
                       </div>
                     ))}
+                  </div>
+
+                  <div style={{ marginTop: '18px' }}>
+                    <label style={panelLabel}>Password & Recovery</label>
+                    <div style={{
+                      display: 'grid',
+                      gap: '10px',
+                      padding: '14px',
+                      borderRadius: '14px',
+                      border: '1px solid rgba(139,92,246,0.22)',
+                      background: 'linear-gradient(180deg, rgba(139,92,246,0.075), rgba(255,255,255,0.025))',
+                    }}>
+                      <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={e => setCurrentPassword(e.target.value)}
+                        placeholder="Current password"
+                        autoComplete="current-password"
+                        style={fieldStyle}
+                      />
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                          placeholder="New password"
+                          autoComplete="new-password"
+                          style={fieldStyle}
+                        />
+                        <input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') void handleChangePassword() }}
+                          placeholder="Confirm password"
+                          autoComplete="new-password"
+                          style={fieldStyle}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleChangePassword}
+                        disabled={changingPassword}
+                        style={{
+                          width: '100%',
+                          height: '42px',
+                          border: '1px solid rgba(255,255,255,0.16)',
+                          borderRadius: '12px',
+                          background: changingPassword ? 'rgba(139,92,246,0.28)' : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                          color: 'white',
+                          cursor: changingPassword ? 'wait' : 'pointer',
+                          fontSize: '13px',
+                          fontWeight: 820,
+                          fontFamily: 'Inter, system-ui, sans-serif',
+                          boxShadow: changingPassword ? 'none' : '0 16px 34px rgba(139,92,246,0.28)',
+                        }}
+                      >
+                        {changingPassword ? 'Updating...' : 'Change password'}
+                      </button>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        paddingTop: '2px',
+                      }}>
+                        <p style={{ margin: 0, color: 'rgba(255,255,255,0.42)', fontSize: '12px', lineHeight: 1.35 }}>
+                          Forgot it? Send a secure reset link to your email.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleSendResetEmail}
+                          disabled={sendingReset}
+                          style={{
+                            flexShrink: 0,
+                            height: '34px',
+                            padding: '0 12px',
+                            borderRadius: '10px',
+                            border: '1px solid rgba(6,182,212,0.24)',
+                            background: 'rgba(6,182,212,0.08)',
+                            color: '#67e8f9',
+                            cursor: sendingReset ? 'wait' : 'pointer',
+                            fontSize: '12px',
+                            fontWeight: 780,
+                            fontFamily: 'Inter, system-ui, sans-serif',
+                          }}
+                        >
+                          {sendingReset ? 'Sending...' : 'Send reset link'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   <div style={{ marginTop: '18px', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.025)' }}>

@@ -7,6 +7,7 @@ import App from './App'
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
 import AuthCallback from './pages/AuthCallback'
+import ResetPassword from './pages/ResetPassword'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -15,6 +16,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/" element={<Landing />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/reset-password" element={<ResetPassword />} />
         <Route path="/app/*" element={<App />} />
       </Routes>
     </BrowserRouter>

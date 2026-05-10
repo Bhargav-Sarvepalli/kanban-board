@@ -177,7 +177,14 @@ export default function OnboardingFlow({ userId, userName, onComplete }: Props) 
     setSaving(true)
     try {
       localStorage.setItem(onboardingStorageKey(userId), 'done')
-      const { error } = await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', userId)
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase.from('profiles').upsert({
+        id: userId,
+        email: user?.email ?? '',
+        full_name: userName || user?.email?.split('@')[0] || 'User',
+        onboarding_completed: true,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' })
       if (error) console.warn('Onboarding profile update failed; local completion saved.', error)
       onComplete()
     } catch (err) {

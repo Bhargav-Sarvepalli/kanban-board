@@ -73,11 +73,6 @@ const presetsForMode = (mode: Mode) => {
   return [15, 20, 30]
 }
 
-function timerVoiceAllowed() {
-  try { return localStorage.getItem('nex_voice_enabled') !== 'false' }
-  catch { return true }
-}
-
 function SoftButton({
   children, onClick, primary = false,
 }: {
@@ -185,7 +180,7 @@ export default function PomodoroView() {
   }, [])
 
   const speakTimerAlert = useCallback((text: string) => {
-    if (!nexAlertOn || !timerVoiceAllowed() || !('speechSynthesis' in window)) return
+    if (!nexAlertOn || !('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
     const utter = new SpeechSynthesisUtterance(text)
     const speak = () => {

@@ -92,10 +92,7 @@ function App() {
     try { return localStorage.getItem('nex_enabled') !== 'false' }
     catch { return true }
   })
-  const [nexVoiceEnabled, setNexVoiceEnabled] = useState(() => {
-    try { return localStorage.getItem('nex_voice_enabled') !== 'false' }
-    catch { return true }
-  })
+  const nexVoiceEnabled = true
 
   const availableTabs = currentProject
     ? (['dashboard', 'board', 'flow', 'calendar', 'pomodoro'] as const)
@@ -211,14 +208,6 @@ function App() {
     setNexEnabled(prev => {
       const next = !prev
       try { localStorage.setItem('nex_enabled', String(next)) } catch { /* ignore */ }
-      return next
-    })
-  }
-
-  const toggleNexVoice = () => {
-    setNexVoiceEnabled(prev => {
-      const next = !prev
-      try { localStorage.setItem('nex_voice_enabled', String(next)) } catch { /* ignore */ }
       return next
     })
   }
@@ -804,7 +793,6 @@ function App() {
         {showSettings && userId && (
           <SettingsModal userId={userId} profile={profile} onClose={() => setShowSettings(false)}
             onProfileUpdated={setProfile} nexEnabled={nexEnabled} onToggleNex={toggleNex}
-            nexVoiceEnabled={nexVoiceEnabled} onToggleNexVoice={toggleNexVoice}
             defaultView={defaultViewPref === 'dashboard' || defaultViewPref === 'flow' ? 'board' : defaultViewPref}
             onReplayOnboarding={() => {
               setShowSettings(false)

@@ -1,23 +1,31 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { motion } from 'framer-motion'
 
 export default function AuthCallback() {
   const navigate = useNavigate()
+  const handledRef = useRef(false)
 
   useEffect(() => {
     const handleCallback = async () => {
+      if (handledRef.current) return
+      handledRef.current = true
       try {
+        const params = new URLSearchParams(window.location.search)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const isRecovery = params.get('type') === 'recovery' || hashParams.get('type') === 'recovery'
+
+        const finish = () => navigate(isRecovery ? '/auth/reset-password' : '/app')
+
         // First try to get existing session
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
-          navigate('/app')
+          finish()
           return
         }
 
         // Try exchange code for session
-        const params = new URLSearchParams(window.location.search)
         const code = params.get('code')
 
         if (code) {
@@ -26,7 +34,7 @@ export default function AuthCallback() {
             console.error('Exchange error:', error)
             navigate('/auth')
           } else if (data.session) {
-            navigate('/app')
+            finish()
           } else {
             navigate('/auth')
           }
@@ -39,7 +47,7 @@ export default function AuthCallback() {
               access_token: accessToken,
               refresh_token: hashParams.get('refresh_token') ?? '',
             })
-            if (data.session) navigate('/app')
+            if (data.session) finish()
             else navigate('/auth')
           } else {
             navigate('/auth')
