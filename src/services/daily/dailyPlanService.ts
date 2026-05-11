@@ -56,7 +56,6 @@ export interface DailyRegenerationContext {
 }
 
 const focusTypes: FocusType[] = ['deep_work', 'admin', 'break', 'meeting', 'personal', 'review']
-const blockStatuses: BlockStatus[] = ['pending', 'in_progress', 'completed', 'skipped']
 const warningTypes: WarningType[] = ['blocked', 'overdue', 'dependency', 'energy', 'deadline']
 const warningSeverities: WarningSeverity[] = ['low', 'medium', 'high']
 
@@ -423,10 +422,6 @@ function ensureFocusType(value: unknown): FocusType {
   return typeof value === 'string' && focusTypes.includes(value as FocusType) ? value as FocusType : 'admin'
 }
 
-function ensureBlockStatus(value: unknown): BlockStatus {
-  return typeof value === 'string' && blockStatuses.includes(value as BlockStatus) ? value as BlockStatus : 'pending'
-}
-
 function ensureWarningType(value: unknown): WarningType {
   return typeof value === 'string' && warningTypes.includes(value as WarningType) ? value as WarningType : 'blocked'
 }
@@ -463,7 +458,7 @@ function normalizeAiPlan(raw: unknown, fallback: DailyPlanContent): DailyPlanCon
       title: ensureString(record.title, fallback.scheduleBlocks[index]?.title ?? 'Work block'),
       description: ensureString(record.description, fallback.scheduleBlocks[index]?.description ?? 'Execute the next clear step.'),
       reason: ensureString(record.reason, fallback.scheduleBlocks[index]?.reason ?? 'This keeps the day moving.'),
-      status: ensureBlockStatus(record.status),
+      status: 'pending' as BlockStatus,
       linkedTaskId: typeof record.linkedTaskId === 'string' ? record.linkedTaskId : undefined,
       linkedFlowNodeId: typeof record.linkedFlowNodeId === 'string' ? record.linkedFlowNodeId : undefined,
     }
@@ -492,13 +487,13 @@ function normalizeAiPlan(raw: unknown, fallback: DailyPlanContent): DailyPlanCon
 }
 
 function compactTaskContext(tasks: Task[]) {
-  return tasks.slice(0, 14).map(task => ({
+  return tasks.slice(0, 8).map(task => ({
     id: task.id,
     title: task.title,
     status: task.status,
     priority: task.priority,
     dueDate: task.due_date,
-    description: task.description?.slice(0, 100) ?? null,
+    description: task.description?.slice(0, 60) ?? null,
     flowNodeId: task.feature_id ?? null,
     showOnFlow: task.show_on_flow ?? false,
   }))
@@ -514,10 +509,11 @@ Rules:
 - The briefing answers why this plan works and how to execute it.
 - The briefing must be under 180 words.
 - Do not make medical claims or fake certainty.
-- Use 5 to 9 schedule blocks unless the available hours make that impossible.
+- Use 5 to 7 schedule blocks unless the available hours make that impossible.
 - Include at least one break if available work time is more than 3 hours.
 - Every schedule block status must be "pending".
 - Do not read or repeat the full schedule in the briefing.
+- Keep every title, description, reason, and warning short.
 
 User:
 ${JSON.stringify({
@@ -560,9 +556,9 @@ async function generateWithAi(ctx: DailyGenerationContext) {
       console.warn(`[Daily] AI generation attempt ${attempt + 1} failed`, error)
     }
   }
-  throw new Error(lastError instanceof Error
-    ? `Nex could not return a valid daily plan: ${lastError.message}`
-    : 'Nex could not return a valid daily plan. Try again with fewer details.')
+
+  console.warn('[Daily] AI plan was unavailable; using deterministic local planner instead.', lastError)
+  return fallback
 }
 
 export async function generateAndSaveDailyPlan(ctx: DailyGenerationContext) {
