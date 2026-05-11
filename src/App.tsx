@@ -11,6 +11,7 @@ import TaskDetailPanel from './components/TaskDetailPanel'
 import CalendarView from './components/CalendarView'
 import PomodoroView from './components/PomodoroView'
 import TodayView from './components/TodayView'
+import DailyPage from './components/Daily/DailyPage'
 import WorkspacePanel from './components/WorkspacePanel'
 import NexAssistant from './components/Nex/NexAssistant'
 import NexErrorBoundary from './components/Nex/NexErrorBoundary'
@@ -29,11 +30,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
-type AppView = 'today' | 'board' | 'calendar' | 'flow' | 'dashboard' | 'pomodoro'
+type AppView = 'daily' | 'today' | 'board' | 'calendar' | 'flow' | 'dashboard' | 'pomodoro'
 type BoardFocus = 'project' | 'mine' | 'week' | 'backlog' | 'done'
 
 function isAppView(value: string | null): value is AppView {
-  return value === 'today' || value === 'board' || value === 'calendar' || value === 'flow' || value === 'dashboard' || value === 'pomodoro'
+  return value === 'daily' || value === 'today' || value === 'board' || value === 'calendar' || value === 'flow' || value === 'dashboard' || value === 'pomodoro'
 }
 
 function isBoardFocus(value: string | null): value is BoardFocus {
@@ -95,13 +96,13 @@ function App() {
   const nexVoiceEnabled = true
 
   const availableTabs = currentProject
-    ? (['dashboard', 'board', 'flow', 'calendar', 'pomodoro'] as const)
-    : (['today', 'board', 'calendar', 'pomodoro'] as const)
+    ? (['dashboard', 'daily', 'board', 'flow', 'calendar', 'pomodoro'] as const)
+    : (['daily', 'today', 'board', 'calendar', 'pomodoro'] as const)
 
   const getSavedDefaultView = (): AppView => {
     try {
       const saved = localStorage.getItem('nex_default_view')
-      if (saved === 'board' || saved === 'calendar' || saved === 'today' || saved === 'pomodoro') return saved
+      if (saved === 'daily' || saved === 'board' || saved === 'calendar' || saved === 'today' || saved === 'pomodoro') return saved
     } catch { /* ignore */ }
     return 'today'
   }
@@ -498,6 +499,7 @@ function App() {
   const isFlow      = effectiveView === 'flow'
   const isDashboard = effectiveView === 'dashboard'
   const isPomodoro  = effectiveView === 'pomodoro'
+  const isDaily     = effectiveView === 'daily'
   const isFull      = isFlow || isDashboard || isPomodoro
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#0a0a0f', fontFamily: 'Inter, -apple-system, sans-serif' }}>
@@ -610,7 +612,7 @@ function App() {
         </div>
 
         {/* CONTENT AREA */}
-        <div style={{ flex: 1, overflow: isPomodoro ? 'auto' : isFull ? 'hidden' : 'auto', padding: isFull ? '0' : '20px 24px', minHeight: 0 }}>
+        <div style={{ flex: 1, overflow: (isPomodoro || isDaily) ? 'auto' : isFull ? 'hidden' : 'auto', padding: (isFull || isDaily) ? '0' : '20px 24px', minHeight: 0 }}>
 
           {effectiveView === 'board' && (
             <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '14px' }}>
@@ -685,6 +687,16 @@ function App() {
                 <div key={i} style={{ width: '270px', minWidth: '270px', height: '60vh', borderRadius: '8px', background: '#111118', border: '1px solid #2d2d40' }} />
               ))}
             </div>
+          ) : effectiveView === 'daily' ? (
+            <DailyPage
+              userId={userId ?? ''}
+              profile={profile}
+              tasks={tasks}
+              workspaceName={currentWorkspace?.name ?? 'Personal'}
+              projectName={currentProject?.name}
+              isPersonal={!currentWorkspace && !currentProject}
+              onOpenTask={setSelectedTask}
+            />
           ) : effectiveView === 'today' ? (
             <TodayView tasks={tasks} onOpen={setSelectedTask} onAddTask={() => handleAddTask('todo')} userId={userId} onTaskUpdated={refetchTasks} />
           ) : effectiveView === 'board' ? (

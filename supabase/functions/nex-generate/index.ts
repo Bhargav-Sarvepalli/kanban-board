@@ -9,7 +9,7 @@ const DEFAULT_MODELS = [
   'claude-sonnet-4-20250514',
 ]
 const MAX_PROMPT_CHARS = 6_000
-const MAX_TOKENS = 800
+const MAX_TOKENS = 1800
 
 async function requireAuthenticatedUser(req: Request) {
   const authorization = req.headers.get('authorization') ?? ''

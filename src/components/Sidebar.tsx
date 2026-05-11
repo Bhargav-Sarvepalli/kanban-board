@@ -22,14 +22,14 @@ interface Props {
   // Navigation
   currentView: string
   availableViews: readonly string[]
-  onViewChange: (v: 'today' | 'board' | 'calendar' | 'flow' | 'dashboard' | 'pomodoro') => void
+  onViewChange: (v: 'daily' | 'today' | 'board' | 'calendar' | 'flow' | 'dashboard' | 'pomodoro') => void
   // Actions
   onSettings: () => void
   onLogout: () => void
   onWorkspaceLogoUpdated: (url: string) => void
 }
 
-const NAV_ITEMS: { id: 'dashboard' | 'today' | 'board' | 'calendar' | 'flow' | 'pomodoro'; label: string; icon: (active: boolean) => React.ReactNode }[] = [
+const NAV_ITEMS: { id: 'dashboard' | 'daily' | 'today' | 'board' | 'calendar' | 'flow' | 'pomodoro'; label: string; icon: (active: boolean) => React.ReactNode }[] = [
   {
     id: 'dashboard',
     label: 'Dashboard',
@@ -39,6 +39,16 @@ const NAV_ITEMS: { id: 'dashboard' | 'today' | 'board' | 'calendar' | 'flow' | '
         <rect x="9" y="1" width="6" height="6" rx="1.5" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
         <rect x="1" y="9" width="6" height="6" rx="1.5" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
         <rect x="9" y="9" width="6" height="6" rx="1.5" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'daily',
+    label: 'Daily',
+    icon: (a) => (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="3.2" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.4"/>
+        <path d="M8 1.5v1.4M8 13.1v1.4M14.5 8h-1.4M2.9 8H1.5M12.6 3.4l-1 1M4.4 11.6l-1 1M12.6 12.6l-1-1M4.4 4.4l-1-1" stroke={a ? '#8b5cf6' : '#8f8fa6'} strokeWidth="1.25" strokeLinecap="round"/>
       </svg>
     ),
   },

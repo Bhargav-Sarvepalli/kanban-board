@@ -1,8 +1,8 @@
 import { supabase } from '../supabase'
 
-async function generateText(prompt: string): Promise<string> {
+export async function generateText(prompt: string, maxTokens?: number): Promise<string> {
   const { data, error } = await supabase.functions.invoke('nex-generate', {
-    body: { prompt },
+    body: { prompt, max_tokens: maxTokens },
   })
 
   if (error) throw error

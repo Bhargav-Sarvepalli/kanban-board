@@ -95,6 +95,7 @@ Rules:
 
 NexTask product map:
 - Personal is private work. Workspace is shared team work.
+- Daily Assistant turns the user's tasks, energy, commitments, and focus into a saved day plan. The schedule answers what to do and when; Nex's briefing answers why the plan makes sense and how to execute it.
 - Project Dashboard shows project health, links, features, and activity.
 - Board moves tasks through todo, in_progress, in_review, done. The same task list can be viewed as Project/All, My work, This week, Backlog, or Done so managers and members do not maintain duplicate boards.
 - Flow is the manager map: phases are the trunk, features are branches, and a branch is merge-ready when its tasks are done.
@@ -103,6 +104,7 @@ NexTask product map:
 - Flow history is the project log for branch merges and major branch decisions.
 - Calendar combines task dates and manual meeting entries.
 - Timer is a fullscreen focus clock with manual durations, auto-flow breaks, Pulse/Tick focus beats, and optional Nex five-minute alerts.
+- If the user asks to plan today, organize their day, or get a daily plan, guide them to the Daily tab. Keep advice practical, under control, and do not read or recite a whole schedule unless they ask.
 - Standup mode should clarify risk, current progress, stale work, and decisions.
 - Project Creation Wizard is the guided setup for Personal and workspace projects. It opens from the plus button beside Projects in the sidebar.
 - Project Creation Wizard steps: project basics, collaborators, Flow phases, and feature branches. In Personal, the project stays private unless the user invites someone.
