@@ -42,7 +42,7 @@ function branchHealth(branch: FlowBranch): { label: string; color: string } {
   if (branch.status === 'merged' || branch.merged_at) return { label: 'MERGED', color: '#22c55e' }
   if (branch.total > 0 && branch.done === branch.total) return { label: 'READY', color: '#22c55e' }
   const hasOverdue = branch.tasks.some(t => isOverdue(t))
-  const hasBlocked = branch.tasks.some(t => t.priority === 'high' && t.status === 'todo')
+  const hasBlocked = branch.tasks.some(t => t.pending_approval === true)
   if (hasOverdue || hasBlocked) return { label: 'BLOCKED', color: '#ef4444' }
   if (branch.progress < 30 && branch.tasks.length > 2) return { label: 'AT RISK', color: '#f59e0b' }
   if (branch.progress >= 70) return { label: 'ON TRACK', color: '#22c55e' }
@@ -133,9 +133,10 @@ function mergeFlowEvents(...groups: FlowEvent[][]) {
 
 function formatFlowDate(value?: string | null) {
   if (!value) return 'No date'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const [y, m, d] = value.split('-').map(Number)
+  if (!y || !m || !d) return value
+  const date = new Date(y, m - 1, d)
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 interface NodeLayout { task: FlowTask; x: number; y: number }
@@ -397,7 +398,21 @@ export default function FlowGraph({ workspaceId, userId, onBranchClick, projectI
       merged_by: userId,
       merge_note: opts?.note?.trim() || null,
     }).eq('id', branch.id)
-    if (featureErr) console.warn('[FlowGraph] feature merge metadata unavailable:', featureErr.message)
+
+    if (featureErr) {
+      // Roll back optimistic localStorage merge
+      setMergedBranchIds(prev => {
+        const next = new Set(prev)
+        next.delete(branch.id)
+        if (projectId) {
+          window.localStorage.setItem(`flow-merged:${projectId}`, JSON.stringify([...next]))
+        }
+        return next
+      })
+      setMergeError(`Merge failed: ${featureErr.message}. Please try again.`)
+      setMergingId(null)
+      return
+    }
 
     const { error: taskErr } = await supabase.from('tasks').update({
       show_on_flow: true,

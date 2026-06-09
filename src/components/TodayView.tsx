@@ -262,7 +262,8 @@ export default function TodayView({ tasks, onOpen, onAddTask, userId, onTaskUpda
   )
 
   const inProgressTasks = tasks.filter(t =>
-    t.status === 'in_progress' && !(t.due_date && (isOverdue(t.due_date) || isToday(t.due_date)))
+    (t.status === 'in_progress' || t.status === 'in_review') &&
+    !(t.due_date && (isOverdue(t.due_date) || isToday(t.due_date)))
   )
 
   const completedCount = tasks.filter(t => t.status === 'done').length
