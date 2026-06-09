@@ -172,6 +172,32 @@ export default function OnboardingFlow({ userId, userName, onComplete }: Props) 
   const slide = slides[step]
   const isLast = step === slides.length - 1
   const acted = step > 0
+  const [taskTitle, setTaskTitle] = useState('')
+  const [taskCreated, setTaskCreated] = useState(false)
+  const [creatingTask, setCreatingTask] = useState(false)
+
+  const createFirstTask = async () => {
+    if (!taskTitle.trim() || creatingTask) return
+    setCreatingTask(true)
+    try {
+      const { error } = await supabase.from('tasks').insert({
+        title: taskTitle.trim(),
+        status: 'todo',
+        user_id: userId,
+        priority: 'normal',
+        created_at: new Date().toISOString(),
+      })
+      if (error) throw error
+      setTaskCreated(true)
+      toast.success('First task created!')
+    } catch (err) {
+      console.error(err)
+      toast.error('Could not create task. You can add it after setup.')
+      setTaskCreated(true) // still let them through
+    } finally {
+      setCreatingTask(false)
+    }
+  }
 
   const complete = async () => {
     setSaving(true)
@@ -241,10 +267,76 @@ export default function OnboardingFlow({ userId, userName, onComplete }: Props) 
             </motion.div>
           </AnimatePresence>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '30px' }}>
-            <button type="button" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0} style={{ height: '42px', padding: '0 16px', borderRadius: '13px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: step === 0 ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.72)', cursor: step === 0 ? 'not-allowed' : 'pointer', fontWeight: 760 }}>Back</button>
-            <button type="button" onClick={() => void complete()} disabled={saving} style={{ height: '42px', padding: '0 14px', borderRadius: '13px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.62)', cursor: saving ? 'wait' : 'pointer', fontWeight: 760 }}>Skip setup</button>
-            <button type="button" onClick={() => { if (isLast) void complete(); else setStep(s => s + 1) }} disabled={saving} style={{ height: '42px', padding: '0 20px', borderRadius: '13px', border: '1px solid rgba(255,255,255,0.16)', background: 'linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4)', color: 'white', cursor: saving ? 'wait' : 'pointer', fontWeight: 840, boxShadow: '0 18px 42px rgba(139,92,246,0.34)' }}>{saving ? 'Saving...' : isLast ? 'Enter NexTask' : 'Next'}</button>
+          <div style={{ marginTop: '24px' }}>
+            {isLast && !taskCreated && (
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ margin: '0 0 8px', color: 'rgba(255,255,255,0.56)', fontSize: '11px', fontFamily: 'Space Mono', letterSpacing: '0.14em' }}>
+                  CREATE YOUR FIRST TASK TO CONTINUE
+                </p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    value={taskTitle}
+                    onChange={e => setTaskTitle(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') void createFirstTask() }}
+                    placeholder="e.g. Set up project structure"
+                    autoFocus
+                    style={{
+                      flex: 1, height: '42px', borderRadius: '10px',
+                      border: '1px solid rgba(255,255,255,0.16)',
+                      background: 'rgba(255,255,255,0.06)',
+                      color: 'white', outline: 'none',
+                      padding: '0 14px', fontSize: '13px',
+                      fontFamily: 'Space Grotesk',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void createFirstTask()}
+                    disabled={!taskTitle.trim() || creatingTask}
+                    style={{
+                      height: '42px', padding: '0 18px', borderRadius: '10px',
+                      border: 'none',
+                      background: taskTitle.trim() ? 'linear-gradient(135deg, #ec4899, #8b5cf6)' : 'rgba(255,255,255,0.08)',
+                      color: taskTitle.trim() ? 'white' : 'rgba(255,255,255,0.32)',
+                      cursor: taskTitle.trim() ? 'pointer' : 'not-allowed',
+                      fontSize: '12px', fontFamily: 'Space Mono', fontWeight: 800,
+                    }}
+                  >
+                    {creatingTask ? 'ADDING...' : 'ADD TASK'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {isLast && taskCreated && (
+              <div style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '10px', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ color: '#34d399', fontSize: '16px' }}>✓</span>
+                <p style={{ margin: 0, color: '#34d399', fontSize: '13px', fontFamily: 'Space Grotesk', fontWeight: 600 }}>
+                  "{taskTitle}" added to your board
+                </p>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button type="button" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0}
+                style={{ height: '42px', padding: '0 16px', borderRadius: '13px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: step === 0 ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.72)', cursor: step === 0 ? 'not-allowed' : 'pointer', fontWeight: 760 }}>Back</button>
+              <button type="button" onClick={() => void complete()} disabled={saving}
+                style={{ height: '42px', padding: '0 14px', borderRadius: '13px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.62)', cursor: saving ? 'wait' : 'pointer', fontWeight: 760 }}>Skip setup</button>
+              <button type="button"
+                onClick={() => { if (isLast) void complete(); else setStep(s => s + 1) }}
+                disabled={saving || (isLast && !taskCreated)}
+                style={{
+                  height: '42px', padding: '0 20px', borderRadius: '13px',
+                  border: '1px solid rgba(255,255,255,0.16)',
+                  background: (isLast && !taskCreated) ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4)',
+                  color: (isLast && !taskCreated) ? 'rgba(255,255,255,0.32)' : 'white',
+                  cursor: (saving || (isLast && !taskCreated)) ? 'not-allowed' : 'pointer',
+                  fontWeight: 840,
+                  boxShadow: (isLast && !taskCreated) ? 'none' : '0 18px 42px rgba(139,92,246,0.34)',
+                }}>
+                {saving ? 'Saving...' : isLast ? 'Enter NexTask' : 'Next'}
+              </button>
+            </div>
           </div>
         </div>
       </motion.section>
