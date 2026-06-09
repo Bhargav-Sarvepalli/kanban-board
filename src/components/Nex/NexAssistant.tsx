@@ -133,7 +133,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     return ctx
   }, [workspaceId, projectId, userId])
 
-  useEffect(() => { void loadContext() }, [loadContext])
+  useEffect(() => { void loadContext().then(() => { ctxReadyRef.current = true }) }, [loadContext])
 
   const addMessage = useCallback((role: 'user' | 'nex', text: string) => {
     setMessages(prev => [...prev.slice(-12), { id: Date.now().toString(), role, text }])
@@ -153,6 +153,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     if (!clean) return true
     const words = clean.split(' ').filter(Boolean)
     if (clean.length < 4) return true
+    const ctxReadyRef = useRef(false)
     const conversationalSingles = ['nex', 'next', 'stop', 'pause', 'yes', 'no', 'sorry', 'thanks', 'thankyou', 'hello', 'hey', 'ok', 'okay']
     if (words.length === 1 && !conversationalSingles.includes(clean)) return true
     const noise = new Set(['um', 'uh', 'hmm', 'mm'])
@@ -213,6 +214,7 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
 
   const fireNex = useCallback(async (transcript: string) => {
     if (!transcript.trim() || !userId) return
+    if (!ctxReadyRef.current) return
     const cleanTranscript = transcript.trim()
     const now = Date.now()
     if (processingRef.current) return
