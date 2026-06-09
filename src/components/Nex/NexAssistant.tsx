@@ -81,7 +81,8 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
   const ttsWarmedRef    = useRef(false)
   const activatingRef   = useRef(false)
   const processingRef   = useRef(false)
-  const lastCommandRef  = useRef<{ text: string; at: number } | null>(null)
+  const lastCommandRef  = useRef<{ text: string; at: number } | null>(null) 
+  const ctxReadyRef     = useRef(false) 
 
   useEffect(() => { globeStateRef.current = globeState }, [globeState])
 
@@ -153,7 +154,6 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     if (!clean) return true
     const words = clean.split(' ').filter(Boolean)
     if (clean.length < 4) return true
-    const ctxReadyRef = useRef(false)
     const conversationalSingles = ['nex', 'next', 'stop', 'pause', 'yes', 'no', 'sorry', 'thanks', 'thankyou', 'hello', 'hey', 'ok', 'okay']
     if (words.length === 1 && !conversationalSingles.includes(clean)) return true
     const noise = new Set(['um', 'uh', 'hmm', 'mm'])

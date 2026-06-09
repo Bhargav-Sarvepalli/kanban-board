@@ -375,11 +375,14 @@ function CalendarView({ tasks, onOpenTask, contextKey }: Props) {
           <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', fontFamily: 'Space Mono', letterSpacing: '0.2em', marginBottom: '16px' }}>
             MONTH SUMMARY
           </p>
-          {[
-            { label: 'Total',     value: getTasksForMonth().length,                                                                                            color: '#8b5cf6' },
-            { label: 'Completed', value: getTasksForMonth().filter(t => t.status === 'done').length,                                                           color: '#10b981' },
-            { label: 'Overdue',   value: getTasksForMonth().filter(t => t.due_date && parseDate(t.due_date) < today && t.status !== 'done').length,            color: '#ef4444' },
-          ].map(stat => (
+          {(() => {
+            const monthTasks = getTasksForMonth()
+            return [
+              { label: 'Total',     value: monthTasks.length,                                                                                        color: '#8b5cf6' },
+              { label: 'Completed', value: monthTasks.filter((t: Task) => t.status === 'done').length,                                               color: '#10b981' },
+              { label: 'Overdue',   value: monthTasks.filter((t: Task) => t.due_date && parseDate(t.due_date) < today && t.status !== 'done').length, color: '#ef4444' },
+            ]
+          })().map(stat => (
             <div key={stat.label} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               marginBottom: '10px', paddingBottom: '10px',
