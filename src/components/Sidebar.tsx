@@ -7,7 +7,6 @@ import WorkspaceAvatar from './WorkspaceAvatar'
 
 interface Props {
   // Auth
-  userId: string
   profile: Profile | null
   // Workspace
   workspaces: Workspace[]
@@ -252,7 +251,7 @@ export default function Sidebar({
 
         {/* Workspace dropdown */}
         {showWorkspaces && !collapsed && (
-          <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+          <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '1px', maxHeight: '200px', overflowY: 'auto' }}>
             <button
               onClick={() => { onWorkspaceChange(null); setShowWorkspaces(false) }}
               style={{ ...S.navBtn(!currentWorkspace, false), padding: '5px 8px', fontSize: '12px' }}>

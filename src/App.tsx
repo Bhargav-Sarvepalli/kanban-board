@@ -506,7 +506,6 @@ function App() {
 
       {/* ── SIDEBAR ── */}
       <Sidebar
-        userId={userId ?? ''}
         profile={profile}
         workspaces={workspaces}
         currentWorkspace={currentWorkspace}
