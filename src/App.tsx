@@ -87,7 +87,7 @@ function App() {
 
   const navigate = useNavigate()
   const location = useLocation()
-  const isPro    = true
+  const isPro    = false
 
   const [nexEnabled, setNexEnabled] = useState(() => {
     try { return localStorage.getItem('nex_enabled') !== 'false' }

@@ -212,9 +212,33 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
     }
   }, [loadContext, onTaskCreated, onOpenProjectWizard, onOpenWorkspacePanel, onOpenPomodoro])
 
-  const fireNex = useCallback(async (transcript: string) => {
-    if (!transcript.trim() || !userId) return
-    if (!ctxReadyRef.current) return
+  const FREE_LIMIT = 5
+
+    const fireNex = useCallback(async (transcript: string) => {
+      if (!transcript.trim() || !userId) return
+      if (!ctxReadyRef.current) return
+      if (!isPro) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('nex_message_count')
+          .eq('id', userId)
+          .single()
+
+        const count = profile?.nex_message_count ?? 0
+
+        if (count >= FREE_LIMIT) {
+          addMessage('nex', "You've used your 5 free Nex messages. Upgrade to Pro to keep going.")
+          speak("You've used your 5 free messages. Upgrade to Pro to continue.")
+          setGlobeState('idle')
+          processingRef.current = false
+          return
+        }
+
+        await supabase
+          .from('profiles')
+          .update({ nex_message_count: count + 1 })
+          .eq('id', userId)
+      }
     const cleanTranscript = transcript.trim()
     const now = Date.now()
     if (processingRef.current) return
