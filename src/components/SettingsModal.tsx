@@ -5,7 +5,7 @@ import { supabase } from '../supabase'
 import type { Profile } from '../types'
 import Avatar from './Avatar'
 
-type DefaultView = 'daily' | 'today' | 'board' | 'calendar' | 'pomodoro'
+type DefaultView = 'today' | 'board' | 'calendar' | 'pomodoro'
 type Tab = 'profile' | 'preferences' | 'account'
 
 interface Props {
@@ -27,7 +27,6 @@ const tabs: { id: Tab; label: string }[] = [
 ]
 
 const defaultViews: { id: DefaultView; label: string; desc: string }[] = [
-  { id: 'daily', label: 'Daily', desc: 'Nex plan' },
   { id: 'today', label: 'Today', desc: 'Daily focus' },
   { id: 'board', label: 'Board', desc: 'Kanban work' },
   { id: 'calendar', label: 'Calendar', desc: 'Schedule' },
