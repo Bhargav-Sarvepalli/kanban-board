@@ -264,19 +264,22 @@ export function stripMarkdown(text: string): string {
 export function buildGreeting(ctx: TaskContext): string {
   const hour = new Date().getHours()
   const greeting =
-    hour < 5  ? 'Working late.' :
-    hour < 12 ? 'Good morning.' :
-    hour < 17 ? 'Good afternoon.' :
-    hour < 21 ? 'Good evening.' : 'Still at it.'
+    hour < 5  ? 'Working late' :
+    hour < 12 ? 'Good morning' :
+    hour < 17 ? 'Good afternoon' :
+    hour < 21 ? 'Good evening' : 'Still at it'
   const today = fmt(new Date())
   const overdue    = ctx.tasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done')
   const dueToday   = ctx.tasks.filter(t => t.due_date === today && t.status !== 'done')
   const inProgress = ctx.tasks.filter(t => t.status === 'in_progress')
-  if (ctx.tasks.length === 0) return `${greeting} Board is clear. What are we building today?`
-  if (overdue.length > 0)     return `${greeting} ${overdue.length} ${overdue.length === 1 ? 'task' : 'tasks'} overdue. What do you need?`
-  if (dueToday.length > 0)    return `${greeting} ${dueToday.length} due today. What can I help with?`
-  if (inProgress.length > 0)  return `${greeting} ${inProgress.length} in progress. What do you need?`
-  return `${greeting} What can I help you with?`
+
+  const intro = `${greeting} — I'm Nex, your AI project assistant. I can create and update tasks, run a standup brief, summarize blockers, or start a focus session. You have 5 free messages to try it out.`
+
+  if (ctx.tasks.length === 0) return `${intro} Your board is clear — what are we building?`
+  if (overdue.length > 0)     return `${intro} You have ${overdue.length} overdue ${overdue.length === 1 ? 'task' : 'tasks'} — want me to summarize them?`
+  if (dueToday.length > 0)    return `${intro} ${dueToday.length} ${dueToday.length === 1 ? 'task is' : 'tasks are'} due today — need a standup brief?`
+  if (inProgress.length > 0)  return `${intro} ${inProgress.length} ${inProgress.length === 1 ? 'task' : 'tasks'} in progress — what do you need?`
+  return intro
 }
 
 async function callNexChat(body: Record<string, unknown>) {
