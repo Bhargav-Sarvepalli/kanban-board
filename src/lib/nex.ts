@@ -261,7 +261,7 @@ export function stripMarkdown(text: string): string {
     .replace(/\n{2,}/g, '. ').replace(/\n/g, ' ').trim()
 }
 
-export function buildGreeting(ctx: TaskContext): string {
+export function buildGreeting(ctx: TaskContext, isFirstTime = false): string {
   const hour = new Date().getHours()
   const greeting =
     hour < 5  ? 'Working late' :
@@ -275,6 +275,16 @@ export function buildGreeting(ctx: TaskContext): string {
 
   const intro = `${greeting} — I'm Nex, your AI project assistant. I can create and update tasks, run a standup brief, summarize blockers, or start a focus session. You have 5 free messages to try it out.`
 
+  if (!isFirstTime) {
+    // returning user — original context-aware greeting
+    if (ctx.tasks.length === 0) return `${greeting}. Board is clear. What are we building today?`
+    if (overdue.length > 0)     return `${greeting}. ${overdue.length} overdue ${overdue.length === 1 ? 'task' : 'tasks'}. What do you need?`
+    if (dueToday.length > 0)    return `${greeting}. ${dueToday.length} due today. What can I help with?`
+    if (inProgress.length > 0)  return `${greeting}. ${inProgress.length} in progress. What do you need?`
+    return `${greeting}. What can I help you with?`
+  }
+
+  // first time — full intro
   if (ctx.tasks.length === 0) return `${intro} Your board is clear — what are we building?`
   if (overdue.length > 0)     return `${intro} You have ${overdue.length} overdue ${overdue.length === 1 ? 'task' : 'tasks'} — want me to summarize them?`
   if (dueToday.length > 0)    return `${intro} ${dueToday.length} ${dueToday.length === 1 ? 'task is' : 'tasks are'} due today — need a standup brief?`

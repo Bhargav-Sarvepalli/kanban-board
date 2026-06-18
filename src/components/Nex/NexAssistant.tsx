@@ -360,8 +360,14 @@ export default function NexAssistant({ workspaceId, projectId = null, userId, is
       return
     }
 
-    void loadContext().then(ctx => {
-      const greeting = ctx ? buildGreeting(ctx) : 'What can I help you with?'
+    void loadContext().then(async ctx => {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('nex_message_count')
+        .eq('id', userId)
+        .single()
+      const isFirstTime = (profileData?.nex_message_count ?? 0) === 0
+      const greeting = ctx ? buildGreeting(ctx, isFirstTime) : 'What can I help you with?'
       addMessage('nex', greeting)
       const fallbackTimer = setTimeout(() => {
         if (globeStateRef.current === 'idle') startListeningCycle()
